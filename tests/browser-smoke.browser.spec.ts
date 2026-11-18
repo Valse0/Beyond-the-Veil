@@ -197,6 +197,7 @@ test('region selection reads unlocked regions from the persisted profile', async
 type BrowserRunSnapshot = {
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;
   paused:boolean;bossSpawned:boolean;choices:{id:string;title:string}[];
+  runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
   controls:{rerollsRemaining:number;banishesRemaining:number;skipsRemaining:number;bannedChoiceIds:string[]};
 };
 
@@ -236,6 +237,30 @@ async function spawnBrowserTestXp(page: import('@playwright/test').Page,xp:numbe
     if(!game)throw new Error('Development browser test bridge is not available.');
     game.scene.getScene('run').browserTestSpawnXpOrb(value);
   },xp);
+}
+
+async function defeatBrowserTestEnemy(page: import('@playwright/test').Page,enemyId:string): Promise<void> {
+  await page.evaluate(id => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestSpawnAndDefeatEnemy:(value:string)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestSpawnAndDefeatEnemy(id);
+  },enemyId);
+}
+
+async function defeatBrowserTestBoss(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestDefeatBoss:()=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestDefeatBoss();
+  });
+}
+
+async function finishBrowserTestRun(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestFinishRun:()=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestFinishRun();
+  });
 }
 
 
@@ -322,3 +347,82 @@ test('accelerated run clock reaches the 14-minute boss trigger without waiting 1
   expect((await canvas.screenshot()).length).toBeGreaterThan(1_000);
 });
 
+
+test('enemy defeat rewards survive death and a full page reload', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+
+  // rootbound-husk has 2 XP, so its real death handler awards floor(2 / 2) = 1 Ruh Özü.
+  await defeatBrowserTestEnemy(page,'rootbound-husk');
+  const afterKill=await readBrowserRunSnapshot(page);
+  expect(afterKill.kills).toBe(1);
+  expect(afterKill.runSoulEssence).toBe(1);
+
+  await finishBrowserTestRun(page);
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved).toBe(true);
+  const deathResult=await readBrowserRunSnapshot(page);
+  expect(deathResult.runFinished).toBe(true);
+  expect(deathResult.lastRunSaved).toBe(true);
+
+  const savedAfterDeath=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(savedAfterDeath.progression.soulEssence).toBe(1);
+  expect(savedAfterDeath.progression.completedRuns).toBe(1);
+  expect(savedAfterDeath.progression.unlockedRegionIds).toEqual(['cursed-forest']);
+
+  await page.reload();
+  await expect(page.locator('#game-container canvas')).toBeVisible();
+  const savedAfterReload=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(savedAfterReload.progression.soulEssence).toBe(1);
+  expect(savedAfterReload.progression.completedRuns).toBe(1);
+  expect(savedAfterReload.progression.unlockedRegionIds).toEqual(['cursed-forest']);
+  expect(pageErrors).toEqual([]);
+});
+
+test('boss defeat persists authored boss essence and unlocks the next region', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+
+  // The helper invokes the real boss spawn, damage transition and defeat/result path.
+  await defeatBrowserTestBoss(page);
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved).toBe(true);
+  const victory=await readBrowserRunSnapshot(page);
+  expect(victory.runFinished).toBe(true);
+  expect(victory.runSoulEssence).toBe(180);
+  expect(victory.lastRunSaved).toBe(true);
+
+  const savedVictory=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(savedVictory.progression.soulEssence).toBe(180);
+  expect(savedVictory.progression.completedRuns).toBe(1);
+  expect(savedVictory.progression.unlockedRegionIds).toContain('forgotten-graveyard');
+
+  await page.reload();
+  await expect(page.locator('#game-container canvas')).toBeVisible();
+  const afterReload=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(afterReload.progression.soulEssence).toBe(180);
+  expect(afterReload.progression.completedRuns).toBe(1);
+  expect(afterReload.progression.unlockedRegionIds).toContain('forgotten-graveyard');
+  expect(pageErrors).toEqual([]);
+});
+
+test('run results clearly report when browser storage refuses to save rewards', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  await defeatBrowserTestEnemy(page,'rootbound-husk');
+
+  // Simulate a full/read-only browser storage failure after the first profile was created.
+  await page.evaluate(() => {
+    Storage.prototype.setItem=function():void { throw new Error('Simulated storage write failure'); };
+  });
+  await finishBrowserTestRun(page);
+
+  const failed=await readBrowserRunSnapshot(page);
+  expect(failed.runFinished).toBe(true);
+  expect(failed.lastRunSaved).toBe(false);
+  const unchanged=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(unchanged.progression.soulEssence).toBe(0);
+  expect(unchanged.progression.completedRuns).toBe(0);
+  expect(pageErrors).toEqual([]);
+});
