@@ -410,7 +410,7 @@ export class RunScene extends Phaser.Scene {
     const transition=damageBoss(this.bossState,this.bossDefinition,damage,this.time.now);this.bossState=transition.state;
     boss.setData('health',transition.state.health).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(boss.active)boss.clearTint();});
-    if(transition.changed){this.bossPhaseText?.setText(transition.current.name);this.cameras.main.flash(320,90,38,55);
+    if(transition.changed&&!transition.state.defeated){this.bossPhaseText?.setText(transition.current.name);this.cameras.main.flash(320,90,38,55);
       for(const id of transition.current.addEnemyIds){const def=ENEMIES.find(e=>e.id===id);if(def)this.createEnemy(boss.x+Phaser.Math.Between(-90,90),boss.y+Phaser.Math.Between(-90,90),def,1.2);}}
     this.bossHealth?.setSize(300*Phaser.Math.Clamp(transition.state.health/transition.state.maxHealth,0,1),5);
     if(transition.state.defeated)this.defeatBoss(boss);
@@ -514,8 +514,11 @@ export class RunScene extends Phaser.Scene {
     return shuffled.slice(0,4);
   }
 
+  private pauseRunWorld():void {this.paused=true;this.time.paused=true;this.physics.world.pause();}
+  private resumeRunWorld():void {this.time.paused=false;this.physics.world.resume();this.paused=false;}
+
   private showLevelUp():void {
-    this.paused=true;this.clearOverlay();const w=this.scale.width,h=this.scale.height;
+    this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
     this.overlay.push(this.add.rectangle(w/2,h/2,w,h,0x08070b,.88).setScrollFactor(0).setDepth(200));
     this.overlay.push(this.add.text(w/2,h*.23,'GÜÇLENME SEÇİMİ',{fontFamily:'Georgia',fontSize:'30px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
     this.overlay.push(this.add.text(w/2,h*.31,'Bir gelişim seç. Her seçim koşunu değiştirir.',{fontSize:'15px',color:'#aaa0a0'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
@@ -541,20 +544,20 @@ export class RunScene extends Phaser.Scene {
     if(choice.kind==='passive-add'){const def=PASSIVES.find(p=>p.id===choice.contentId);if(def)this.build=addPassive(this.build,def);}
     if(choice.kind==='passive-up'){const def=PASSIVES.find(p=>p.id===choice.contentId);if(def)this.build=upgradePassive(this.build,def);}
     this.refreshBuildStats();this.queuedLevels=Math.max(0,this.queuedLevels-1);this.clearOverlay();this.refreshHud();
-    if(this.queuedLevels>0)this.showLevelUp();else this.paused=false;
+    if(this.queuedLevels>0)this.showLevelUp();else this.resumeRunWorld();
   }
 
   private openPause():void {
-    if(this.paused)return;this.paused=true;this.clearOverlay();const w=this.scale.width,h=this.scale.height;
+    if(this.paused)return;this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.84).setScrollFactor(0).setDepth(200);
     const title=this.add.text(w/2,h*.36,'DURAKLATILDI',{fontFamily:'Georgia',fontSize:'34px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     const resume=this.add.text(w/2,h*.52,'DEVAM ET',{fontSize:'20px',color:'#fff',backgroundColor:'#5b3d32',padding:{x:24,y:12}}).setOrigin(.5).setScrollFactor(0).setDepth(201).setInteractive();
     const menu=this.add.text(w/2,h*.64,'ANA MENÜ',{fontSize:'16px',color:'#c9bda9'}).setOrigin(.5).setScrollFactor(0).setDepth(201).setInteractive();
-    resume.on('pointerup',()=>{this.clearOverlay();this.paused=false;});menu.on('pointerup',()=>this.scene.start('main-menu'));this.overlay.push(shade,title,resume,menu);
+    resume.on('pointerup',()=>{this.clearOverlay();this.resumeRunWorld();});menu.on('pointerup',()=>this.scene.start('main-menu'));this.overlay.push(shade,title,resume,menu);
   }
 
   private finishRun(won:boolean):void {
-    if(this.runFinished)return;this.runFinished=true;this.paused=true;this.clearOverlay();const w=this.scale.width,h=this.scale.height;
+    if(this.runFinished)return;this.runFinished=true;this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.9).setScrollFactor(0).setDepth(200);
     const title=this.add.text(w/2,h*.32,won?'KOŞU TAMAMLANDI':'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     const summary=this.add.text(w/2,h*.45,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman',{fontSize:'18px',color:'#c0b5a8'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
