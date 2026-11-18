@@ -1,400 +1,408 @@
-BEYOND THE VEIL — DEVELOPMENT PLAN
+# BEYOND THE VEIL — DEVELOPMENT PLAN
 
 Project: Beyond the Veil
-Document: Development Roadmap & Project Structure
-Status: Initial Plan
+Document: Product Design, Technical Architecture & Full-Game Delivery Plan
+Status: Active — Full-game design and implementation
 Design Reference: Game Design Document.md
 
-1. Project Direction
+## 1. Project Direction
 
 Beyond the Veil is a single-player, offline-first dark fantasy roguelite built with:
 
-* Phaser 3
-* TypeScript
-* Vite
-* Capacitor (Android packaging, planned)
+- Phaser 3
+- TypeScript
+- Vite
+- Capacitor (Android packaging, planned)
 
-The project will use one shared codebase for Web and Android.
+The project will use one shared codebase for Web and Android. The initial target is Web; Android packaging follows once the shared game is stable.
 
-The main priority is a polished, genuinely playable game. Content quantity must never take priority over working mechanics, visual quality, performance, or stability.
+The target is the complete game defined by the GDD, not a small prototype or vertical slice. The game should be fully designed before implementation begins in earnest. Implementation should then deliver the complete set of planned systems, screens, and content as an integrated, playable product.
 
-The Game Design Document defines the intended game experience. This plan defines how that experience will be implemented.
+Development may be organized into internal modules and implementation batches for reliability, review, and testing. These are engineering boundaries, not reduced-scope demo releases. Do not stop at a one-character/one-region sample and treat it as the intended deliverable.
 
-2. Proposed Project Structure
+The GDD defines the intended game experience. This plan defines how that experience will be designed, structured, implemented, tested, and completed.
 
-The following structure is the target architecture. Directories should be created when their corresponding development phase begins, not all at once.
+## 2. Product Design Before Full Implementation
+
+Before full-game coding begins, complete the player-facing and system-level design. Existing decisions in the GDD remain authoritative; only unresolved or underspecified areas need new decisions.
+
+The design package must cover:
+
+- Information architecture and complete screen/navigation map.
+- Main menu: layout, hierarchy, background treatment, primary actions, secondary navigation, and transitions.
+- Hunter Hub / home area and all progression destinations.
+- Character gallery, character details, unlock states, and selection flow.
+- Region and difficulty selection, run preparation, and loadout flow.
+- In-run HUD, mobile controls, pause screen, level-up choices, event notices, boss warnings, and interaction prompts.
+- Victory, defeat, run summary, rewards, and return flow.
+- Weapons, passives, elements, evolutions, upgrades, items, enemies, elites, bosses, and region content definitions.
+- Permanent progression, economy, quests, mastery, achievements, collection, crafting, and unlock rules.
+- Save slots or profile behavior, settings, accessibility, localization, and input customization.
+- Responsive layout rules for landscape mobile and desktop/web.
+- Audio behavior, feedback, motion, transitions, and visual hierarchy.
+- Asset inventory: every required visual/audio asset, stable asset ID, intended dimensions or animation needs, format, and destination.
+
+Do not invent unnecessary features to fill documents. Preserve all established GDD decisions and explicitly identify any remaining decisions that materially affect scope, UX, balance, or architecture.
+
+Design completion means the screens, navigation, core rules, content data requirements, and asset requirements are specified well enough to implement without repeatedly redesigning foundational decisions during coding.
+
+## 3. Proposed Project Structure
+
+This is the target architecture, not a requirement to create empty directories in advance. Create files when their implementation is needed.
 
 Beyond-the-Veil/
-│
-├── public/
-│   └── assets/
-│       ├── sprites/
-│       │   ├── characters/
-│       │   ├── enemies/
-│       │   ├── bosses/
-│       │   ├── environments/
-│       │   ├── weapons/
-│       │   ├── effects/
-│       │   └── ui/
-│       ├── audio/
-│       │   ├── music/
-│       │   └── sfx/
-│       └── fonts/
-│
-├── src/
-│   ├── main.ts
-│   │
-│   ├── game/
-│   │   ├── config/
-│   │   ├── scenes/
-│   │   ├── camera/
-│   │   └── physics/
-│   │
-│   ├── core/
-│   │   ├── events/
-│   │   ├── types/
-│   │   ├── constants/
-│   │   └── utilities/
-│   │
-│   ├── gameplay/
-│   │   ├── player/
-│   │   ├── characters/
-│   │   ├── combat/
-│   │   ├── weapons/
-│   │   ├── passives/
-│   │   ├── elements/
-│   │   ├── enemies/
-│   │   ├── bosses/
-│   │   ├── spawning/
-│   │   ├── waves/
-│   │   ├── experience/
-│   │   ├── level-up/
-│   │   ├── loot/
-│   │   └── run/
-│   │
-│   ├── world/
-│   │   ├── regions/
-│   │   ├── maps/
-│   │   ├── environment/
-│   │   └── exploration/
-│   │
-│   ├── progression/
-│   │   ├── economy/
-│   │   ├── relics/
-│   │   ├── crafting/
-│   │   ├── quests/
-│   │   ├── mastery/
-│   │   ├── achievements/
-│   │   └── collection/
-│   │
-│   ├── ui/
-│   │   ├── screens/
-│   │   ├── components/
-│   │   ├── hud/
-│   │   └── menus/
-│   │
-│   ├── systems/
-│   │   ├── save/
-│   │   ├── audio/
-│   │   ├── localization/
-│   │   ├── input/
-│   │   └── platform/
-│   │
-│   ├── data/
-│   │   ├── characters/
-│   │   ├── weapons/
-│   │   ├── passives/
-│   │   ├── enemies/
-│   │   ├── bosses/
-│   │   ├── regions/
-│   │   ├── items/
-│   │   ├── upgrades/
-│   │   └── localization/
-│   │
-│   └── dev/
-│       └── debug-tools/
-│
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── gameplay/
-│
-├── scripts/
-│
-├── docs/
-│
-├── Game Design Document.md
-├── PLAN.md
-├── AGENTS.md
-├── README.md
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-└── capacitor.config.ts
+|
+|-- public/
+|   |-- assets/
+|       |-- sprites/
+|       |   |-- characters/
+|       |   |-- enemies/
+|       |   |-- bosses/
+|       |   |-- environments/
+|       |   |-- weapons/
+|       |   |-- effects/
+|       |   |-- ui/
+|       |-- audio/
+|       |   |-- music/
+|       |   |-- sfx/
+|       |-- fonts/
+|
+|-- src/
+|   |-- main.ts
+|   |-- game/
+|   |   |-- config/
+|   |   |-- scenes/
+|   |   |-- camera/
+|   |   |-- physics/
+|   |-- core/
+|   |   |-- events/
+|   |   |-- types/
+|   |   |-- constants/
+|   |   |-- utilities/
+|   |-- gameplay/
+|   |   |-- player/
+|   |   |-- characters/
+|   |   |-- combat/
+|   |   |-- weapons/
+|   |   |-- passives/
+|   |   |-- elements/
+|   |   |-- enemies/
+|   |   |-- bosses/
+|   |   |-- spawning/
+|   |   |-- waves/
+|   |   |-- experience/
+|   |   |-- level-up/
+|   |   |-- loot/
+|   |   |-- run/
+|   |-- world/
+|   |   |-- regions/
+|   |   |-- maps/
+|   |   |-- environment/
+|   |   |-- exploration/
+|   |-- progression/
+|   |   |-- economy/
+|   |   |-- relics/
+|   |   |-- crafting/
+|   |   |-- quests/
+|   |   |-- mastery/
+|   |   |-- achievements/
+|   |   |-- collection/
+|   |-- ui/
+|   |   |-- screens/
+|   |   |-- components/
+|   |   |-- hud/
+|   |   |-- menus/
+|   |-- systems/
+|   |   |-- save/
+|   |   |-- audio/
+|   |   |-- localization/
+|   |   |-- input/
+|   |   |-- platform/
+|   |-- data/
+|   |   |-- characters/
+|   |   |-- weapons/
+|   |   |-- passives/
+|   |   |-- enemies/
+|   |   |-- bosses/
+|   |   |-- regions/
+|   |   |-- items/
+|   |   |-- upgrades/
+|   |   |-- localization/
+|   |-- dev/
+|       |-- debug-tools/
+|
+|-- tests/
+|   |-- unit/
+|   |-- integration/
+|   |-- gameplay/
+|-- scripts/
+|-- docs/
+|-- Game Design Document.md
+|-- PLAN.md
+|-- AGENTS.md
+|-- README.md
+|-- package.json
+|-- tsconfig.json
+|-- vite.config.ts
+|-- capacitor.config.ts
 
-Structure Rules
+### Structure Rules
 
-* game/ manages Phaser configuration, scenes, camera, and physics integration.
-* core/ contains shared types, constants, utilities, and controlled event definitions.
-* gameplay/ contains actual gameplay mechanics and their rules.
-* world/ manages regions, maps, environmental interactions, and exploration.
-* progression/ handles permanent player progression and long-term systems.
-* ui/ contains menus, HUD, screens, and reusable interface components.
-* systems/ contains shared services such as saving, audio, input, and localization.
-* data/ stores content definitions separately from gameplay implementation.
-* public/assets/ stores game artwork, animations, audio, and fonts.
-* tests/ contains automated tests.
-* dev/ contains development-only tools that must not be exposed in normal builds.
+- `game/` manages Phaser configuration, scenes, camera, and physics integration.
+- `core/` contains shared types, constants, utilities, and typed event definitions.
+- `gameplay/` contains gameplay mechanics and rules.
+- `world/` manages regions, maps, environmental interactions, and exploration.
+- `progression/` handles permanent player progression and long-term systems.
+- `ui/` contains menus, HUD, screens, and reusable interface components.
+- `systems/` contains shared services such as saving, audio, input, and localization.
+- `data/` stores content definitions separately from the code that executes their behavior.
+- `public/assets/` stores artwork, animation, audio, and fonts.
+- `tests/` contains automated tests.
+- `dev/` contains development-only tools that must not be exposed in normal builds.
 
-Do not create unnecessary abstractions or empty modules. Add files when there is a real implementation need.
+Do not create unnecessary abstractions or empty modules. Add real implementation files as part of the planned full-game architecture.
 
-3. Technical Architecture
+## 4. Technical Architecture
 
-Game Engine
+### Game Engine
 
-Use Phaser 3 as the game engine.
+Use Phaser 3.
 
-* Use Phaser Scenes to separate major game states.
-* Use Arcade Physics for standard gameplay collisions unless a demonstrated requirement needs something else.
-* Keep gameplay logic separate from rendering wherever practical.
-* Use object pooling for frequently created objects such as projectiles, enemies, and effects when profiling justifies it.
+- Use Phaser Scenes to separate major game states and screen flows.
+- Use Arcade Physics for standard gameplay collisions unless a demonstrated requirement needs another approach.
+- Keep gameplay rules and state separate from rendering wherever practical.
+- Use object pooling for frequently created objects such as projectiles, enemies, and effects when profiling justifies it.
+- Keep landscape orientation as the primary game layout.
 
-Code Architecture
+### Code Architecture
 
-* TypeScript with strict type checking.
-* Modular systems with clear responsibilities.
-* Data-driven content definitions.
-* Typed events for communication between independent systems.
-* Avoid oversized classes and tightly coupled modules.
-* Avoid unnecessary frameworks and dependencies.
-* Keep the game playable without a backend or account.
+- TypeScript with strict type checking.
+- Modular systems with clear responsibilities and explicit boundaries.
+- Data-driven content definitions.
+- Typed events for communication between independent systems.
+- Avoid oversized classes, hidden global state, and tightly coupled modules.
+- Avoid unnecessary frameworks and dependencies.
+- Keep the game single-player and playable offline without an account or backend.
 
-Content Architecture
+### Data-Driven Content
 
-Characters, weapons, enemies, bosses, regions, upgrades, and items should use centralized data definitions.
+Characters, weapons, enemies, bosses, regions, upgrades, items, quests, and progression rewards must be defined as structured content data, separate from behavior implementation.
 
-Content definitions should be separated from the code that executes their behavior.
+- Give each content item a stable unique ID.
+- Keep stats, descriptions, unlock conditions, behavior parameters, and asset references in explicit definitions.
+- Validate required fields, IDs, references, and supported values.
+- Prefer reusable behavior components over one-off duplicated implementations.
+- Content should be expandable without rewriting core systems.
 
-Validate important data references and required fields. A missing asset or invalid content definition should produce a useful development error rather than silently breaking gameplay.
+### Asset Abstraction and Placeholder Strategy
 
-UI Architecture
+Gameplay code must not depend on hard-coded visual file paths or on a specific final sprite.
 
-Use Phaser for the game presentation and interface unless a specific feature has a clear reason to use a separate HTML interface.
+- Define stable asset IDs and a central asset registry/manifest.
+- Reference assets through those IDs from content data and presentation components.
+- Separate animation definitions, texture loading, visual effects, and gameplay state.
+- Use temporary placeholder visuals where final art is not yet available.
+- Placeholders must preserve the required anchor points, approximate dimensions, animation states, collision alignment, and UI layout needs.
+- Replacing a placeholder with final artwork should normally require changing the asset mapping or asset files, not gameplay logic.
+- Missing assets must produce clear development-time diagnostics and safe fallbacks.
+- Record asset source, license, attribution requirements, and usage in the asset inventory.
 
-Maintain a consistent visual language across menus, HUD, upgrade cards, dialogs, and results screens.
+The placeholder phase is a production strategy, not the final visual target. Final original/licensed art, animation, audio, and UI assets remain required for release quality.
 
-Save Architecture
+### UI Architecture
+
+- Use Phaser for game presentation and interface unless a specific feature has a clear reason to use a separate HTML interface.
+- Implement screens and reusable UI components from the completed screen/navigation design.
+- Maintain one coherent visual system across menus, HUD, upgrade cards, dialogs, and results.
+- Support landscape mobile and desktop/web layouts.
+- Keep UI state and navigation transitions explicit and testable.
+
+### Save Architecture
 
 Use a storage abstraction so gameplay systems do not depend directly on a particular storage technology.
 
-Initial implementation should prioritize reliable local saves.
+Prioritize reliable local saves, including:
 
-The save system should eventually support:
-
-* Automatic saving.
-* Multiple backup generations.
-* Save version checks and migrations.
-* Corrupted save recovery.
-* Export and import.
+- Automatic and safe save points.
+- Multiple backup generations.
+- Save schema version checks and migrations.
+- Corrupted-save detection and recovery.
+- Export and import where designed.
+- Persistence tests for unlocks, currency, settings, collections, and progression.
 
 Cloud synchronization is not required.
 
-Platform Architecture
+### Platform Architecture
 
-The initial target is Web.
+- Web is the first target.
+- Android packaging will use Capacitor after the shared game is stable.
+- Preserve gameplay rules and progression across supported platforms.
+- Input, viewport, storage, and platform-specific behavior must be accessed through clear platform abstractions where needed.
 
-Android packaging will be introduced through Capacitor after the core game is stable.
+## 5. Full-Game Delivery Roadmap
 
-The game must preserve the same gameplay rules and progression across supported platforms.
+Work follows these major stages. Each stage can contain multiple engineering tasks, but the target remains the complete game.
 
-4. Development Roadmap
+### Stage 1 — Complete Game Design
 
-Development must follow this order. Each phase must meet its acceptance criteria before being considered complete.
+- Review the GDD and preserve established decisions.
+- Resolve remaining material design questions.
+- Design all menus, screens, navigation, and player flows.
+- Specify HUD, controls, interaction states, and responsive landscape layouts.
+- Complete system rules and content definitions for the full GDD scope.
+- Define progression, unlocks, economy, save behavior, settings, accessibility, and localization.
+- Create the complete asset inventory and stable asset-ID plan.
 
-Phase 1 — Foundation
+Completion criteria: The complete game experience and its implementation requirements are sufficiently specified. No foundational screen or core system is left as an unexplained placeholder in the design.
 
-* Initialize Phaser, TypeScript, and Vite.
-* Configure the game viewport and landscape orientation.
-* Create the initial scene structure.
-* Establish asset loading and configuration.
-* Implement basic input handling.
-* Establish the initial project architecture.
-* Add a minimal development and testing workflow.
+### Stage 2 — Full Technical Foundation and Architecture
 
-Completion criteria: The game starts reliably, loads its assets, and transitions between basic scenes without errors.
+- Initialize Phaser 3, TypeScript, and Vite.
+- Configure landscape viewport behavior and responsive scaling.
+- Establish scene flow and navigation foundations.
+- Implement typed core models, event contracts, and data validation.
+- Establish data-driven content loading.
+- Establish the asset registry, manifest, placeholder policy, and diagnostics.
+- Establish input, audio, local save, localization, and platform abstractions.
+- Establish automated test, lint, type-check, and build workflows as appropriate.
 
-Phase 2 — Playable Combat Foundation
+Completion criteria: The architecture supports the complete designed game, content can be loaded and validated, asset mappings can be replaced independently, and the application runs reliably.
 
-* Player movement and directional animation.
-* Dash and cooldown.
-* Automatic weapon attacks.
-* Basic enemy movement and AI.
-* Damage, health, and collision handling.
-* Enemy spawning and wave progression.
-* XP drops and collection.
-* Level-up with four upgrade choices.
-* Basic combat HUD.
-* Run start, pause, victory, and defeat states.
+### Stage 3 — Complete Gameplay and Content Implementation
 
-Completion criteria: A complete basic run can be played from start to finish using real gameplay systems.
+Implement the full designed gameplay scope as integrated systems, including:
 
-Phase 3 — Combat Depth
+- All playable characters and their unique abilities and starting identities.
+- Player movement, dash, combat, damage, health, status effects, and targeting.
+- All weapons, weapon levels, branches, and evolutions.
+- All passive items, upgrades, synergies, and item slots.
+- All seven elements, buildup rules, interactions, and resistance handling.
+- All base enemies, elite variants, mutations, and distinct behavior patterns.
+- All bosses, phases, telegraphs, arenas, and reward rules.
+- All five regions, map content, environmental hazards, exploration points, and events.
+- Spawning, waves, run timing, difficulty, modes, victory, defeat, and run rewards.
+- XP, level-up choices, loot, chests, and run progression.
+- Permanent progression, economy, Hunter Hub, relics, crafting, quests, mastery, achievements, collection, New Game+, and Endless Mode as defined in the GDD/design decisions.
+- Complete local persistence and recovery behavior.
 
-* Weapon levels and upgrade branches.
-* Passive items.
-* Elemental effects and interactions.
-* Weapon evolution.
-* Elite enemies.
-* Boss encounters and phase transitions.
-* Chests and rewards.
-* Combat balancing.
+Use temporary placeholder visuals and audio references wherever final assets are unavailable. Do not omit a system merely because its final art has not yet been produced.
 
-Completion criteria: Different builds create meaningful gameplay differences, and at least one complete boss encounter works correctly.
+Completion criteria: The complete planned content and gameplay systems are implemented and integrated. The game can be played through its designed flows using placeholders where necessary; no vertical-slice-only scope is treated as completion.
 
-Phase 4 — Core Content Production
+### Stage 4 — Complete UI and Player Experience
 
-* Five playable characters.
-* Five regions.
-* Twenty-five distinct basic enemies.
-* Five main bosses.
-* Twelve weapons.
-* Twelve passive items.
-* Seven elements.
-* Region-specific environmental hazards.
-* Character and weapon progression.
+- Implement the designed main menu and all navigation.
+- Implement the Hunter Hub and progression destinations.
+- Implement character and region selection, preparation, and loadout screens.
+- Implement the complete in-run HUD and mobile/desktop controls.
+- Implement pause, level-up, event, boss warning, victory, defeat, and result screens.
+- Implement settings, accessibility, localization, and input customization.
+- Connect every screen to real game state and actions; no decorative/inert controls.
 
-Completion criteria: Content is mechanically and visually distinguishable, playable, and connected to the appropriate systems. Recolored copies do not count as unique content.
+UI work may be implemented alongside gameplay where integration requires it, but all designed player-facing flows must be complete before release evaluation.
 
-Phase 5 — Permanent Progression and Exploration
+Completion criteria: Every designed screen and interaction works, reflects actual game state, and follows the approved visual system.
 
-* Soul Essence economy.
-* Permanent upgrades and unlocks.
-* Hunter Hub.
-* Relics and crafting.
-* Quests and challenges.
-* Character and weapon mastery.
-* Achievements and collections.
-* Exploration rewards.
-* Build profiles.
-* New Game+ and Endless Mode.
+### Stage 5 — Final Asset Production and Integration
 
-Completion criteria: Progress survives closing and reopening the game, and permanent unlocks work correctly.
+- Produce or source final character, enemy, boss, environment, weapon, effect, UI, audio, and font assets.
+- Follow the asset inventory, style guide, technical specifications, and stable asset IDs.
+- Create required sprite sheets, animation states, atlases, and audio formats.
+- Replace temporary placeholders through the asset registry/manifest.
+- Verify sprite anchors, scale, frame timing, collision alignment, readability, and performance.
+- Record provenance and licenses.
 
-Phase 6 — Presentation and User Experience
+Completion criteria: Final assets replace temporary placeholders across the game, all references resolve, and the presentation meets the defined art direction.
 
-* Main menu and navigation.
-* Character gallery.
-* Region selection.
-* Complete HUD and upgrade screens.
-* Run result reports.
-* Original animations and combat effects.
-* Music and sound effects.
-* Localization: English, Turkish, and Spanish.
-* Accessibility options.
-* Mobile control customization.
+### Stage 6 — Quality Assurance, Balancing, and Release
 
-Completion criteria: The game has a consistent visual identity, understandable interface, and complete player-facing experience.
+- Unit, integration, and gameplay regression tests.
+- Full-flow tests for menus, runs, progression, unlocks, and saves.
+- Save migration, backup, export/import, and recovery tests.
+- Combat, difficulty, economy, and progression balancing.
+- Long-session performance and memory testing.
+- Web browser and landscape mobile testing.
+- Android device testing and Capacitor packaging.
+- Accessibility, localization, and input checks.
+- Fix critical issues and document remaining known limitations.
 
-Phase 7 — Quality Assurance and Release
+Completion criteria: The complete game is stable, playable, balanced to the agreed target, works offline, and Web and Android builds are separately verified.
 
-* Unit and integration tests.
-* Gameplay regression tests.
-* Save and recovery tests.
-* Long-session performance testing.
-* Enemy and projectile performance optimization.
-* Web browser testing.
-* Android device testing.
-* Capacitor packaging.
-* Final bug fixing and release preparation.
-
-Completion criteria: No known critical gameplay, save, or stability issues remain. Web and Android builds are verified separately.
-
-5. Vertical Slice Strategy
-
-Before producing the full content list, build one representative playable section.
-
-The first vertical slice should contain:
-
-* One playable character.
-* One test region.
-* A small but varied enemy group.
-* One functional weapon.
-* A few meaningful upgrades.
-* XP and level-up.
-* One elite encounter.
-* One complete boss fight.
-* A basic results screen.
-* A working local save.
-
-The vertical slice must demonstrate the intended visual quality, combat feel, progression loop, and technical foundation.
-
-It is a quality checkpoint, not a replacement for the full game.
-
-6. Quality and Testing Rules
+## 6. Quality and Testing Rules
 
 A feature is not complete merely because its UI exists or its data has been added.
 
 Every implemented feature must be checked for:
 
-* Correct gameplay behavior.
-* Integration with related systems.
-* Correct UI interaction.
-* Save behavior when applicable.
-* Error handling.
-* Performance impact.
-* Web compatibility.
-* Android compatibility when applicable.
+- Correct gameplay behavior.
+- Integration with related systems.
+- Correct UI interaction.
+- Save behavior when applicable.
+- Error handling and edge cases.
+- Performance impact.
+- Web compatibility.
+- Android compatibility when applicable.
 
-Use automated tests where practical and manual gameplay verification where necessary.
+Use automated tests where practical and manual gameplay verification where necessary. Test continuously during implementation; continuous testing does not mean reducing the product to a prototype or vertical slice.
 
-Never report an untested feature as verified.
+Never report an untested feature as verified. Document known limitations and unfinished work.
 
-Document known limitations and unfinished work.
+## 7. Scope and Change Management
 
-7. Scope and Change Management
+- The GDD defines the intended game design.
+- This plan defines the technical structure and full-game delivery approach.
+- AGENTS.md defines the rules for AI coding agents and versioning.
+- If a technical decision conflicts with the GDD, preserve the game’s identity and core gameplay.
+- Significant architectural or product-scope changes must be documented and approved.
+- Do not add backend services, accounts, mandatory online dependencies, or paid APIs without explicit approval.
+- Do not replace the full-game target with a prototype or vertical slice.
+- Do not represent placeholder visuals as final assets.
+- Keep the project runnable and testable throughout development.
+- Implement in coherent modules and integration batches; do not attempt one opaque, unreviewable code dump.
 
-* The GDD defines the intended game design.
-* This plan defines the technical structure and implementation order.
-* AGENTS.md defines the rules for AI coding agents.
-* If a technical decision conflicts with the GDD, preserve the game’s identity and core gameplay.
-* Significant architectural changes must be documented.
-* Do not add backend services, accounts, or mandatory online dependencies without an explicit project requirement.
-* Do not implement all planned systems at once.
-* Do not replace real gameplay with placeholder UI and claim completion.
-* Keep the project runnable throughout development.
+## 8. Versioning
 
-8. Documentation
+The project version rule is defined in AGENTS.md and applies to all release metadata and release documentation:
 
-As the project grows, maintain these documents:
+- First release: `0.1.0`.
+- Each subsequent game update increments only the final number by one: `0.1.1`, `0.1.2`, `0.1.3`, and so on.
+- Keep version values consistent wherever they are recorded.
+- Do not assign a release version to an unfinished or unrecorded update.
 
-Document	Responsibility
-README.md	Project overview, setup, and run instructions
-Game Design Document.md	Game vision, mechanics, and content requirements
-PLAN.md	Architecture, folder structure, and development roadmap
-AGENTS.md	AI coding rules
-docs/ARCHITECTURE.md	Implemented technical architecture
-docs/ASSET_INVENTORY.md	Asset list, sources, and usage
-docs/TEST_REPORT.md	Verified tests and results
-docs/KNOWN_LIMITATIONS.md	Known issues and unfinished systems
-CHANGELOG.md	Important project changes
+## 9. Documentation
+
+Maintain these documents as their information becomes real:
+
+| Document | Responsibility |
+|---|---|
+| README.md | Project overview, setup, and run instructions |
+| Game Design Document.md | Game vision, mechanics, and content requirements |
+| PLAN.md | Architecture, full-game delivery roadmap, and project structure |
+| AGENTS.md | AI coding rules, approval gate, and versioning |
+| docs/ARCHITECTURE.md | Implemented technical architecture |
+| docs/ASSET_INVENTORY.md | Asset IDs, requirements, sources, and usage |
+| docs/TEST_REPORT.md | Verified tests and results |
+| docs/KNOWN_LIMITATIONS.md | Known issues and unfinished work |
+| CHANGELOG.md | Important game updates and version history |
 
 Only create detailed documentation when there is real information to record.
 
-9. Definition of Done
+## 10. Definition of Done
 
 The project is ready for release only when:
 
-* The main gameplay loop works from beginning to end.
-* Player movement, dash, and active abilities work.
-* Automatic weapons behave correctly.
-* Enemies have distinct gameplay behaviors.
-* XP, level-up, and build progression work.
-* Boss encounters can be completed.
-* Run rewards are calculated correctly.
-* Permanent progression is saved and restored.
-* The game works offline.
-* Web and Android targets are verified.
-* Critical bugs are resolved.
-* Known limitations are documented.
+- The complete main gameplay loop works from beginning to end.
+- All designed player characters and their abilities work.
+- Movement, dash, active abilities, and automatic weapons behave correctly.
+- Enemies, elites, and bosses have distinct functional behaviors.
+- All planned regions and their mechanics are implemented.
+- XP, level-up, build progression, and weapon evolutions work.
+- Permanent progression, unlocks, and rewards are saved and restored.
+- All designed menus, screens, and player flows work.
+- Final assets replace placeholders and meet the art direction.
+- The game works offline.
+- Web and Android targets are verified.
+- Critical bugs are resolved.
+- Known limitations are documented.
 
-Final principle: A smaller amount of polished, fully functional content is better than a large amount of unfinished or superficial content.
+Final principle: Deliver the complete designed game as an integrated product. Use modular implementation, replaceable assets, and continuous testing to protect quality without substituting a small demo for the full game.
