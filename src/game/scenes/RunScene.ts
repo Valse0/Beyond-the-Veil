@@ -590,7 +590,7 @@ export class RunScene extends Phaser.Scene {
       if(hit.triggered&&element==='lightning')this.chainLightningFrom(enemy,damage*.4);
     }
     const hp=Number(enemy.getData('health'))-damage;enemy.setData('health',hp).setTint(element?elementTint[element]:0xffffff);
-    this.time.delayedCall(70,()=>{if(enemy.active)enemy.clearTint();});
+    this.time.delayedCall(70,()=>{if(enemy.active){if(enemy.getData('isElite'))enemy.setTint(enemy.getData('eliteEnraged')?0xf2a85c:0xd9ad5c);else enemy.clearTint();}});
     if(hp>0)return;
     if(def.behavior==='volatile-bomber'){
       const radius=enemy.getData('primed')?112:58;const blast=this.add.circle(enemy.x,enemy.y,radius,0xe3a64e,.22).setDepth(7);
