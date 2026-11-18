@@ -1,54 +1,5 @@
 import { expect, test } from '@playwright/test';
 
-async function hunterScreenX(
-  page: import('@playwright/test').Page,
-  canvas: import('@playwright/test').Locator
-): Promise<number> {
-  const screenshot = await canvas.screenshot();
-  return page.evaluate(async (base64) => {
-    const image = new Image();
-    image.src = `data:image/png;base64,${base64}`;
-    await image.decode();
-
-    const decoded = document.createElement('canvas');
-    decoded.width = image.naturalWidth;
-    decoded.height = image.naturalHeight;
-    const context = decoded.getContext('2d');
-    if (!context) throw new Error('Could not decode the Phaser canvas screenshot.');
-
-    context.drawImage(image, 0, 0);
-    const frame = context.getImageData(0, 0, decoded.width, decoded.height).data;
-    let count = 0;
-    let totalX = 0;
-
-    // The camera follows the hunter, so its screen position is not fixed to one crop.
-    // Match the generated hunter texture across the full canvas instead.
-    for (let y = 0; y < decoded.height; y += 1) {
-      for (let x = 0; x < decoded.width; x += 1) {
-        const index = (y * decoded.width + x) * 4;
-        const red = frame[index]!;
-        const green = frame[index + 1]!;
-        const blue = frame[index + 2]!;
-        const alpha = frame[index + 3]!;
-        if (
-          red >= 174 && red <= 214 &&
-          green >= 143 && green <= 183 &&
-          blue >= 89 && blue <= 129 &&
-          alpha >= 240
-        ) {
-          count += 1;
-          totalX += x;
-        }
-      }
-    }
-
-    if (count < 80) {
-      throw new Error(`Could not locate the hunter sprite in the rendered frame (matched ${count} pixels).`);
-    }
-    return totalX / count;
-  }, screenshot.toString('base64'));
-}
-
 test('player can select a hunter and an unlocked region before starting a run', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -125,19 +76,19 @@ test('player can select a hunter and an unlocked region before starting a run', 
   const runFrame = await canvas.screenshot();
   expect(runFrame.equals(lockedRegionFrame)).toBe(false);
 
-  // Verify real movement by tracking the starting hunter's rendered sprite pixels.
-  // Let the camera finish its initial follow-in before recording the baseline.
+  // Verify movement in world coordinates. Screen pixels are camera-relative and can move
+  // opposite to the hunter while the camera eases toward its follow target.
   await page.waitForTimeout(900);
-  const initialHunterX = await hunterScreenX(page, canvas);
+  const initialHunterX = (await readBrowserRunSnapshot(page)).playerX;
   await page.keyboard.down('ArrowRight');
-  let movedHunterX: number;
+  let movedHunterX = initialHunterX;
   try {
     await page.waitForTimeout(400);
-    movedHunterX = await hunterScreenX(page, canvas);
+    movedHunterX = (await readBrowserRunSnapshot(page)).playerX;
   } finally {
     await page.keyboard.up('ArrowRight');
   }
-  expect(movedHunterX!).toBeGreaterThan(initialHunterX + 4);
+  expect(movedHunterX).toBeGreaterThan(initialHunterX + 4);
 
   // Let the camera's follow easing settle after movement before comparing paused frames.
   // Otherwise the camera can continue drifting briefly even though gameplay input has stopped.
@@ -204,7 +155,7 @@ type BrowserRunSnapshot = {
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string}[];
   runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
-  bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
+  bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;finishTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null;sceneTime:{paused:boolean;now:number;active:boolean};playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
   controls:{rerollsRemaining:number;banishesRemaining:number;skipsRemaining:number;bannedChoiceIds:string[]};
   runEvents:{selected:string[];active:{kind:string;progress:number;stage:number;status:string}|null;completed:string[];failed:string[]};
 };
@@ -445,6 +396,15 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   expect(afterCollect.bossChestDiagnostics.lastCollectPending).toBe(true);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.collectOutcome,{timeout:3_000,message:'Collection handler should open the pending boss chest'}).toBe('opened');
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.finishScheduledAtMs,{timeout:3_000,message:'Opening the chest should schedule the victory completion callback'}).not.toBeNull();
+  const scheduled=await readBrowserRunSnapshot(page);
+  expect(scheduled.sceneTime.active).toBe(true);
+  expect(scheduled.sceneTime.paused).toBe(false);
+  expect(scheduled.bossChestDiagnostics.finishTimer).not.toBeNull();
+  expect(scheduled.bossChestDiagnostics.finishTimer?.paused).toBe(false);
+  await page.waitForTimeout(700);
+  const afterTimerWait=await readBrowserRunSnapshot(page);
+  expect(afterTimerWait.sceneTime.now).toBeGreaterThan(scheduled.sceneTime.now);
+  expect(afterTimerWait.bossChestDiagnostics.finishTimer?.elapsed).toBeGreaterThan(0);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.finishCallbackAtMs,{timeout:3_000,message:'Scheduled victory completion callback should execute'}).not.toBeNull();
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved,{timeout:3_000,message:'Victory completion should persist the run result'}).toBe(true);
   const victory=await readBrowserRunSnapshot(page);
