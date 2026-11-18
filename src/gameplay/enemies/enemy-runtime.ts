@@ -6,7 +6,7 @@ export interface EnemyActorState {
   nextSpecialAt?:number; attackCount?:number;
 }
 export interface EnemySpecialIntent {
-  kind:'summon'|'heal'|'trap'|'hex'|'web'|'frost-trail'|'parry'|'spore-cloud';
+  kind:'summon'|'heal'|'trap'|'hex'|'web'|'frost-trail'|'parry'|'spore-cloud'|'pounce';
   targetX:number; targetY:number; radius:number; durationMs:number; amount:number; count:number;
 }
 export interface EnemyIntent {
@@ -68,6 +68,7 @@ export function stepEnemyAI(def:EnemyDefinition,actor:EnemyActorState,target:{x:
    case 'web-control':special={...common,kind:'web',radius:155,durationMs:2600,amount:.5,count:0};next.nextSpecialAt=now+6100;break;
    case 'frost-hunt':special={...common,kind:'frost-trail',radius:34,durationMs:4200,amount:.45,count:0};next.nextSpecialAt=now+1700;break;
    case 'duelist':special={...common,kind:'parry',radius:0,durationMs:850,amount:.65,count:0};next.nextSpecialAt=now+4300;break;
+   case 'flank':special={...common,kind:'pounce',radius:0,durationMs:520,amount:def.attack.damage*1.25,count:1};next.nextSpecialAt=now+5600;break;
    case 'poison-volley':special={...common,kind:'spore-cloud',radius:92,durationMs:3600,amount:5,count:0};next.nextSpecialAt=now+5900;break;
   }
  }
