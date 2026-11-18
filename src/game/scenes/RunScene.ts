@@ -218,6 +218,8 @@ export class RunScene extends Phaser.Scene {
 
   private moveBoss(boss:Phaser.Physics.Arcade.Sprite,time:number):void {
     if(!this.bossDefinition||!this.bossState)return;
+    const lightning=this.bossElementState.lightning;
+    if((lightning?.stunnedUntil??0)>time){boss.setVelocity(0,0);return;}
     const dx=this.player.x-boss.x,dy=this.player.y-boss.y,dist=Math.hypot(dx,dy)||1;
     if(dist>145)boss.setVelocity(dx/dist*this.bossDefinition.health*.006,dy/dist*this.bossDefinition.health*.006);else boss.setVelocity(0,0);
     const phase=this.bossDefinition.phases[this.bossState.phaseIndex]!;
@@ -392,20 +394,43 @@ export class RunScene extends Phaser.Scene {
     if(!enemy.active||this.runFinished)return;
     if(enemy.getData('isBoss')){this.damageBossTarget(enemy,baseDamage,element);return;}
     const def=this.enemyDefinition(enemy);if(!def)return;
-    let damage=baseDamage;
-    if(element){const state=this.elementStates.get(enemy)??{};const elementDef=ELEMENTS.find(e=>e.id===element)!;const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier};const hit=applyElementHit(state,tuned,baseDamage,def.resistances[element]??0,this.time.now,ELEMENTS);
-      this.elementStates.set(enemy,hit.state);damage=hit.damage+(hit.reaction?.damage??0);}
+    const existing=this.elementStates.get(enemy)??{};
+    const curse=existing.dark&&existing.dark.expiresAt>this.time.now?existing.dark.stacks:0;
+    let damage=baseDamage*(1+curse*.06);
+    if(element){
+      const elementDef=ELEMENTS.find(e=>e.id===element)!;
+      const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier};
+      const hit=applyElementHit(existing,tuned,damage,def.resistances[element]??0,this.time.now,ELEMENTS);
+      this.elementStates.set(enemy,hit.state);damage=hit.damage+(hit.reaction?.damage??0);
+      if(hit.triggered&&element==='spirit')this.healPlayer(Math.max(1,this.state.maxHealth*.025));
+      if(hit.triggered&&element==='blood')this.healPlayer(damage*(.03+this.currentBuildStats().lifesteal));
+      if(hit.triggered&&element==='lightning')this.chainLightningFrom(enemy,damage*.4);
+    }
     const hp=Number(enemy.getData('health'))-damage;enemy.setData('health',hp).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(enemy.active)enemy.clearTint();});
     if(hp>0)return;
     this.dropExperience(enemy,Number(enemy.getData('experience')));this.state=recordKill(this.state);enemy.destroy();
   }
 
+  private chainLightningFrom(source:Phaser.Physics.Arcade.Sprite,damage:number):void {
+    const next=this.activeTargets().filter(target=>target!==source)
+      .sort((a,b)=>Phaser.Math.Distance.Between(source.x,source.y,a.x,a.y)-Phaser.Math.Distance.Between(source.x,source.y,b.x,b.y))[0];
+    if(next&&Phaser.Math.Distance.Between(source.x,source.y,next.x,next.y)<=190)this.damageEnemy(next,damage);
+  }
+
   private damageBossTarget(boss:Phaser.Physics.Arcade.Sprite,baseDamage:number,element?:ElementId):void {
     if(!this.bossDefinition||!this.bossState||this.bossState.defeated)return;
-    let damage=baseDamage;
-    if(element){const elementDef=ELEMENTS.find(e=>e.id===element)!;const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier};const hit=applyElementHit(this.bossElementState,tuned,baseDamage,this.bossDefinition.resistance[element]??0,this.time.now,ELEMENTS);
-      this.bossElementState=hit.state;damage=hit.damage+(hit.reaction?.damage??0);}
+    const curse=this.bossElementState.dark&&this.bossElementState.dark.expiresAt>this.time.now?this.bossElementState.dark.stacks:0;
+    let damage=baseDamage*(1+curse*.06);
+    if(element){
+      const elementDef=ELEMENTS.find(e=>e.id===element)!;
+      const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier};
+      const hit=applyElementHit(this.bossElementState,tuned,damage,this.bossDefinition.resistance[element]??0,this.time.now,ELEMENTS);
+      this.bossElementState=hit.state;damage=hit.damage+(hit.reaction?.damage??0);
+      if(hit.triggered&&element==='spirit')this.healPlayer(Math.max(1,this.state.maxHealth*.025));
+      if(hit.triggered&&element==='blood')this.healPlayer(damage*(.03+this.currentBuildStats().lifesteal));
+      if(hit.triggered&&element==='lightning')this.chainLightningFrom(boss,damage*.4);
+    }
     if(element&&this.bossDefinition.weakness.includes(element))damage*=1.3;
     const transition=damageBoss(this.bossState,this.bossDefinition,damage,this.time.now);this.bossState=transition.state;
     boss.setData('health',transition.state.health).setTint(element?elementTint[element]:0xffffff);
