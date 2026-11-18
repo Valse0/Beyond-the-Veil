@@ -426,14 +426,18 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   expect(afterBoss.lastRunSaved).toBeNull();
   expect(afterBoss.evolvedWeaponIds).toEqual([]);
 
-  // Move the hunter onto the chest. The existing Phaser Arcade overlap opens it.
+  // Validate the chest body before moving the hunter. Once overlap fires, the chest
+  // is intentionally destroyed, so inspecting it afterward would be a race.
+  const beforeApproach=await readBrowserRunSnapshot(page);
+  expect(beforeApproach.bossChestDiagnostics.playerBody.enabled).toBe(true);
+  expect(beforeApproach.bossChestDiagnostics.chestBody).not.toBeNull();
+  expect(beforeApproach.bossChestDiagnostics.chestBody?.enabled).toBe(true);
+  expect(beforeApproach.bossChestDiagnostics.chestBody?.width).toBeGreaterThan(0);
+  expect(beforeApproach.bossChestDiagnostics.chestBody?.height).toBeGreaterThan(0);
+
+  // Move the hunter onto the chest. The real Arcade overlap may open and destroy it
+  // before the next browser snapshot; the overlap counter and persisted result are durable.
   await moveToBrowserTestBossChest(page);
-  const movedToChest=await readBrowserRunSnapshot(page);
-  expect(movedToChest.bossChestDiagnostics.playerBody.enabled).toBe(true);
-  expect(movedToChest.bossChestDiagnostics.chestBody).not.toBeNull();
-  expect(movedToChest.bossChestDiagnostics.chestBody?.enabled).toBe(true);
-  expect(movedToChest.bossChestDiagnostics.chestBody?.width).toBeGreaterThan(0);
-  expect(movedToChest.bossChestDiagnostics.chestBody?.height).toBeGreaterThan(0);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.overlapCount,{timeout:3_000,message:'Player and boss chest bodies should produce a real Arcade overlap'}).toBeGreaterThan(0);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved).toBe(true);
   const victory=await readBrowserRunSnapshot(page);
