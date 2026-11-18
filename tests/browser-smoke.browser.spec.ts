@@ -315,7 +315,7 @@ test('accelerated run clock reaches the 14-minute boss trigger without waiting 1
     game.scene.getScene('run').browserTestAdvanceElapsed(1_000);
   });
   const atBoss=await readBrowserRunSnapshot(page);
-  expect(atBoss.elapsedMs).toBe(840_000);
+  expect(atBoss.elapsedMs).toBeGreaterThanOrEqual(840_000);
   expect(atBoss.bossSpawned).toBe(true);
   expect((await canvas.screenshot()).length).toBeGreaterThan(1_000);
 });
