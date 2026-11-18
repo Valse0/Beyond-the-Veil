@@ -211,7 +211,7 @@ export class RunScene extends Phaser.Scene {
       const intent=stepEnemyAI(def,state,{x:this.player.x,y:this.player.y},time,16);
       this.enemyStates.set(enemy,intent.state);
       if(intent.special)this.applyEnemySpecial(enemy,def,intent.special);
-      if(def.behavior==='mimic'&&!intent.state.burrowed&&!enemy.getData('mimicRevealed')){enemy.setData('mimicRevealed',true);enemy.clearTint();enemy.setAlpha(1);this.cameras.main.shake(70,.001);}
+      if(def.behavior==='mimic'&&!intent.state.burrowed&&!enemy.getData('mimicRevealed')){enemy.setData('mimicRevealed',true);this.enemyStates.set(enemy,{...intent.state,burrowed:false,exposedUntil:Number.MAX_SAFE_INTEGER});enemy.clearTint();enemy.setAlpha(1);this.cameras.main.shake(70,.001);}
       if(def.behavior==='volatile-bomber'){
         const primed=Phaser.Math.Distance.Between(enemy.x,enemy.y,this.player.x,this.player.y)<175;
         if(Boolean(enemy.getData('primed'))!==primed){enemy.setData('primed',primed);enemy.setTint(primed?0xf2b34d:0xffffff);}
@@ -239,7 +239,7 @@ export class RunScene extends Phaser.Scene {
           const velocity=(this.player.body as Phaser.Physics.Arcade.Body).velocity;
           this.telegraphAttack(enemy,def,this.player.x+velocity.x*.7,this.player.y+velocity.y*.7,damage,intent.attack.telegraphMs,'circle',58);
         }else if(def.behavior==='wraith'){
-          for(let strike=0;strike<3;strike++)this.time.delayedCall(strike*260,()=>{if(enemy.active)this.telegraphAttack(enemy,def,intent.attack!.targetX,intent.attack!.targetY,damage,intent.attack!.telegraphMs,def.attack.telegraph.shape,46);});
+          for(let strike=0;strike<3;strike++)this.time.delayedCall(strike*850,()=>{if(enemy.active)this.telegraphAttack(enemy,def,intent.attack!.targetX,intent.attack!.targetY,damage,Math.min(520,intent.attack!.telegraphMs),def.attack.telegraph.shape,46);});
           if((intent.state.attackCount??0)%3===0)this.enemyStates.set(enemy,{...intent.state,exposedUntil:time+1150});
         }else this.telegraphAttack(enemy,def,intent.attack.targetX,intent.attack.targetY,damage,intent.attack.telegraphMs,def.attack.telegraph.shape,46);
         if(def.behavior==='soul-snipe')enemy.setData('untargetableUntil',time+650);
