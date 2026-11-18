@@ -176,7 +176,7 @@ export class RunScene extends Phaser.Scene {
     if(gamepad.westPressed)this.useAbility();
     if(gamepad.startPressed){this.openPause();return;}
     this.state=advanceRun(this.state,delta);
-    this.move(time);this.moveEnemies(time);this.updateEnemyZones(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
+    this.move(time);if(this.paused)return;this.moveEnemies(time);this.updateEnemyZones(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
     this.expireShots(time);this.magnetize();this.updateElementStatuses(time);this.updateRegionHazard(time);
     if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
     if(this.state.elapsedMs>=RUN_MS&&!this.bossState&&!this.bossSpawned)this.spawnBoss();
@@ -189,7 +189,7 @@ export class RunScene extends Phaser.Scene {
     return {
       axisX:pad.leftStick.x,axisY:pad.leftStick.y,
       dpadLeft:pad.left,dpadRight:pad.right,dpadUp:pad.up,dpadDown:pad.down,
-      south:pad.A,west:pad.X,east:pad.B,start:pad.start
+      south:pad.A,west:pad.X,east:pad.B,start:pad.isButtonDown(9)
     };
   }
 
