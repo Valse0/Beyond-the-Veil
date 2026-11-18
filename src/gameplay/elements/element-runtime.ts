@@ -1,5 +1,5 @@
 import type { ElementDefinition, ElementId } from '../../core/types/content.js';
-export interface ElementStatus { buildup:number; stacks:number; expiresAt:number; nextTickAt:number; }
+export interface ElementStatus { buildup:number; stacks:number; expiresAt:number; nextTickAt:number; stunnedUntil?:number; }
 export type ElementState=Partial<Record<ElementId,ElementStatus>>;
 export interface ElementHitResult { state:ElementState; damage:number; reaction?:{id:string;name:string;effect:string;damage:number}; triggered:boolean; }
 export function applyElementHit(state:ElementState, element:ElementDefinition, baseDamage:number, resistance:number, now:number, catalog:readonly ElementDefinition[]):ElementHitResult {
@@ -32,10 +32,11 @@ export function tickElementStatuses(state:ElementState, now:number):{state:Eleme
       if(id==='fire') damage+=2+s.stacks*2;
       if(id==='poison') damage+=s.stacks*2;
       if(id==='blood') damage+=s.stacks*1.5;
-      next[id]!.nextTickAt=now+1000;
+      next[id]!.nextTickAt=now+(id==='lightning'?1500:1000);
+      if(id==='lightning'&&s.stacks>0)next[id]!.stunnedUntil=now+260;
     }
     if(id==='ice') slowed=true;
-    if(id==='lightning'&&s.stacks>0) stunned=true;
+    if(id==='lightning'&&s.stacks>0&&(s.stunnedUntil??0)>now)stunned=true;
   }
   return {state:next,damage:Math.round(damage),slowed,stunned};
 }
