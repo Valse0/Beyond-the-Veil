@@ -90,6 +90,13 @@ test('player can select a hunter and an unlocked region before starting a run', 
   await page.keyboard.press('Enter');
   await page.waitForTimeout(120);
 
+  // Reopening the region screen and returning again must not retain stale selection graphics.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(120);
+  expect((await canvas.screenshot()).equals(selectedHunterFrame)).toBe(true);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(120);
+
   // The region screen reopens on the first unlocked region; start it.
   await page.keyboard.press('Enter');
   await page.waitForTimeout(150);
