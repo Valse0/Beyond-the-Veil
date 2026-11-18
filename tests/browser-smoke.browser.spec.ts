@@ -430,7 +430,10 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   await moveToBrowserTestBossChest(page);
   const movedToChest=await readBrowserRunSnapshot(page);
   expect(movedToChest.bossChestDiagnostics.playerBody.enabled).toBe(true);
+  expect(movedToChest.bossChestDiagnostics.chestBody).not.toBeNull();
   expect(movedToChest.bossChestDiagnostics.chestBody?.enabled).toBe(true);
+  expect(movedToChest.bossChestDiagnostics.chestBody?.width).toBeGreaterThan(0);
+  expect(movedToChest.bossChestDiagnostics.chestBody?.height).toBeGreaterThan(0);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.overlapCount,{timeout:3_000,message:'Player and boss chest bodies should produce a real Arcade overlap'}).toBeGreaterThan(0);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved).toBe(true);
   const victory=await readBrowserRunSnapshot(page);
