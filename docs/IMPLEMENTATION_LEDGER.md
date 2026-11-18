@@ -175,7 +175,7 @@ These are honest implementation counts, not release-completion claims. Temporary
 
 | Date | Commit | Check | Command/scenario | Result | Evidence |
 |---|---|---|---|---|---|
-| Pending | Pending | Typecheck/tests/build | npm run typecheck; npm test; npm run build | PENDING CI | .github/workflows/ci.yml |
+| 2026-11-18 | 1819102026287209dffb5fc1ca005b63307d430b | GitHub Actions typecheck, gameplay tests and production build | npm run typecheck; npm test (5 tests); npm run build | PASS | Run 44358772577: https://github.com/Valse0/Beyond-the-Veil/actions/runs/44358772577 |
 
 ## Asset status
 
