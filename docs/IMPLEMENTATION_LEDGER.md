@@ -118,7 +118,7 @@ Allowed states: NOT_STARTED · IN_PROGRESS · IMPLEMENTED_UNVERIFIED · VERIFIED
 | SAVE-01 | Local save, backup and migration | §22 | Versioned save, backups, corruption recovery and import/export. | NOT_STARTED | - | - | - |
 | PLATFORM-01 | Responsive offline Web build | §26 | Desktop/mobile landscape, input and offline behavior verified. | NOT_STARTED | - | - | - |
 | PLATFORM-02 | Capacitor Android build | §26 | Android package builds and is tested on a physical device. | NOT_STARTED | - | - | - |
-| QA-01 | Automated gameplay/content tests | §24 | Unit, integration, schema, asset and regression checks pass. | IN_PROGRESS | tests/run-model.test.mjs; tests/content-validation.test.mjs; tests/runtime-systems.test.mjs; .github/workflows/ci.yml | CI run 44368317948: 19 tests PASS; typecheck, production build and npm audit PASS | Pure runtime rules and catalog validation are automated; Phaser browser/device integration tests and full-flow regression coverage remain. |
+| QA-01 | Automated gameplay/content tests | §24 | Unit, integration, schema, asset and regression checks pass. | IN_PROGRESS | tests/run-model.test.mjs; tests/content-validation.test.mjs; tests/runtime-systems.test.mjs; tests/browser-smoke.browser.spec.ts; playwright.config.ts; .github/workflows/ci.yml | Existing unit/runtime checks pass; Chromium smoke test added and awaiting CI execution. | Browser test covers Phaser canvas boot, 1280×720 render, main-menu-to-run canvas transition and uncaught page errors; it does not verify full gameplay or mobile devices. |
 | QA-02 | Runtime, performance and accessibility audit | §24, §29 | Browser/device flows, long sessions, memory and accessibility checked. | NOT_STARTED | - | - | - |
 | RELEASE-01 | Full GDD acceptance gate | §26, §29, §30 | All in-scope requirements VERIFIED; no critical defects; Web/Android verified. | NOT_STARTED | - | - | - |
 
@@ -192,3 +192,13 @@ Vector shapes are temporary placeholders. No final art/audio is claimed. The ful
 | 2026-11-18 | 477099126df36f79f19e28fb4c40a9d3edb398eb | Connected the catalog runtime modules to RunScene; added selected-character/region scene data, region enemy spawning, telegraphed attacks, weapon/passive level-up choices, twelve weapon attack dispatches, elemental hits/statuses, boss phases/adds/rewards, region hazard warnings and pause-safe overlays. | CI run 44368317948: typecheck PASS; 19 tests PASS; production build PASS; npm audit 0 vulnerabilities. No browser/device playtest. | Next: test the live scene, implement bespoke enemy/element/boss/hazard mechanics and full character/region selection. Notify user before final asset production. |
 | 2026-11-18 | 63cf569969868dbfb5b9348cae0e5093e40640e6 | Added unique behavior hooks for all 25 enemies in the engine-independent AI and wired their special actions/defenses into RunScene. Added automated coverage for special intent dispatch, concealment windows and attack cadence. No assets generated. | Earlier code head 266a30411cc634f55e4b9999dc8541d06d9c0cf5: typecheck PASS, 22 tests PASS, build PASS, npm audit PASS. Final CI pending. | Finish CI verification, then proceed to browser/device gameplay verification and next GDD priorities. Notify user before final asset phase. |
 Overall status: NOT COMPLETE. Full GDD remains the target.
+
+## Browser smoke-test package (2026-11-18)
+
+Added Playwright Chromium smoke coverage on `full-game-development`:
+- `playwright.config.ts` starts Vite on localhost:3000 and configures a 1280×720 Chromium viewport.
+- `tests/browser-smoke.browser.spec.ts` checks the Phaser canvas dimensions, captures the main-menu frame, clicks the existing “YENİ KOŞU” hit area, verifies that the canvas changes to the run scene, and fails on uncaught page errors.
+- `package.json` exposes `npm run test:browser` and includes `@playwright/test`.
+- `.github/workflows/ci.yml` installs Chromium and runs the browser smoke test after typecheck, unit tests, and production build.
+- This is a smoke test only. It does not verify combat correctness, long-session performance, accessibility, mobile input, or Android.
+
