@@ -228,14 +228,43 @@ export class RunScene extends Phaser.Scene {
   private telegraphAttack(source:Phaser.Physics.Arcade.Sprite,def:EnemyDefinition|undefined,x:number,y:number,damage:number,warning:number,shape:string,radius:number):void {
     const marker=this.add.graphics().setDepth(8);
     const color=def?0xd5ad63:0xc95a65;
-    marker.lineStyle(3,color,.9);marker.strokeCircle(x,y,radius);marker.fillStyle(color,.13);marker.fillCircle(x,y,radius);
+    const draw=():void=>{
+      marker.clear();marker.lineStyle(3,color,.9);marker.fillStyle(color,.13);
+      const angle=Phaser.Math.Angle.Between(source.x,source.y,x,y);
+      if(shape==='line'){marker.lineBetween(source.x,source.y,x,y);marker.lineBetween(source.x+Math.cos(angle+Math.PI/2)*12,source.y+Math.sin(angle+Math.PI/2)*12,x+Math.cos(angle+Math.PI/2)*12,y+Math.sin(angle+Math.PI/2)*12);}
+      else if(shape==='cross'){marker.lineBetween(x-radius,y,x+radius,y);marker.lineBetween(x,y-radius,x,y+radius);}
+      else if(shape==='cone'){const left=angle-.48,right=angle+.48;marker.fillTriangle(source.x,source.y,source.x+Math.cos(left)*radius*2,source.y+Math.sin(left)*radius*2,source.x+Math.cos(right)*radius*2,source.y+Math.sin(right)*radius*2);}
+      else if(shape==='ring'){marker.strokeCircle(x,y,radius);marker.strokeCircle(x,y,radius*.68);}
+      else{marker.strokeCircle(x,y,radius);marker.fillCircle(x,y,radius);}
+    };
+    draw();
     this.time.delayedCall(Math.max(0,warning),()=>{
       if(!source.active||this.runFinished){marker.destroy();return;}
-      marker.clear();marker.lineStyle(2,0xe65d63,.95);marker.strokeCircle(x,y,radius);marker.fillStyle(0xe65d63,.22);marker.fillCircle(x,y,radius);
-      if(Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)<=radius+18)this.receiveCombatDamage(damage);
+      marker.clear();marker.lineStyle(2,0xe65d63,.95);marker.fillStyle(0xe65d63,.22);
+      if(shape==='line'){marker.lineBetween(source.x,source.y,x,y);}
+      else if(shape==='cross'){marker.lineBetween(x-radius,y,x+radius,y);marker.lineBetween(x,y-radius,x,y+radius);}
+      else if(shape==='cone'){const angle=Phaser.Math.Angle.Between(source.x,source.y,x,y);marker.fillTriangle(source.x,source.y,source.x+Math.cos(angle-.48)*radius*2,source.y+Math.sin(angle-.48)*radius*2,source.x+Math.cos(angle+.48)*radius*2,source.y+Math.sin(angle+.48)*radius*2);}
+      else{marker.strokeCircle(x,y,radius);marker.fillCircle(x,y,radius);}
+      if(this.isInsideTelegraph(shape,source,x,y,radius))this.receiveCombatDamage(damage);
       this.time.delayedCall(180,()=>marker.destroy());
     });
-    void shape;
+  }
+
+  private isInsideTelegraph(shape:string,source:Phaser.Physics.Arcade.Sprite,x:number,y:number,radius:number):boolean {
+    const px=this.player.x,py=this.player.y;
+    if(shape==='line'){
+      const dx=x-source.x,dy=y-source.y,len2=dx*dx+dy*dy||1;
+      const t=Phaser.Math.Clamp(((px-source.x)*dx+(py-source.y)*dy)/len2,0,1);
+      return Phaser.Math.Distance.Between(px,py,source.x+t*dx,source.y+t*dy)<=22;
+    }
+    if(shape==='cone'){
+      const angle=Phaser.Math.Angle.Between(source.x,source.y,x,y),toPlayer=Phaser.Math.Angle.Between(source.x,source.y,px,py);
+      return Phaser.Math.Distance.Between(source.x,source.y,px,py)<=radius*2&&Math.abs(Phaser.Math.Angle.Wrap(toPlayer-angle))<=.48;
+    }
+    const distance=Phaser.Math.Distance.Between(px,py,x,y);
+    if(shape==='ring')return distance<=radius+18&&distance>=radius*.68-18;
+    if(shape==='cross')return distance<=radius&&(Math.abs(px-x)<=22||Math.abs(py-y)<=22);
+    return distance<=radius+18;
   }
 
   private spawnDirector(time:number):void {
@@ -420,7 +449,7 @@ export class RunScene extends Phaser.Scene {
       const status=this.elementStates.get(enemy);if(!status)continue;
       const tick=tickElementStatuses(status,time);this.elementStates.set(enemy,tick.state);
       if(tick.damage>0)this.damageEnemy(enemy,tick.damage);
-      if(tick.slowed)enemy.setAlpha(.72);else if(!enemy.getData('isBoss'))enemy.setAlpha(1);
+      enemy.setAlpha(tick.slowed||Boolean(this.enemyStates.get(enemy)?.burrowed)? .58:1);
     }
     if(this.bossState&&this.bossSprite?.active){const tick=tickElementStatuses(this.bossElementState,time);this.bossElementState=tick.state;if(tick.damage>0)this.damageBossTarget(this.bossSprite,tick.damage);}
   }
