@@ -152,7 +152,7 @@ export class RunScene extends Phaser.Scene {
     const definition=ENEMIES.find(enemy=>enemy.id===enemyId);
     if(!definition)throw new Error('Unknown test enemy: '+enemyId);
     const enemy=this.createEnemy(this.player.x+30,this.player.y,definition,1);
-    this.damageEnemy(enemy,Number(enemy.getData('health'))+1);
+    this.damageEnemy(enemy,Number(enemy.getData('health'))*100);
   }
 
   browserTestDefeatBoss():void {
@@ -167,7 +167,7 @@ export class RunScene extends Phaser.Scene {
     const active=this.runEventState.activeEvent;
     if(!active||active.status!=='active')throw new Error('There is no active run event to complete.');
     if(active.kind==='elite-invasion'){
-      for(const child of [...this.enemies.getChildren()]){const enemy=child as Phaser.Physics.Arcade.Sprite;if(enemy.active&&enemy.getData('runEventKind')===active.kind)this.damageEnemy(enemy,Number(enemy.getData('health'))+1);}
+      for(const child of [...this.enemies.getChildren()]){const enemy=child as Phaser.Physics.Arcade.Sprite;if(enemy.active&&enemy.getData('runEventKind')===active.kind)this.damageEnemy(enemy,Number(enemy.getData('health'))*100);}
     }else if(active.kind==='spirit-storm'){
       const pickups=this.eventObjects.getChildren().filter(child=>child.getData('eventObjectType')==='spirit-fragment').slice(0,4);
       pickups.forEach(pickup=>this.collectRunEventObject(pickup));
@@ -176,7 +176,7 @@ export class RunScene extends Phaser.Scene {
       if(chest)this.collectRunEventObject(chest);
     }else if(active.kind==='hunter-trial'){
       const def=ENEMIES.find(enemy=>enemy.id===this.region.enemyIds[0]);
-      if(def)for(let i=0;i<6&&this.runEventState.activeEvent?.status==='active';i++){const enemy=this.createEnemy(this.player.x+30+i*2,this.player.y,def,1);this.damageEnemy(enemy,Number(enemy.getData('health'))+1);}
+      if(def)for(let i=0;i<6&&this.runEventState.activeEvent?.status==='active';i++){const enemy=this.createEnemy(this.player.x+30+i*2,this.player.y,def,1);this.damageEnemy(enemy,Number(enemy.getData('health'))*100);}
     }else{
       while(this.runEventState.activeEvent?.status==='active'){
         const tagged=this.enemies.getChildren().map(child=>child as Phaser.Physics.Arcade.Sprite).filter(enemy=>enemy.active&&enemy.getData('runEventKind')===active.kind);
