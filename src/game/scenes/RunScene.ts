@@ -132,6 +132,11 @@ export class RunScene extends Phaser.Scene {
     this.refreshHud();
   }
 
+  browserTestFinishRun():void {
+    this.assertBrowserTestMode();
+    this.finishRun(false);
+  }
+
   init(data:{characterId?:string;regionId?:RegionId}):void {
     this.character=CHARACTERS.find(c=>c.id===data?.characterId)??STARTING_CHARACTER;
     this.region=REGIONS.find(r=>r.id===data?.regionId)??REGIONS[0]!;
