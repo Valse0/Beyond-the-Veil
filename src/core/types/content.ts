@@ -1,6 +1,6 @@
 export type ElementId='fire'|'ice'|'poison'|'dark'|'spirit'|'lightning'|'blood';
 export type RegionId='cursed-forest'|'forgotten-graveyard'|'deep-dungeon'|'rotten-swamp'|'cursed-castle';
-export type EnemyBehavior='pursue'|'orbit'|'surge'|'flank'|'poison-volley'|'nest-summon'|'shield-advance'|'soul-snipe'|'swarm'|'support-heal'|'leap'|'artillery'|'duelist'|'burrow'|'rune-sapper'|'ambush'|'blood-drain'|'volatile-bomber'|'hex-caster'|'web-control'|'phase-stalk'|'frost-hunt'|'mimic'|'soul-anchor'|'wraith';
+export type EnemyBehavior='pursue'|'orbit'|'surge'|'rune-guardian'|'flank'|'poison-volley'|'nest-summon'|'shield-advance'|'soul-snipe'|'swarm'|'support-heal'|'leap'|'artillery'|'duelist'|'burrow'|'rune-sapper'|'ambush'|'blood-drain'|'volatile-bomber'|'hex-caster'|'web-control'|'phase-stalk'|'frost-hunt'|'mimic'|'soul-anchor'|'wraith';
 export type AssetRole='character'|'enemy'|'boss'|'weapon'|'passive'|'element'|'region';
 export interface Telegraph { shape:'circle'|'line'|'cone'|'ring'|'cross'|'zone'; warningMs:number; cue:string }
 export interface Attack { id:string; name:string; kind:string; damage:number; range:number; cooldownMs:number; telegraph:Telegraph; counter:string }
