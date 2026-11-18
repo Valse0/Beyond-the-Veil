@@ -2,13 +2,14 @@ import Phaser from 'phaser';
 import type { RegionId } from '../../core/types/content.js';
 import { CHARACTERS } from '../../data/characters.js';
 import { REGIONS } from '../../data/regions.js';
+import type { SaveManager } from '../../systems/save/save-manager.js';
 
 export class RegionSelectScene extends Phaser.Scene {
   private characterId = CHARACTERS[0]!.id;
   private selectedIndex = 0;
   private frames: Phaser.GameObjects.Graphics[] = [];
   private previousPad = { left: false, right: false, confirm: false, back: false };
-  private readonly unlockedRegionIds = new Set<RegionId>([REGIONS[0]!.id]);
+  private unlockedRegionIds = new Set<RegionId>([REGIONS[0]!.id]);
 
   constructor() { super('region-select'); }
 
@@ -17,11 +18,17 @@ export class RegionSelectScene extends Phaser.Scene {
       ? data.characterId!
       : CHARACTERS[0]!.id;
     this.selectedIndex = 0;
+    this.unlockedRegionIds = new Set([REGIONS[0]!.id]);
     this.frames = [];
     this.previousPad = { left: false, right: false, confirm: false, back: false };
   }
 
   create(): void {
+    const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+    if (saveManager) {
+      const loaded = saveManager.load();
+      if ('data' in loaded) this.unlockedRegionIds = new Set(loaded.data.progression.unlockedRegionIds as RegionId[]);
+    }
     const width = this.scale.width;
     const height = this.scale.height;
     const character = CHARACTERS.find(item => item.id === this.characterId) ?? CHARACTERS[0]!;

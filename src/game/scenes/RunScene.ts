@@ -15,6 +15,8 @@ import { applyElementHit, tickElementStatuses, type ElementState } from '../../g
 import { addPassive, addWeapon, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState } from '../../gameplay/weapons/build-runtime.js';
 import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState } from '../../gameplay/bosses/boss-runtime.js';
 import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent } from '../../gameplay/regions/region-runtime.js';
+import { applyRunResult } from '../../gameplay/run/run-results.js';
+import type { SaveManager } from '../../systems/save/save-manager.js';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
 
 const RUN_MS = 900000;
@@ -82,6 +84,7 @@ export class RunScene extends Phaser.Scene {
   private hazardLabel?:Phaser.GameObjects.Text;
   private bossSpawned=false;
   private runFinished=false;
+  private runSoulEssence=0;
   private basePowerBonus=0;
   private baseMagnetBonus=0;
   private baseHasteMultiplier=1;
@@ -108,7 +111,7 @@ export class RunScene extends Phaser.Scene {
     this.lastSpawn=this.time.now;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];
-    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.runFinished=false;
+    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.runFinished=false;this.runSoulEssence=0;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
@@ -490,7 +493,9 @@ export class RunScene extends Phaser.Scene {
       if(Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)<radius+18)this.receiveCombatDamage(def.attack.damage*(enemy.getData('primed')?1:.5));
       this.time.delayedCall(260,()=>blast.destroy());
     }
-    this.dropExperience(enemy,Number(enemy.getData('experience')));this.state=recordKill(this.state);enemy.destroy();
+    const experience=Number(enemy.getData('experience'));
+    this.runSoulEssence+=Math.floor(Math.max(0,experience)/2);
+    this.dropExperience(enemy,experience);this.state=recordKill(this.state);enemy.destroy();
   }
 
   private chainLightningFrom(source:Phaser.Physics.Arcade.Sprite,damage:number):void {
@@ -523,7 +528,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private defeatBoss(boss:Phaser.Physics.Arcade.Sprite):void {
-    this.dropExperience(boss,80);boss.destroy();this.bossSprite=undefined;this.bossHud?.setText('BOSS YENİLDİ');this.bossPhaseText?.setText('Sandık ödülü kazanıldı');
+    this.dropExperience(boss,80);this.runSoulEssence+=this.bossDefinition?.reward.soulEssence??0;boss.destroy();this.bossSprite=undefined;this.bossHud?.setText('BOSS YENİLDİ');this.bossPhaseText?.setText('Sandık ödülü kazanıldı');
     for(const progress of [...this.build.weapons]){const weapon=WEAPONS.find(w=>w.id===progress.weaponId);if(weapon)this.build=evolveWeapon(this.build,weapon);}
     this.refreshBuildStats();this.cameras.main.flash(500,175,135,72);
     this.time.delayedCall(900,()=>this.finishRun(true));
@@ -780,13 +785,27 @@ export class RunScene extends Phaser.Scene {
 
   private finishRun(won:boolean):void {
     if(this.runFinished)return;this.runFinished=true;this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
+    const saved=this.persistRunResult(won);
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.9).setScrollFactor(0).setDepth(200);
-    const title=this.add.text(w/2,h*.32,won?'KOŞU TAMAMLANDI':'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
-    const summary=this.add.text(w/2,h*.45,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman',{fontSize:'18px',color:'#c0b5a8'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
+    const title=this.add.text(w/2,h*.29,won?'KOŞU TAMAMLANDI':'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
+    const summary=this.add.text(w/2,h*.43,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman\n+'+this.runSoulEssence+' RUH ÖZÜ\n'+(saved?'İLERLEME KAYDEDİLDİ':'KAYIT BAŞARISIZ — İLERLEME KORUNAMADI'),{fontSize:'16px',color:saved?'#c0b5a8':'#e29a8d',align:'center',lineSpacing:7}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     this.overlay.push(shade,title,summary);
-    this.createOverlayButton(w/2,h*.59,260,54,'YENİ KOŞU',()=>this.scene.restart());
-    this.createOverlayButton(w/2,h*.7,260,54,'ANA MENÜ',()=>this.scene.start('main-menu'));
+    this.createOverlayButton(w/2,h*.62,260,54,'YENİ KOŞU',()=>this.scene.restart());
+    this.createOverlayButton(w/2,h*.73,260,54,'ANA MENÜ',()=>this.scene.start('main-menu'));
     this.overlayBackIndex=1;
+  }
+
+  private persistRunResult(won:boolean):boolean {
+    const manager=this.registry.get('saveManager') as SaveManager|undefined;
+    if(!manager)return false;
+    try {
+      const loaded=manager.load();
+      if(!('data' in loaded))return false;
+      manager.save(applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence}));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private clearOverlay():void {this.overlay.forEach(o=>o.destroy());this.overlay=[];this.overlayButtons=[];this.overlayActions=[];this.overlaySelectionIndex=0;this.overlayBackIndex=null;}

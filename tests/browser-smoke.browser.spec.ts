@@ -159,3 +159,33 @@ test('player can select a hunter and an unlocked region before starting a run', 
 
   expect(pageErrors).toEqual([]);
 });
+
+
+test('region selection reads unlocked regions from the persisted profile', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#game-container canvas').waitFor();
+
+  // Simulate a previously earned region unlock, then verify the scene reads it after boot.
+  await page.evaluate(() => {
+    const key = 'beyond-the-veil.save';
+    const raw = window.localStorage.getItem(key);
+    if (!raw) throw new Error('First-launch save was not created.');
+    const save = JSON.parse(raw) as { progression: { unlockedRegionIds: string[] } };
+    save.progression.unlockedRegionIds.push('forgotten-graveyard');
+    window.localStorage.setItem(key, JSON.stringify(save));
+  });
+  await page.reload();
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+
+  await page.mouse.click(160, 555);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(120);
+  const regionScreen = await canvas.screenshot();
+
+  // The second region is unlocked by the persisted profile and can launch a run.
+  await page.mouse.click(407, 320);
+  await page.mouse.click(1124, 644);
+  await page.waitForTimeout(180);
+  expect((await canvas.screenshot()).equals(regionScreen)).toBe(false);
+});
