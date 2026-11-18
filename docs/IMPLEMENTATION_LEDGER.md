@@ -185,6 +185,6 @@ Vector shapes are temporary placeholders. No final art/audio is claimed. The ful
 
 | Date | Starting commit | Work | Checks actually run | Next |
 |---|---|---|---|---|
-| 2026-11-18 | 2548cfcc5efa31cfeaef2796abc7ac269eaaf783 | First playable foundation and design docs authored; branch commit pending. | No local build/browser runtime available; CI is the verification path. | Inspect CI, fix failures, then implement remaining full-game systems. |
+| 2026-11-18 | 2548cfcc5efa31cfeaef2796abc7ac269eaaf783 | Added the first playable foundation, 113 atomic ledger entries, design specs, architecture notes, pure gameplay tests and a CI workflow. Commits: 73d9447b225a7efd18895594f20eb6635d8703ae and ea1de086273d57fd57aa6fb3ef6ce1b71b60a2fa. | Not run locally: container network could not reach GitHub and Phaser dependencies are unavailable. No Actions run is visible yet. | Trigger/check CI, fix any failures, then continue full-game systems. |
 
 Overall status: NOT COMPLETE. Full GDD remains the target.
