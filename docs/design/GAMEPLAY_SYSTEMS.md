@@ -3,7 +3,7 @@
 This specification preserves the GDD. Values not fixed by it are initial tuning defaults, not final balance.
 
 ## Run
-A standard Survival run targets 15 minutes: 0–3 minutes onboarding; 3–7 new enemy patterns and density; 7–11 elites, events and hazards; 11–14 advanced pressure; 14–15 final boss. The current foundation has a timer and simple spawn escalation; boss and event content remain later work.
+A standard Survival run targets 15 minutes: 0–3 minutes onboarding; 3–7 new enemy patterns and density; 7–11 elites, events and hazards; 11–14 advanced pressure; 14–15 final boss. The current Phaser scene still uses its initial timer and spawn loop; full region rotation, event director and boss run flow remain integration work.
 
 Temporary run state includes health, level, XP, weapon/passive upgrades, kills and elapsed time. Profile state includes Ruh Özü, unlocks, mastery and collections; death must not erase profile state.
 
@@ -21,10 +21,15 @@ Seven canonical elements: Ateş, Buz, Zehir, Karanlık, Ruh, Yıldırım and Kan
 ## Fairness and progression
 Spawn pressure must be capped and readable. Difficulty must add behaviors and patterns, not only health. Reroll, banish and skip protect level-up RNG. No resistance may invalidate an entire build. Permanent Ruh Özü and unlocks survive defeat; temporary run power does not. Hunter Hub, relics, crafting, quests, mastery, achievements, collections, New Game+ and Endless Mode remain full-game requirements.
 
-## Current implementation status
-One hunter, one projectile weapon, three temporary enemy patterns, XP, four upgrades, dash, active pulse and a 15-minute timer are the initial foundation. Placeholder shapes are not final art. The ledger remains authoritative for all outstanding requirements.
+## Runtime-system layer added
+Engine-independent gameplay modules now exist for:
+- 25 enemy archetype decision steps and attack intent: `src/gameplay/enemies/enemy-runtime.ts`
+- Seven-element buildup, resistance, reactions and timed status ticks: `src/gameplay/elements/element-runtime.ts`
+- Six-slot weapon/passive builds, five-level upgrades, evolution eligibility and derived stats: `src/gameplay/weapons/build-runtime.ts`
+- Boss health thresholds, three-phase transitions and per-attack cooldowns: `src/gameplay/bosses/boss-runtime.ts`
+- Region hazard telegraph/active cycles: `src/gameplay/regions/region-runtime.ts`
 
+These modules are pure TypeScript and covered by automated tests. They are not yet connected to the Phaser scene's live entities, projectiles, HUD or encounter visuals. That integration and actual browser/device playtesting remain outstanding. Their balance values are initial tuning defaults, not playtest-verified values.
 
 ## Full content catalog status
-
-The complete first-release data catalog now defines all five hunters, five regions, 25 base enemies, five multi-phase bosses, twelve weapons, twelve passives and seven elements. Each definition has stable IDs and typed cross-references. This is designed data only: combat AI, attack execution, boss phase transitions, element buildup/reactions, upgrade application and region hazards still need runtime integration. See [CONTENT_CATALOG.md](CONTENT_CATALOG.md).
+The first-release data catalog defines all five hunters, five regions, 25 base enemies, five multi-phase bosses, twelve weapons, twelve passives and seven elements. Each definition has stable IDs and typed cross-references. The runtime-system layer above now provides testable rules for the core catalog mechanics; the playable scene still needs to consume those rules. See [CONTENT_CATALOG.md](CONTENT_CATALOG.md).
