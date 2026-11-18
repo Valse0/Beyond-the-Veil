@@ -1,5 +1,16 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "noEmit": false, "outDir": ".test-dist", "rootDir": ".", "declaration": false, "sourceMap": false, "allowImportingTsExtensions": false },
-  "include": ["src/core/**/*.ts", "src/gameplay/**/*.ts"]
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": ".test-dist",
+    "rootDir": ".",
+    "declaration": false,
+    "sourceMap": false,
+    "allowImportingTsExtensions": false
+  },
+  "include": [
+    "src/core/**/*.ts",
+    "src/gameplay/**/*.ts",
+    "src/data/**/*.ts"
+  ]
 }
