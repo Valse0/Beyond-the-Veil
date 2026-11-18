@@ -17,6 +17,7 @@ import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState
 import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent } from '../../gameplay/regions/region-runtime.js';
 import { applyRunResult } from '../../gameplay/run/run-results.js';
 import { createWaveDirector, stepWaveDirector, waveRandom, type WaveDirectorState } from '../../gameplay/spawning/wave-director.js';
+import { advanceRunEvent, createRunEventState, getRunEventName, getRunEventObjective, getRunEventReward, recordRunEventAction, startDueRunEvent, type RunEventAction, type RunEventKind, type RunEventState } from '../../gameplay/events/run-events.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
 import { createLevelUpControlState, drawLevelUpChoices as drawChoicesFromPool, spendLevelUpBanish, spendLevelUpReroll, spendLevelUpSkip, type LevelUpControlState } from '../../gameplay/level-up/level-up-controls.js';
@@ -73,6 +74,10 @@ export class RunScene extends Phaser.Scene {
   private abilityReady=0;
   private lastHud=0;
   private waveDirector:WaveDirectorState=createWaveDirector(1);
+  private runEventState:RunEventState=createRunEventState(1);
+  private eventObjects!:Phaser.Physics.Arcade.Group;
+  private eventHud?:Phaser.GameObjects.Text;
+  private eventSetupPending=false;
   private runSeed=1;
   private weaponReady:Record<string,number>={};
   private bossDefinition?:BossDefinition;
@@ -110,6 +115,7 @@ export class RunScene extends Phaser.Scene {
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;
     paused:boolean;bossSpawned:boolean;choices:{id:string;title:string}[];
     runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
+    runEvents:{selected:RunEventKind[];active:{kind:RunEventKind;progress:number;stage:number;status:string}|null;completed:RunEventKind[];failed:RunEventKind[]};
     controls:LevelUpControlState;
   } {
     this.assertBrowserTestMode();
@@ -119,6 +125,7 @@ export class RunScene extends Phaser.Scene {
       choices:this.currentLevelChoices.map(({id,title})=>({id,title})),
       runSoulEssence:this.runSoulEssence,kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
       bossHealth:this.bossState?.health??null,
+      runEvents:{selected:[...this.runEventState.selectedEvents],active:this.runEventState.activeEvent?{kind:this.runEventState.activeEvent.kind,progress:this.runEventState.activeEvent.progress,stage:this.runEventState.activeEvent.stage,status:this.runEventState.activeEvent.status}:null,completed:[...this.runEventState.completedEvents],failed:[...this.runEventState.failedEvents]},
       controls:{...this.levelUpControls,bannedChoiceIds:[...this.levelUpControls.bannedChoiceIds]}
     };
   }
@@ -153,6 +160,30 @@ export class RunScene extends Phaser.Scene {
     this.damageBossTarget(this.bossSprite,this.bossDefinition.health+1);
   }
 
+  browserTestCompleteActiveEvent():void {
+    this.assertBrowserTestMode();
+    const active=this.runEventState.activeEvent;
+    if(!active||active.status!=='active')throw new Error('There is no active run event to complete.');
+    if(active.kind==='elite-invasion'){
+      for(const child of [...this.enemies.getChildren()]){const enemy=child as Phaser.Physics.Arcade.Sprite;if(enemy.active&&enemy.getData('runEventKind')===active.kind)this.damageEnemy(enemy,Number(enemy.getData('health'))+1);}
+    }else if(active.kind==='spirit-storm'){
+      const pickups=this.eventObjects.getChildren().filter(child=>child.getData('eventObjectType')==='spirit-fragment').slice(0,4);
+      pickups.forEach(pickup=>this.collectRunEventObject(pickup));
+    }else if(active.kind==='treasure-hunt'){
+      const chest=this.eventObjects.getChildren().find(child=>child.getData('eventObjectType')==='treasure-chest');
+      if(chest)this.collectRunEventObject(chest);
+    }else if(active.kind==='hunter-trial'){
+      const def=ENEMIES.find(enemy=>enemy.id===this.region.enemyIds[0]);
+      if(def)for(let i=0;i<6&&this.runEventState.activeEvent?.status==='active';i++){const enemy=this.createEnemy(this.player.x+30+i*2,this.player.y,def,1);this.damageEnemy(enemy,Number(enemy.getData('health'))+1);}
+    }else{
+      while(this.runEventState.activeEvent?.status==='active'){
+        const tagged=this.enemies.getChildren().map(child=>child as Phaser.Physics.Arcade.Sprite).filter(enemy=>enemy.active&&enemy.getData('runEventKind')===active.kind);
+        if(!tagged.length){this.spawnCursedWaveStage(this.runEventState.activeEvent.stage);continue;}
+        tagged.forEach(enemy=>this.damageEnemy(enemy,Number(enemy.getData('health'))+1));
+      }
+    }
+  }
+
   browserTestFinishRun():void {
     this.assertBrowserTestMode();
     this.finishRun(false);
@@ -175,7 +206,7 @@ export class RunScene extends Phaser.Scene {
     const requestedSeed=this.registry.get('runSeed');
     this.runSeed=typeof requestedSeed==='number'&&Number.isFinite(requestedSeed)?requestedSeed>>>0:((Date.now()^Math.floor(Math.random()*0xffffffff))>>>0);
     if(this.runSeed===0)this.runSeed=1;
-    this.waveDirector=createWaveDirector(this.runSeed);this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
+    this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];
     this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.runFinished=false;this.runSoulEssence=0;this.lastRunSaved=null;
@@ -186,7 +217,7 @@ export class RunScene extends Phaser.Scene {
     floor.lineStyle(1,0x3a3337,0.12);
     for(let i=0;i<28;i++){const x=Phaser.Math.Between(80,WORLD_W-80),y=Phaser.Math.Between(80,WORLD_H-80);floor.lineStyle(2,0x8a795d,0.08);floor.strokeCircle(x,y,Phaser.Math.Between(18,64));}
     floor.setDepth(-10);
-    this.enemies=this.physics.add.group();this.shots=this.physics.add.group({maxSize:100});this.orbs=this.physics.add.group({maxSize:80});
+    this.enemies=this.physics.add.group();this.shots=this.physics.add.group({maxSize:100});this.orbs=this.physics.add.group({maxSize:80});this.eventObjects=this.physics.add.group();
     this.player=this.physics.add.sprite(WORLD_W/2,WORLD_H/2,'hunter').setCircle(12).setCollideWorldBounds(true).setDepth(3);
     this.cameras.main.startFollow(this.player,true,0.08,0.08);
     this.cursors=this.input.keyboard!.createCursorKeys();
@@ -194,6 +225,7 @@ export class RunScene extends Phaser.Scene {
     this.physics.add.overlap(this.shots,this.enemies,(a,b)=>this.hitEnemy(a as Phaser.Physics.Arcade.Sprite,b as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.enemies,(_p,e)=>this.contactDamage(e as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.orbs,(_p,o)=>this.collectOrb(o as Phaser.Physics.Arcade.Sprite));
+    this.physics.add.overlap(this.player,this.eventObjects,(_p,o)=>this.collectRunEventObject(o as Phaser.GameObjects.GameObject));
     this.createHud();this.createTouchControls();this.spawnEnemy();this.waveDirector={...this.waveDirector,spawnIndex:1,nextSpawnAtMs:1500};this.refreshBuildStats();
   }
 
@@ -219,6 +251,7 @@ export class RunScene extends Phaser.Scene {
     this.add.rectangle(w/2,82,300,8,0x352d32).setScrollFactor(0).setDepth(109).setVisible(false);
     this.bossHealth=this.add.rectangle(w/2-150,82,300,5,0xb94b5b).setOrigin(0,.5).setScrollFactor(0).setDepth(111).setVisible(false);
     this.bossPhaseText=this.add.text(w/2,96,'',{fontSize:'11px',color:'#c8b69d'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.eventHud=this.add.text(w/2,122,'',{fontSize:'13px',color:'#d9c69d',backgroundColor:'#211b20',padding:{x:8,y:4},align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(112).setVisible(false);
     this.refreshHud();
   }
 
@@ -245,7 +278,7 @@ export class RunScene extends Phaser.Scene {
     if(gamepad.southPressed)this.tryDash();
     if(gamepad.westPressed)this.useAbility();
     if(gamepad.startPressed){this.openPause();return;}
-    this.state=advanceRun(this.state,delta);
+    this.state=advanceRun(this.state,delta);this.updateRunEvent(time);
     this.move(time);if(this.paused)return;this.moveEnemies(time);this.updateEnemyZones(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
     this.expireShots(time);this.magnetize();this.updateElementStatuses(time);this.updateRegionHazard(time);
     if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
@@ -601,6 +634,7 @@ export class RunScene extends Phaser.Scene {
       this.time.delayedCall(260,()=>blast.destroy());
     }
     const experience=Number(enemy.getData('experience'));
+    this.recordRunEventEnemyDefeat(enemy);
     this.runSoulEssence+=Math.floor(Math.max(0,experience)/2)+(enemy.getData('isElite')?35:0);
     const eliteMarker=enemy.getData('eliteMarker') as Phaser.GameObjects.GameObject|undefined;eliteMarker?.destroy();
     this.dropExperience(enemy,experience);this.state=recordKill(this.state);enemy.destroy();
@@ -640,6 +674,124 @@ export class RunScene extends Phaser.Scene {
     for(const progress of [...this.build.weapons]){const weapon=WEAPONS.find(w=>w.id===progress.weaponId);if(weapon)this.build=evolveWeapon(this.build,weapon);}
     this.refreshBuildStats();this.cameras.main.flash(500,175,135,72);
     this.time.delayedCall(900,()=>this.finishRun(true));
+  }
+
+  private recordRunEventEnemyDefeat(enemy:Phaser.Physics.Arcade.Sprite):void {
+    const active=this.runEventState.activeEvent;
+    if(!active||active.status!=='active'||enemy.getData('isBoss'))return;
+    const tagged=enemy.getData('runEventKind')===active.kind;
+    if(active.kind==='hunter-trial'||(active.kind==='elite-invasion'&&tagged)||(active.kind==='cursed-wave'&&tagged)){
+      const beforeStage=active.stage;
+      this.applyRunEventAction('kill');
+      const next=this.runEventState.activeEvent;
+      if(active.kind==='cursed-wave'&&next?.status==='active'&&next.stage>beforeStage)this.spawnCursedWaveStage(next.stage);
+    }
+  }
+
+  private applyRunEventAction(action:RunEventAction,amount=1):void {
+    const before=this.runEventState.activeEvent;
+    this.runEventState=recordRunEventAction(this.runEventState,action,amount);
+    const after=this.runEventState.activeEvent;
+    if(before?.status==='active'&&after?.status==='completed')this.completeRunEvent(before.kind);
+  }
+
+  private updateRunEvent(_time:number):void {
+    if(this.runFinished)return;
+    const before=this.runEventState.activeEvent;
+    this.runEventState=advanceRunEvent(this.runEventState,this.state.elapsedMs);
+    const afterTimeout=this.runEventState.activeEvent;
+    if(before?.status==='active'&&afterTimeout?.status==='failed')this.failRunEvent(before.kind);
+    const previousIndex=this.runEventState.nextEventIndex;
+    this.runEventState=startDueRunEvent(this.runEventState,this.state.elapsedMs);
+    if(this.runEventState.nextEventIndex>previousIndex){this.eventSetupPending=true;this.setupRunEvent();}
+    if(this.eventSetupPending)this.setupRunEvent();
+    const active=this.runEventState.activeEvent;
+    if(active?.status==='active'&&this.eventHud){
+      const remaining=Math.max(0,Math.ceil((active.deadlineAtMs-this.state.elapsedMs)/1000));
+      this.eventHud.setText(getRunEventName(active.kind)+'  •  '+getRunEventObjective(active)+'  •  '+remaining+' sn').setVisible(true);
+    }
+  }
+
+  private setupRunEvent():void {
+    const active=this.runEventState.activeEvent;
+    if(!active||active.status!=='active'||!this.eventSetupPending)return;
+    const available=42-this.enemies.countActive(true);
+    if(active.kind==='elite-invasion'){
+      if(available<2)return;
+      const pool=this.region.enemyIds.map(id=>ENEMIES.find(enemy=>enemy.id===id)).filter((enemy):enemy is EnemyDefinition=>Boolean(enemy));
+      for(let i=0;i<2;i++){
+        const def=pool[Math.floor(waveRandom(this.runSeed,active.startedAtMs+i,71)*pool.length)]??pool[0];
+        if(!def)continue;
+        const angle=(i/2)*Math.PI*2+Math.PI/4;
+        const elite=this.createEnemy(this.player.x+Math.cos(angle)*260,this.player.y+Math.sin(angle)*260,def,1.15,true);
+        elite.setData('runEventKind',active.kind);
+      }
+    }else if(active.kind==='spirit-storm'){
+      for(let i=0;i<6;i++){
+        const angle=(i/6)*Math.PI*2;
+        this.createRunEventObject(this.player.x+Math.cos(angle)*220,this.player.y+Math.sin(angle)*220,'spirit-fragment');
+      }
+    }else if(active.kind==='treasure-hunt'){
+      const angle=waveRandom(this.runSeed,active.startedAtMs,73)*Math.PI*2;
+      this.createRunEventObject(this.player.x+Math.cos(angle)*285,this.player.y+Math.sin(angle)*285,'treasure-chest');
+    }else if(active.kind==='cursed-wave'){
+      if(available<3)return;
+      this.spawnCursedWaveStage(1);
+    }
+    this.eventSetupPending=false;
+    this.eventHud?.setText(getRunEventName(active.kind)+' başladı').setVisible(true);
+  }
+
+  private createRunEventObject(x:number,y:number,type:'spirit-fragment'|'treasure-chest'):void {
+    const object=type==='treasure-chest'
+      ?this.add.rectangle(x,y,28,24,0x9a7041).setStrokeStyle(3,0xe6c77f).setDepth(5)
+      :this.add.circle(x,y,10,0x74d9cf).setStrokeStyle(3,0xd8fff1).setDepth(5);
+    this.physics.add.existing(object);
+    this.eventObjects.add(object);
+    const body=object.body as Phaser.Physics.Arcade.Body;
+    body.setAllowGravity(false);body.setImmovable(true);body.setSize(type==='treasure-chest'?30:22,type==='treasure-chest'?26:22);
+    object.setData('eventObjectType',type);
+  }
+
+  private collectRunEventObject(object:Phaser.GameObjects.GameObject):void {
+    const active=this.runEventState.activeEvent;
+    if(!active||active.status!=='active'||!object.active)return;
+    const type=object.getData('eventObjectType');
+    if(type==='spirit-fragment'&&active.kind==='spirit-storm'){
+      object.destroy();this.applyRunEventAction('collect');
+    }else if(type==='treasure-chest'&&active.kind==='treasure-hunt'){
+      object.destroy();this.applyRunEventAction('treasure');
+    }
+  }
+
+  private spawnCursedWaveStage(stage:number):void {
+    const active=this.runEventState.activeEvent;
+    if(!active||active.kind!=='cursed-wave'||active.status!=='active')return;
+    const pool=this.region.enemyIds.map(id=>ENEMIES.find(enemy=>enemy.id===id)).filter((enemy):enemy is EnemyDefinition=>Boolean(enemy));
+    const available=42-this.enemies.countActive(true);
+    if(available<3){this.eventSetupPending=true;return;}
+    for(let i=0;i<3;i++){
+      const def=pool[Math.floor(waveRandom(this.runSeed,stage*10+i,79)*pool.length)]??pool[0];
+      if(!def)continue;
+      const angle=(i/3)*Math.PI*2;
+      const enemy=this.createEnemy(this.player.x+Math.cos(angle)*235,this.player.y+Math.sin(angle)*235,def,1.1);
+      enemy.setTint(0x9b78c8).setData('runEventKind','cursed-wave').setData('cursedWaveStage',stage);
+    }
+    this.eventSetupPending=false;
+  }
+
+  private completeRunEvent(kind:RunEventKind):void {
+    const reward=getRunEventReward(kind);this.runSoulEssence+=reward;this.clearRunEventObjects();this.eventSetupPending=false;
+    this.eventHud?.setText(getRunEventName(kind)+' tamamlandı  •  +'+reward+' Ruh Özü').setVisible(true);
+  }
+
+  private failRunEvent(kind:RunEventKind):void {
+    this.clearRunEventObjects();this.eventSetupPending=false;
+    this.eventHud?.setText(getRunEventName(kind)+' başarısız').setVisible(true);
+  }
+
+  private clearRunEventObjects():void {
+    for(const child of [...this.eventObjects.getChildren()])child.destroy();
   }
 
   private dropExperience(source:Phaser.Physics.Arcade.Sprite,xp:number):void {
