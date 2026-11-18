@@ -95,6 +95,7 @@ export class RunScene extends Phaser.Scene {
   private hazardHasHit=false;
   private hazardLabel?:Phaser.GameObjects.Text;
   private bossSpawned=false;
+  private bossVictoryPending=false;
   private runFinished=false;
   private runSoulEssence=0;
   private lastRunSaved:boolean|null=null;
@@ -114,7 +115,7 @@ export class RunScene extends Phaser.Scene {
   /** Development-only bridge used by Playwright; never callable in production builds. */
   browserTestSnapshot():{
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
-    paused:boolean;bossSpawned:boolean;choices:{id:string;title:string}[];
+    paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string}[];
     runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
     runEvents:{selected:RunEventKind[];active:{kind:RunEventKind;progress:number;stage:number;status:string}|null;completed:RunEventKind[];failed:RunEventKind[]};
     controls:LevelUpControlState;
@@ -123,6 +124,8 @@ export class RunScene extends Phaser.Scene {
     return {
       level:this.state.level,experience:this.state.experience,experienceToNext:this.state.experienceToNext,
       queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,paused:this.paused,bossSpawned:this.bossSpawned,
+      bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
+      evolvedWeaponIds:this.build.weapons.filter(weapon=>weapon.evolved).map(weapon=>weapon.weaponId),
       choices:this.currentLevelChoices.map(({id,title})=>({id,title})),
       runSoulEssence:this.runSoulEssence,kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
       bossHealth:this.bossState?.health??null,
@@ -156,11 +159,27 @@ export class RunScene extends Phaser.Scene {
     this.damageEnemy(enemy,Number(enemy.getData('health'))*100);
   }
 
+  browserTestPrepareBossChestEvolution():void {
+    this.assertBrowserTestMode();
+    const weapon=WEAPONS[0]!;
+    const passive=PASSIVES.find(item=>item.id===weapon.evolution.requiredPassiveId);
+    if(!passive)throw new Error('The test weapon evolution passive is missing.');
+    this.build={weapons:[{weaponId:weapon.id,level:weapon.maxLevel,evolved:false}],passives:[{passiveId:passive.id,level:5,special:false}]};
+    this.refreshBuildStats();
+  }
+
   browserTestDefeatBoss():void {
     this.assertBrowserTestMode();
     this.spawnBoss();
     if(!this.bossSprite||!this.bossDefinition)throw new Error('The current region has no test boss.');
     this.damageBossTarget(this.bossSprite,this.bossDefinition.health+1);
+  }
+
+  browserTestMoveToBossChest():void {
+    this.assertBrowserTestMode();
+    const chest=this.eventObjects.getChildren().find(object=>object.getData('eventObjectType')==='boss-chest');
+    if(!chest)throw new Error('The boss chest has not spawned.');
+    this.player.setPosition(chest.x,chest.y).setVelocity(0,0);
   }
 
   browserTestCompleteActiveEvent():void {
@@ -214,7 +233,7 @@ export class RunScene extends Phaser.Scene {
     this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];
-    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.runFinished=false;this.runSoulEssence=0;this.lastRunSaved=null;
+    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.runFinished=false;this.runSoulEssence=0;this.lastRunSaved=null;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
@@ -675,10 +694,11 @@ export class RunScene extends Phaser.Scene {
   }
 
   private defeatBoss(boss:Phaser.Physics.Arcade.Sprite):void {
-    this.dropExperience(boss,80);this.runSoulEssence+=this.bossDefinition?.reward.soulEssence??0;boss.destroy();this.bossSprite=undefined;this.bossHud?.setText('BOSS YENİLDİ');this.bossPhaseText?.setText('Sandık ödülü kazanıldı');
-    for(const progress of [...this.build.weapons]){const weapon=WEAPONS.find(w=>w.id===progress.weaponId);if(weapon)this.build=evolveWeapon(this.build,weapon);}
-    this.refreshBuildStats();this.cameras.main.flash(500,175,135,72);
-    this.time.delayedCall(900,()=>this.finishRun(true));
+    this.dropExperience(boss,80);this.runSoulEssence+=this.bossDefinition?.reward.soulEssence??0;
+    this.bossVictoryPending=true;this.createRunEventObject(boss.x,boss.y,'boss-chest');
+    boss.destroy();this.bossSprite=undefined;this.bossHud?.setText('BOSS YENİLDİ');this.bossPhaseText?.setText('Boss sandığına ulaş ve aç');
+    this.eventHud?.setText('BOSS SANDIĞI  •  YAKLAŞARAK AÇ').setVisible(true);
+    this.cameras.main.flash(500,175,135,72);
   }
 
   private recordRunEventEnemyDefeat(enemy:Phaser.Physics.Arcade.Sprite):void {
@@ -747,21 +767,46 @@ export class RunScene extends Phaser.Scene {
     this.eventHud?.setText(getRunEventName(active.kind)+' başladı').setVisible(true);
   }
 
-  private createRunEventObject(x:number,y:number,type:'spirit-fragment'|'treasure-chest'):void {
-    const object=type==='treasure-chest'
-      ?this.add.rectangle(x,y,28,24,0x9a7041).setStrokeStyle(3,0xe6c77f).setDepth(5)
+  private createRunEventObject(x:number,y:number,type:'spirit-fragment'|'treasure-chest'|'boss-chest'):void {
+    const bossChest=type==='boss-chest';
+    const chest=type==='treasure-chest'||bossChest;
+    const object=chest
+      ?this.add.rectangle(x,y,bossChest?38:28,bossChest?32:24,bossChest?0xc99a45:0x9a7041).setStrokeStyle(bossChest?4:3,bossChest?0xffe4a0:0xe6c77f).setDepth(5)
       :this.add.circle(x,y,10,0x74d9cf).setStrokeStyle(3,0xd8fff1).setDepth(5);
     this.physics.add.existing(object);
     this.eventObjects.add(object);
     const body=object.body as Phaser.Physics.Arcade.Body;
-    body.setAllowGravity(false);body.setImmovable(true);body.setSize(type==='treasure-chest'?30:22,type==='treasure-chest'?26:22);
+    body.setAllowGravity(false);body.setImmovable(true);body.setSize(bossChest?40:chest?30:22,bossChest?34:chest?26:22);
     object.setData('eventObjectType',type);
+    if(bossChest){
+      const label=this.add.text(x,y-30,'BOSS SANDIĞI',{fontSize:'12px',fontStyle:'bold',color:'#ffe7a8',stroke:'#21170b',strokeThickness:3}).setOrigin(.5).setDepth(7);
+      object.setData('eventObjectLabel',label);
+    }
   }
 
   private collectRunEventObject(object:Phaser.GameObjects.GameObject):void {
-    const active=this.runEventState.activeEvent;
-    if(!active||active.status!=='active'||!object.active)return;
+    if(!object.active)return;
     const type=object.getData('eventObjectType');
+    if(type==='boss-chest'&&this.bossVictoryPending){
+      const label=object.getData('eventObjectLabel') as Phaser.GameObjects.GameObject|undefined;
+      label?.destroy();object.destroy();this.bossVictoryPending=false;
+      let evolvedCount=0;
+      for(const progress of [...this.build.weapons]){
+        const weapon=WEAPONS.find(item=>item.id===progress.weaponId);
+        if(!weapon)continue;
+        const next=evolveWeapon(this.build,weapon);
+        if(next.weapons.some(item=>item.weaponId===weapon.id&&item.evolved&&!progress.evolved))evolvedCount++;
+        this.build=next;
+      }
+      this.refreshBuildStats();
+      this.bossPhaseText?.setText(evolvedCount>0?'SİLAH EVRİLDİ':'SANDIK AÇILDI');
+      this.eventHud?.setText(evolvedCount>0?'SANDIK AÇILDI  •  '+evolvedCount+' SİLAH EVRİLDİ':'SANDIK AÇILDI  •  EVRİM KOŞULU YOK').setVisible(true);
+      this.cameras.main.flash(420,210,170,90);
+      this.time.delayedCall(500,()=>this.finishRun(true));
+      return;
+    }
+    const active=this.runEventState.activeEvent;
+    if(!active||active.status!=='active')return;
     if(type==='spirit-fragment'&&active.kind==='spirit-storm'){
       object.destroy();this.applyRunEventAction('collect');
     }else if(type==='treasure-chest'&&active.kind==='treasure-hunt'){
@@ -797,7 +842,10 @@ export class RunScene extends Phaser.Scene {
   }
 
   private clearRunEventObjects():void {
-    for(const child of [...this.eventObjects.getChildren()])child.destroy();
+    for(const child of [...this.eventObjects.getChildren()]){
+      const label=child.getData('eventObjectLabel') as Phaser.GameObjects.GameObject|undefined;
+      label?.destroy();child.destroy();
+    }
   }
 
   private dropExperience(source:Phaser.Physics.Arcade.Sprite,xp:number):void {
