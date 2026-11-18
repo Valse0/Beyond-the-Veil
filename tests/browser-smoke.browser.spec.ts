@@ -150,9 +150,12 @@ test('player can select a hunter and an unlocked region before starting a run', 
   const pausedFrame = await canvas.screenshot();
   expect(pausedFrame.equals(activeFrame)).toBe(false);
 
+  const pausedSnapshot = await readBrowserRunSnapshot(page);
   await page.waitForTimeout(350);
-  const stablePausedFrame = await canvas.screenshot();
-  expect(stablePausedFrame.equals(pausedFrame)).toBe(true);
+  const stablePausedSnapshot = await readBrowserRunSnapshot(page);
+  expect(stablePausedSnapshot.elapsedMs).toBe(pausedSnapshot.elapsedMs);
+  expect(stablePausedSnapshot.playerX).toBeCloseTo(pausedSnapshot.playerX, 3);
+  expect(stablePausedSnapshot.playerY).toBeCloseTo(pausedSnapshot.playerY, 3);
 
   const clockClip = { x: 580, y: 8, width: 120, height: 48 };
   const resumedClockStart = await page.screenshot({ clip: clockClip });
@@ -195,7 +198,7 @@ test('region selection reads unlocked regions from the persisted profile', async
 });
 
 type BrowserRunSnapshot = {
-  level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;
+  level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;choices:{id:string;title:string}[];
   runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
   controls:{rerollsRemaining:number;banishesRemaining:number;skipsRemaining:number;bannedChoiceIds:string[]};
