@@ -77,6 +77,9 @@ export class RunScene extends Phaser.Scene {
   private basePowerBonus=0;
   private baseMagnetBonus=0;
   private baseHasteMultiplier=1;
+  private playerSlowUntil=0;
+  private playerSlowMultiplier=1;
+  private enemyZones:{x:number;y:number;radius:number;expiresAt:number;nextTickAt:number;damage:number;slow:number;marker:Phaser.GameObjects.Graphics}[]=[];
 
   constructor(){super('run');}
 
@@ -95,7 +98,7 @@ export class RunScene extends Phaser.Scene {
     this.paused=false;this.queuedLevels=0;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;
     this.lastSpawn=this.time.now;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
-    this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;
+    this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];
     this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.runFinished=false;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
@@ -156,7 +159,7 @@ export class RunScene extends Phaser.Scene {
   update(time:number,delta:number):void {
     if(this.paused||this.runFinished)return;
     this.state=advanceRun(this.state,delta);
-    this.move(time);this.moveEnemies(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
+    this.move(time);this.moveEnemies(time);this.updateEnemyZones(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
     this.expireShots(time);this.magnetize();this.updateElementStatuses(time);this.updateRegionHazard(time);
     if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
     if(this.state.elapsedMs>=RUN_MS&&!this.bossState&&!this.bossSpawned)this.spawnBoss();
@@ -171,7 +174,7 @@ export class RunScene extends Phaser.Scene {
     if(Phaser.Input.Keyboard.JustDown(this.keys.SPACE))this.tryDash();
     if(Phaser.Input.Keyboard.JustDown(this.keys.E))this.useAbility();
     if(Phaser.Input.Keyboard.JustDown(this.keys.ESC))this.openPause();
-    const stats=this.currentBuildStats();const speed=this.character.moveSpeed*stats.moveSpeedMultiplier;
+    const stats=this.currentBuildStats();const speed=this.character.moveSpeed*stats.moveSpeedMultiplier*(time<this.playerSlowUntil?this.playerSlowMultiplier:1);
     if(time>=this.dashUntil)this.player.setVelocity(dir.x*speed,dir.y*speed);
     else if(dir.length()>0)this.player.setVelocity(dir.x*speed*2.6,dir.y*speed*2.6);
   }
@@ -207,13 +210,25 @@ export class RunScene extends Phaser.Scene {
       const state={...old,x:enemy.x,y:enemy.y,health:Number(enemy.getData('health'))};
       const intent=stepEnemyAI(def,state,{x:this.player.x,y:this.player.y},time,16);
       this.enemyStates.set(enemy,intent.state);
+      if(intent.special)this.applyEnemySpecial(enemy,def,intent.special);
+      if(def.behavior==='mimic'&&!intent.state.burrowed&&!enemy.getData('mimicRevealed')){enemy.setData('mimicRevealed',true);enemy.clearTint();enemy.setAlpha(1);this.cameras.main.shake(70,.001);}
+      if(def.behavior==='surge'&&(enemy.x<def.radius+36||enemy.x>WORLD_W-def.radius-36||enemy.y<def.radius+36||enemy.y>WORLD_H-def.radius-36)&&intent.speedMultiplier>1){enemy.setVelocity(0,0);this.enemyStates.set(enemy,{...intent.state,exposedUntil:time+1250});}
       const status=this.elementStates.get(enemy)??{};
       const effects=tickElementStatuses(status,time);this.elementStates.set(enemy,effects.state);
       const slow=effects.slowed?.55:1;
       enemy.setVelocity(effects.stunned?0:intent.velocityX*slow,effects.stunned?0:intent.velocityY*slow);
       if(effects.damage>0)this.damageEnemy(enemy,effects.damage);
-      enemy.setAlpha(intent.state.burrowed?.45:1);
-      if(intent.attack)this.telegraphAttack(enemy,def,intent.attack.targetX,intent.attack.targetY,intent.attack.damage,intent.attack.telegraphMs,def.attack.telegraph.shape,46);
+      enemy.setAlpha(intent.state.burrowed?.35:1);
+      if(intent.attack){
+        const empowered=def.behavior==='ambush'&&(intent.state.attackCount??0)===1&&!enemy.getData('ambushSpent');
+        if(empowered)enemy.setData('ambushSpent',true);
+        const damage=intent.attack.damage*(empowered?1.8:1);
+        if(def.behavior==='wraith'){
+          for(let strike=0;strike<3;strike++)this.time.delayedCall(strike*260,()=>{if(enemy.active)this.telegraphAttack(enemy,def,intent.attack!.targetX,intent.attack!.targetY,damage,intent.attack!.telegraphMs,def.attack.telegraph.shape,46);});
+          if((intent.state.attackCount??0)%3===0)this.enemyStates.set(enemy,{...intent.state,exposedUntil:time+1150});
+        }else this.telegraphAttack(enemy,def,intent.attack.targetX,intent.attack.targetY,damage,intent.attack.telegraphMs,def.attack.telegraph.shape,46);
+        if(def.behavior==='soul-snipe')enemy.setData('untargetableUntil',time+650);
+      }
     }
   }
 
@@ -248,7 +263,11 @@ export class RunScene extends Phaser.Scene {
       else if(shape==='cross'){marker.lineBetween(x-radius,y,x+radius,y);marker.lineBetween(x,y-radius,x,y+radius);}
       else if(shape==='cone'){const angle=Phaser.Math.Angle.Between(source.x,source.y,x,y);marker.fillTriangle(source.x,source.y,source.x+Math.cos(angle-.48)*radius*2,source.y+Math.sin(angle-.48)*radius*2,source.x+Math.cos(angle+.48)*radius*2,source.y+Math.sin(angle+.48)*radius*2);}
       else{marker.strokeCircle(x,y,radius);marker.fillCircle(x,y,radius);}
-      if(this.isInsideTelegraph(shape,source,x,y,radius))this.receiveCombatDamage(damage);
+      if(this.isInsideTelegraph(shape,source,x,y,radius)){
+        this.receiveCombatDamage(damage);
+        if(def?.behavior==='blood-drain'&&source.active){const hp=Number(source.getData('health'))+damage*.35;source.setData('health',Math.min(Number(source.getData('maxHealth')),hp));}
+        if(def?.behavior==='soul-snipe'&&source.active)source.setData('untargetableUntil',this.time.now+520);
+      }
       this.time.delayedCall(180,()=>marker.destroy());
     });
   }
@@ -288,8 +307,9 @@ export class RunScene extends Phaser.Scene {
 
   private createEnemy(x:number,y:number,def:EnemyDefinition,scale:number):void {
     const enemy=this.enemies.create(x,y,'enemy-'+def.id) as Phaser.Physics.Arcade.Sprite;
-    enemy.setDepth(2).setCircle(def.radius).setData('enemyType',def.id).setData('health',Math.round(def.health*scale)).setData('experience',def.experience);
-    this.enemyStates.set(enemy,{x,y,health:Math.round(def.health*scale),nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false});
+    enemy.setDepth(2).setCircle(def.radius).setData('enemyType',def.id).setData('health',Math.round(def.health*scale)).setData('maxHealth',Math.round(def.health*scale)).setData('experience',def.experience);
+    if(def.behavior==='mimic'){enemy.setAlpha(.2).setTint(0xd5bd8b).setData('mimicRevealed',false);}
+    this.enemyStates.set(enemy,{x,y,health:Math.round(def.health*scale),nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false,nextSpecialAt:this.time.now+1800,attackCount:0});
   }
 
   private spawnBoss():void {
@@ -392,12 +412,24 @@ export class RunScene extends Phaser.Scene {
   }
 
   private damageEnemy(enemy:Phaser.Physics.Arcade.Sprite,baseDamage:number,element?:ElementId):void {
-    if(!enemy.active||this.runFinished)return;
+    if(!enemy.active||this.runFinished||Number(enemy.getData('untargetableUntil')??0)>this.time.now)return;
     if(enemy.getData('isBoss')){this.damageBossTarget(enemy,baseDamage,element);return;}
     const def=this.enemyDefinition(enemy);if(!def)return;
+    const actor=this.enemyStates.get(enemy);
+    if(actor?.burrowed||(!enemy.getData('mimicRevealed')&&def.behavior==='mimic'))return;
     const existing=this.elementStates.get(enemy)??{};
     const curse=existing.dark&&existing.dark.expiresAt>this.time.now?existing.dark.stacks:0;
     let damage=baseDamage*(1+curse*.06);
+    if(actor&&actor.exposedUntil>this.time.now)damage*=1.25;
+    if((def.behavior==='shield-advance'||def.behavior==='rune-guardian')&&element!=='lightning'&&this.isEnemyFacingPlayer(enemy,actor))damage*=.35;
+    if(def.behavior==='rune-guardian'&&element==='lightning')enemy.setData('armorBrokenUntil',this.time.now+5200);
+    if(def.behavior==='rune-guardian'&&Number(enemy.getData('armorBrokenUntil')??0)>this.time.now)damage*=1;
+    if(def.behavior==='duelist'&&Number(enemy.getData('parryUntil')??0)>this.time.now&&element!=='lightning')damage*=.35;
+    if(def.behavior==='duelist'&&element==='lightning')enemy.setData('parryUntil',0);
+    if(def.behavior==='rootbound-husk'&&this.isEnemyFacingPlayer(enemy,actor)&&!element)damage*=.8;
+    if(def.behavior==='burrow'&&actor?.burrowed)return;
+    const anchor=this.activeTargets().find(other=>other!==enemy&&this.enemyDefinition(other)?.behavior==='soul-anchor'&&Phaser.Math.Distance.Between(other.x,other.y,enemy.x,enemy.y)<200);
+    if(anchor)damage*=.88;
     if(element){
       const elementDef=ELEMENTS.find(e=>e.id===element)!;
       const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier};
@@ -410,6 +442,11 @@ export class RunScene extends Phaser.Scene {
     const hp=Number(enemy.getData('health'))-damage;enemy.setData('health',hp).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(enemy.active)enemy.clearTint();});
     if(hp>0)return;
+    if(def.behavior==='volatile-bomber'){
+      const radius=enemy.getData('primed')?112:58;const blast=this.add.circle(enemy.x,enemy.y,radius,0xe3a64e,.22).setDepth(7);
+      if(Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)<radius+18)this.receiveCombatDamage(def.attack.damage*(enemy.getData('primed')?1:.5));
+      this.time.delayedCall(260,()=>blast.destroy());
+    }
     this.dropExperience(enemy,Number(enemy.getData('experience')));this.state=recordKill(this.state);enemy.destroy();
   }
 
@@ -456,7 +493,7 @@ export class RunScene extends Phaser.Scene {
 
   private contactDamage(enemy:Phaser.Physics.Arcade.Sprite):void {
     if(this.time.now<this.nextDamage||this.time.now<this.dashUntil||!enemy.active)return;
-    const def=this.enemyDefinition(enemy);const damage=enemy.getData('isBoss')?(this.bossDefinition?.contactDamage??24):(def?.contactDamage??9);
+    const def=this.enemyDefinition(enemy);const actor=this.enemyStates.get(enemy);if(actor?.burrowed||Number(enemy.getData('untargetableUntil')??0)>this.time.now)return;const damage=enemy.getData('isBoss')?(this.bossDefinition?.contactDamage??24):(def?.contactDamage??9);
     this.nextDamage=this.time.now+650;this.receiveCombatDamage(damage);
   }
 
@@ -494,12 +531,77 @@ export class RunScene extends Phaser.Scene {
     if(event.phase==='active'&&!this.hazardHasHit&&Phaser.Math.Distance.Between(this.player.x,this.player.y,this.hazardTarget.x,this.hazardTarget.y)<82){this.hazardHasHit=true;this.receiveCombatDamage(12);}
   }
 
+  private isEnemyFacingPlayer(enemy:Phaser.Physics.Arcade.Sprite,actor?:EnemyActorState):boolean {
+    if(!actor)return false;
+    const dx=this.player.x-enemy.x,dy=this.player.y-enemy.y,d=Math.hypot(dx,dy)||1;
+    return (dx/d)*actor.facingX+(dy/d)*actor.facingY>.55;
+  }
+
+  private applyEnemySpecial(enemy:Phaser.Physics.Arcade.Sprite,def:EnemyDefinition,special:import('../../gameplay/enemies/enemy-runtime.js').EnemySpecialIntent):void {
+    if(special.kind==='summon'){
+      const active=this.enemies.getChildren().filter(child=>(child as Phaser.Physics.Arcade.Sprite).active&&child!==enemy&&child.getData('summonedBy')===def.id).length;
+      const minion=ENEMIES.find(e=>e.id==='rootbound-husk');
+      if(minion&&this.enemies.countActive(true)<42)for(let i=0;i<Math.min(special.count,Math.max(0,4-active));i++){
+        const angle=(Math.PI*2*i)/Math.max(1,special.count),x=enemy.x+Math.cos(angle)*52,y=enemy.y+Math.sin(angle)*52;
+        this.createEnemy(x,y,minion,.55);
+        const child=this.enemies.getChildren()[this.enemies.getChildren().length-1] as Phaser.Physics.Arcade.Sprite;
+        child.setData('summonedBy',def.id).setData('experience',0);
+      }
+      return;
+    }
+    if(special.kind==='heal'){
+      for(const child of this.enemies.getChildren()){
+        const ally=child as Phaser.Physics.Arcade.Sprite;if(!ally.active||ally===enemy||ally.getData('isBoss'))continue;
+        if(Phaser.Math.Distance.Between(enemy.x,enemy.y,ally.x,ally.y)<=special.radius){
+          const hp=Number(ally.getData('health')),max=Number(ally.getData('maxHealth')??hp);
+          ally.setData('health',Math.min(max,hp+max*special.amount)).setTint(0x9bd49a);
+          this.time.delayedCall(180,()=>{if(ally.active)ally.clearTint();});
+        }
+      }
+      return;
+    }
+    if(special.kind==='parry'){enemy.setData('parryUntil',this.time.now+special.durationMs);return;}
+    if(special.kind==='hex'){
+      for(const child of this.enemies.getChildren()){
+        const ally=child as Phaser.Physics.Arcade.Sprite;if(!ally.active||ally===enemy)continue;
+        if(Phaser.Math.Distance.Between(enemy.x,enemy.y,ally.x,ally.y)<=special.radius)ally.setData('damageBuffUntil',this.time.now+special.durationMs).setData('damageBuff',1+special.amount);
+      }
+      this.createEnemyZone(special.targetX,special.targetY,special.radius,special.durationMs,0,0x9b78c8,0);
+      return;
+    }
+    if(special.kind==='trap'||special.kind==='web'||special.kind==='spore-cloud'){
+      const damage=special.kind==='trap'?special.amount:special.kind==='spore-cloud'?special.amount:0;
+      const slow=special.kind==='web'?.5:0;
+      this.createEnemyZone(special.targetX,special.targetY,special.radius,special.durationMs,damage,special.kind==='web'?0x83c6c9:0x9ac65d,slow);
+      return;
+    }
+    if(special.kind==='frost-trail'){
+      this.createEnemyZone(enemy.x,enemy.y,special.radius,special.durationMs,0,0x8fdcff,special.amount);
+    }
+  }
+
+  private createEnemyZone(x:number,y:number,radius:number,durationMs:number,damage:number,color:number,slow:number):void {
+    const marker=this.add.graphics().setDepth(6);
+    marker.fillStyle(color,.2);marker.lineStyle(2,color,.8);marker.fillCircle(x,y,radius);marker.strokeCircle(x,y,radius);
+    this.enemyZones.push({x,y,radius,expiresAt:this.time.now+durationMs,nextTickAt:this.time.now+350,damage,slow,marker});
+  }
+
+  private updateEnemyZones(time:number):void {
+    this.enemyZones=this.enemyZones.filter(zone=>{
+      if(time>=zone.expiresAt){zone.marker.destroy();return false;}
+      const inside=Phaser.Math.Distance.Between(this.player.x,this.player.y,zone.x,zone.y)<=zone.radius+12;
+      if(inside&&zone.slow>0){this.playerSlowUntil=time+220;this.playerSlowMultiplier=zone.slow;}
+      if(inside&&zone.damage>0&&time>=zone.nextTickAt){this.receiveCombatDamage(zone.damage);zone.nextTickAt=time+850;}
+      return true;
+    });
+  }
+
   private enemyDefinition(enemy:Phaser.Physics.Arcade.Sprite):EnemyDefinition|undefined {
     return ENEMIES.find(def=>def.id===enemy.getData('enemyType'));
   }
 
   private activeTargets():Phaser.Physics.Arcade.Sprite[] {
-    return this.enemies.getChildren().filter(child=>(child as Phaser.Physics.Arcade.Sprite).active) as Phaser.Physics.Arcade.Sprite[];
+    return this.enemies.getChildren().filter(child=>{const enemy=child as Phaser.Physics.Arcade.Sprite;return enemy.active&&Number(enemy.getData('untargetableUntil')??0)<=this.time.now&&(enemy.getData('mimicRevealed')!==false);}) as Phaser.Physics.Arcade.Sprite[];
   }
 
   private currentBuildStats(){return deriveBuildStats(this.build,PASSIVES);}
