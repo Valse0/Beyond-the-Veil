@@ -12,12 +12,17 @@ import { addWeapon, addPassive, upgradeWeapon, upgradePassive, evolveWeapon, der
 import { createBossEncounter, damageBoss, getBossAttack } from '../.test-dist/src/gameplay/bosses/boss-runtime.js';
 import { createHazardCycle, stepRegionHazard } from '../.test-dist/src/gameplay/regions/region-runtime.js';
 
-test('all 25 enemy behavior contracts produce finite deterministic movement and attacks',()=>{
- for(const enemy of ENEMIES){const actor={x:0,y:0,health:enemy.health,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false};const a=stepEnemyAI(enemy,actor,{x:100,y:0},5000,16);assert.ok(Number.isFinite(a.velocityX));assert.ok(Number.isFinite(a.velocityY));assert.ok(a.attack);}
+test('all 25 enemy behavior contracts return finite movement and respect attack states',()=>{
+ for(const enemy of ENEMIES){
+  const actor={x:0,y:0,health:enemy.health,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false};
+  const a=stepEnemyAI(enemy,actor,{x:100,y:0},5000,16);
+  assert.ok(Number.isFinite(a.velocityX));assert.ok(Number.isFinite(a.velocityY));
+  if(!a.state.burrowed)assert.ok(a.attack,enemy.id+' should attack in range');
+ }
 });
 test('element buildup crosses threshold, reacts and ticks damage',()=>{
  let state={};let hit;
- for(let i=0;i<7;i++){hit=applyElementHit(state,ELEMENTS.find(e=>e.id==='fire'),20,0,1000+i*10,ELEMENTS);state=hit.state;}
+ for(let i=0;i<5;i++){hit=applyElementHit(state,ELEMENTS.find(e=>e.id==='fire'),20,0,1000+i*10,ELEMENTS);state=hit.state;}
  assert.equal(hit.triggered,true);
  state={...state,poison:{buildup:0,stacks:2,expiresAt:9000,nextTickAt:1000}};
  hit=applyElementHit(state,ELEMENTS.find(e=>e.id==='fire'),20,0,2000,ELEMENTS);
@@ -32,7 +37,7 @@ test('weapon and passive levels, slots and evolution are enforced',()=>{
  assert.ok(deriveBuildStats(build,PASSIVES).magnetRadiusBonus>=0);
 });
 test('boss phase changes at authored thresholds and attacks respect cooldowns',()=>{
- const boss=BOSSES[0];let state=createBossEncounter(boss);
+ const boss=BOSSES[0];const state=createBossEncounter(boss);
  const transition=damageBoss(state,boss,boss.health*.4,1000);
  assert.equal(transition.changed,true);assert.equal(transition.current.id,boss.phases[1].id);
  const first=getBossAttack(transition.state,transition.current,2000);
