@@ -8,6 +8,11 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   constructor() { super('character-select'); }
 
+  init(data: { characterId?: string }): void {
+    const index = CHARACTERS.findIndex(character => character.id === data?.characterId);
+    this.selectedIndex = index >= 0 ? index : 0;
+  }
+
   create(): void {
     const width = this.scale.width;
     const height = this.scale.height;
