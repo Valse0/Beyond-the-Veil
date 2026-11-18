@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import Phaser from 'phaser';
 import { createGameConfig } from './game/config/game-config.js';
 import { SaveManager } from './systems/save/save-manager.js';
