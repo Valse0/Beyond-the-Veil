@@ -3,6 +3,12 @@ import { createGameConfig } from './game/config/game-config.js';
 import { SaveManager } from './systems/save/save-manager.js';
 import { BrowserSaveStorage } from './systems/save/save-storage.js';
 
+declare global {
+  interface Window {
+    __BEYOND_VEIL_GAME__?: Phaser.Game;
+  }
+}
+
 let game: Phaser.Game | undefined;
 
 function startGame(): void {
@@ -26,6 +32,15 @@ function startGame(): void {
   game = new Phaser.Game(createGameConfig());
   if (saveManager) game.registry.set('saveManager', saveManager);
   game.registry.set('saveLoadStatus', saveLoadStatus);
+
+  // Test controls exist only on Vite's development server and require an explicit URL flag.
+  // Production builds never expose the Phaser instance or enable the test registry flag.
+  const browserTestMode = import.meta.env.DEV &&
+    new URLSearchParams(window.location.search).get('bv-test') === '1';
+  if (browserTestMode) {
+    game.registry.set('browserTestMode', true);
+    window.__BEYOND_VEIL_GAME__ = game;
+  }
 }
 
 if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', startGame, { once: true });
