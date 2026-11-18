@@ -1,15 +1,17 @@
-# Beyond-the-Veil
+# Beyond the Veil
 
-A dark-fantasy, single-player roguelite / Survivors-like action game built with Phaser 3 and TypeScript.
+Single-player, offline-first dark-fantasy roguelite built with Phaser 3, TypeScript and Vite. The full product target is Game Design Document.md. This repository is in active production, not a finished release.
 
-The project is planned for Web first, with Android support through Capacitor later. The design is offline-first and does not require an account or backend.
+## Run
+Use Node.js 22+, run npm install, then npm run dev. Before changes, run npm run typecheck, npm test and npm run build.
 
-## Project Documents
+## Current foundation
+The development branch has a menu-to-run flow, keyboard/touch movement, dash, Spirit Pulse, nearest-target automatic attacks, enemy pursuit patterns, XP pickups, four level-up upgrades, pause and result flows. Current shapes and content are temporary scaffolding, not final art or the full GDD content set.
 
-- [Game Design Document](Game%20Design%20Document.md) — game vision, mechanics, world, and content.
-- [Development Plan](PLAN.md) — technical architecture and development roadmap.
-- [AI Agent Rules](AGENTS.md) — instructions for AI-assisted development.
+## Controls
+WASD/arrows: move · Space: dash · E: Spirit Pulse · Escape: pause. Touch: left movement pad and right action buttons.
 
-## Current Status
+## Constraints
+Phaser 3 remains pinned; Web first, Capacitor Android later. No accounts, backend, mandatory online features, paid APIs, ads or telemetry. See AGENTS.md, PLAN.md, EXECUTION_MASTER.md and docs/IMPLEMENTATION_LEDGER.md.
 
-The repository currently contains the project design and planning documents. Implementation has not started yet.
+GitHub Actions checks TypeScript, pure gameplay rules and the Vite production build. Green CI does not prove browser/device runtime quality or GDD completion.
