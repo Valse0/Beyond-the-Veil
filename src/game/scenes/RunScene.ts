@@ -216,14 +216,24 @@ export class RunScene extends Phaser.Scene {
       const status=this.elementStates.get(enemy)??{};
       const effects=tickElementStatuses(status,time);this.elementStates.set(enemy,effects.state);
       const slow=effects.slowed?.55:1;
-      enemy.setVelocity(effects.stunned?0:intent.velocityX*slow,effects.stunned?0:intent.velocityY*slow);
+      let vx=intent.velocityX*slow,vy=intent.velocityY*slow;
+      if(Number(enemy.getData('pounceUntil')??0)>time){vx=Number(enemy.getData('pounceX'))*def.speed*3.1;vy=Number(enemy.getData('pounceY'))*def.speed*3.1;}
+      if(def.behavior==='swarm'){
+        const pack=this.activeTargets().filter(other=>other!==enemy&&this.enemyDefinition(other)?.behavior==='swarm'&&Phaser.Math.Distance.Between(enemy.x,enemy.y,other.x,other.y)<115).length;
+        const packBoost=1+Math.min(.45,pack*.12);vx*=packBoost;vy*=packBoost;
+      }
+      enemy.setVelocity(effects.stunned?0:vx,effects.stunned?0:vy);
       if(effects.damage>0)this.damageEnemy(enemy,effects.damage);
       enemy.setAlpha(intent.state.burrowed?.35:1);
       if(intent.attack){
         const empowered=def.behavior==='ambush'&&(intent.state.attackCount??0)===1&&!enemy.getData('ambushSpent');
         if(empowered)enemy.setData('ambushSpent',true);
-        const damage=intent.attack.damage*(empowered?1.8:1);
-        if(def.behavior==='wraith'){
+        const buffed=Number(enemy.getData('damageBuffUntil')??0)>time?Number(enemy.getData('damageBuff')??1):1;
+        const damage=intent.attack.damage*(empowered?1.8:1)*buffed;
+        if(def.behavior==='artillery'){
+          const velocity=(this.player.body as Phaser.Physics.Arcade.Body).velocity;
+          this.telegraphAttack(enemy,def,this.player.x+velocity.x*.7,this.player.y+velocity.y*.7,damage,intent.attack.telegraphMs,'circle',58);
+        }else if(def.behavior==='wraith'){
           for(let strike=0;strike<3;strike++)this.time.delayedCall(strike*260,()=>{if(enemy.active)this.telegraphAttack(enemy,def,intent.attack!.targetX,intent.attack!.targetY,damage,intent.attack!.telegraphMs,def.attack.telegraph.shape,46);});
           if((intent.state.attackCount??0)%3===0)this.enemyStates.set(enemy,{...intent.state,exposedUntil:time+1150});
         }else this.telegraphAttack(enemy,def,intent.attack.targetX,intent.attack.targetY,damage,intent.attack.telegraphMs,def.attack.telegraph.shape,46);
@@ -421,12 +431,12 @@ export class RunScene extends Phaser.Scene {
     const curse=existing.dark&&existing.dark.expiresAt>this.time.now?existing.dark.stacks:0;
     let damage=baseDamage*(1+curse*.06);
     if(actor&&actor.exposedUntil>this.time.now)damage*=1.25;
-    if((def.behavior==='shield-advance'||def.behavior==='rune-guardian')&&element!=='lightning'&&this.isEnemyFacingPlayer(enemy,actor))damage*=.35;
+    const armorBroken=Number(enemy.getData('armorBrokenUntil')??0)>this.time.now;
+    if((def.behavior==='shield-advance'||def.behavior==='rune-guardian')&&!armorBroken&&element!=='lightning'&&this.isEnemyFacingPlayer(enemy,actor))damage*=.35;
     if(def.behavior==='rune-guardian'&&element==='lightning')enemy.setData('armorBrokenUntil',this.time.now+5200);
-    if(def.behavior==='rune-guardian'&&Number(enemy.getData('armorBrokenUntil')??0)>this.time.now)damage*=1;
+    if(def.id==='rootbound-husk'&&this.isEnemyFacingPlayer(enemy,actor)&&!element)damage*=.8;
     if(def.behavior==='duelist'&&Number(enemy.getData('parryUntil')??0)>this.time.now&&element!=='lightning')damage*=.35;
     if(def.behavior==='duelist'&&element==='lightning')enemy.setData('parryUntil',0);
-    if(def.behavior==='rootbound-husk'&&this.isEnemyFacingPlayer(enemy,actor)&&!element)damage*=.8;
     if(def.behavior==='burrow'&&actor?.burrowed)return;
     const anchor=this.activeTargets().find(other=>other!==enemy&&this.enemyDefinition(other)?.behavior==='soul-anchor'&&Phaser.Math.Distance.Between(other.x,other.y,enemy.x,enemy.y)<200);
     if(anchor)damage*=.88;
@@ -539,13 +549,13 @@ export class RunScene extends Phaser.Scene {
 
   private applyEnemySpecial(enemy:Phaser.Physics.Arcade.Sprite,def:EnemyDefinition,special:import('../../gameplay/enemies/enemy-runtime.js').EnemySpecialIntent):void {
     if(special.kind==='summon'){
-      const active=this.enemies.getChildren().filter(child=>(child as Phaser.Physics.Arcade.Sprite).active&&child!==enemy&&child.getData('summonedBy')===def.id).length;
+      const active=this.enemies.getChildren().filter(child=>(child as Phaser.Physics.Arcade.Sprite).active&&child!==enemy&&child.getData('summonedBy')===enemy).length;
       const minion=ENEMIES.find(e=>e.id==='rootbound-husk');
       if(minion&&this.enemies.countActive(true)<42)for(let i=0;i<Math.min(special.count,Math.max(0,4-active));i++){
         const angle=(Math.PI*2*i)/Math.max(1,special.count),x=enemy.x+Math.cos(angle)*52,y=enemy.y+Math.sin(angle)*52;
         this.createEnemy(x,y,minion,.55);
         const child=this.enemies.getChildren()[this.enemies.getChildren().length-1] as Phaser.Physics.Arcade.Sprite;
-        child.setData('summonedBy',def.id).setData('experience',0);
+        child.setData('summonedBy',enemy).setData('experience',0);
       }
       return;
     }
@@ -561,6 +571,11 @@ export class RunScene extends Phaser.Scene {
       return;
     }
     if(special.kind==='parry'){enemy.setData('parryUntil',this.time.now+special.durationMs);return;}
+    if(special.kind==='pounce'){
+      const dx=special.targetX-enemy.x,dy=special.targetY-enemy.y,d=Math.hypot(dx,dy)||1;
+      enemy.setData('pounceX',dx/d).setData('pounceY',dy/d).setData('pounceUntil',this.time.now+special.durationMs);
+      this.telegraphAttack(enemy,def,special.targetX,special.targetY,special.amount,420,'line',52);return;
+    }
     if(special.kind==='hex'){
       for(const child of this.enemies.getChildren()){
         const ally=child as Phaser.Physics.Arcade.Sprite;if(!ally.active||ally===enemy)continue;
