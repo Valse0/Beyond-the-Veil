@@ -118,7 +118,7 @@ Allowed states: NOT_STARTED · IN_PROGRESS · IMPLEMENTED_UNVERIFIED · VERIFIED
 | SAVE-01 | Local save, backup and migration | §22 | Versioned save, backups, corruption recovery and import/export. | NOT_STARTED | - | - | - |
 | PLATFORM-01 | Responsive offline Web build | §26 | Desktop/mobile landscape, input and offline behavior verified. | NOT_STARTED | - | - | - |
 | PLATFORM-02 | Capacitor Android build | §26 | Android package builds and is tested on a physical device. | NOT_STARTED | - | - | - |
-| QA-01 | Automated gameplay/content tests | §24 | Unit, integration, schema, asset and regression checks pass. | IN_PROGRESS | tests/run-model.test.mjs; tests/content-validation.test.mjs; .github/workflows/ci.yml | CI run 44361746724: 10 tests PASS; typecheck/build PASS | Content schema/reference tests exist; runtime/integration and asset-file tests remain. |
+| QA-01 | Automated gameplay/content tests | §24 | Unit, integration, schema, asset and regression checks pass. | IN_PROGRESS | tests/run-model.test.mjs; tests/content-validation.test.mjs; .github/workflows/ci.yml | CI run 44362101193: 12 tests PASS; typecheck/build PASS | Content schema/reference tests exist; runtime/integration and asset-file tests remain. |
 | QA-02 | Runtime, performance and accessibility audit | §24, §29 | Browser/device flows, long sessions, memory and accessibility checked. | NOT_STARTED | - | - | - |
 | RELEASE-01 | Full GDD acceptance gate | §26, §29, §30 | All in-scope requirements VERIFIED; no critical defects; Web/Android verified. | NOT_STARTED | - | - | - |
 
@@ -175,7 +175,7 @@ Catalog counts reflect typed design data, not finished runtime content. Enemy AI
 
 | Date | Commit | Check | Command/scenario | Result | Evidence |
 |---|---|---|---|---|---|
-| 2026-11-18 | 1b8dda9cf2a198434e3338d957e51ca94b80c2c8 | Typecheck, content/run tests, production build and dependency audit | npm run typecheck; npm test (10 tests); npm run build; npm audit --audit-level=moderate | PASS | Run 44361746724: https://github.com/Valse0/Beyond-the-Veil/actions/runs/44361746724; npm audit: 0 vulnerabilities |
+| 2026-11-18 | dc8c9cdf3b60f4f5faa35087da7dd5fce8ed7e6d | Typecheck, 12 gameplay/content tests, production build, strict dependency audit; enforced unique behavior and attack keys across all 25 enemies. | npm run typecheck; npm test (12 tests); npm run build; npm audit --audit-level=moderate | PASS | Run 44362101193: https://github.com/Valse0/Beyond-the-Veil/actions/runs/44362101193; npm audit: 0 vulnerabilities |
 
 ## Asset status
 
