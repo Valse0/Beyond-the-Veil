@@ -179,12 +179,14 @@ export class RunScene extends Phaser.Scene {
       const def=ENEMIES.find(enemy=>enemy.id===this.region.enemyIds[0]);
       if(def)for(let i=0;i<6&&this.runEventState.activeEvent?.status==='active';i++){const enemy=this.createEnemy(this.player.x+30+i*2,this.player.y,def,1);this.damageEnemy(enemy,Number(enemy.getData('health'))*100);}
     }else{
-      while(this.runEventState.activeEvent?.status==='active'){
-        const tagged=this.enemies.getChildren().map(child=>child as Phaser.Physics.Arcade.Sprite).filter(enemy=>enemy.active&&enemy.getData('runEventKind')===active.kind);
-        if(!tagged.length){this.spawnCursedWaveStage(this.runEventState.activeEvent.stage);continue;}
-        tagged.forEach(enemy=>this.damageEnemy(enemy,Number(enemy.getData('health'))+1));
+      for(let safety=0;safety<3&&this.runEventState.activeEvent?.status==='active';safety++){
+        let tagged=this.enemies.getChildren().map(child=>child as Phaser.Physics.Arcade.Sprite).filter(enemy=>enemy.active&&enemy.getData('runEventKind')===active.kind);
+        if(!tagged.length){this.spawnCursedWaveStage(this.runEventState.activeEvent.stage);tagged=this.enemies.getChildren().map(child=>child as Phaser.Physics.Arcade.Sprite).filter(enemy=>enemy.active&&enemy.getData('runEventKind')===active.kind);}
+        if(!tagged.length)break;
+        tagged.forEach(enemy=>this.damageEnemy(enemy,Number(enemy.getData('health'))*100));
       }
     }
+    if(this.runEventState.activeEvent?.status==='active')throw new Error('Browser test could not complete the active run event within its safety limit.');
   }
 
   browserTestFinishRun():void {
