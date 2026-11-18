@@ -193,3 +193,117 @@ test('region selection reads unlocked regions from the persisted profile', async
   await page.waitForTimeout(180);
   expect((await canvas.screenshot()).equals(regionScreen)).toBe(false);
 });
+
+type BrowserRunSnapshot = {
+  level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;
+  paused:boolean;bossSpawned:boolean;choices:{id:string;title:string}[];
+  controls:{rerollsRemaining:number;banishesRemaining:number;skipsRemaining:number;bannedChoiceIds:string[]};
+};
+
+async function startBrowserTestRun(page: import('@playwright/test').Page): Promise<import('@playwright/test').Locator> {
+  await page.goto('/?bv-test=1');
+  const canvas=page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  await page.waitForFunction(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {registry:{get:(key:string)=>unknown}}}).__BEYOND_VEIL_GAME__;
+    return Boolean(game&&game.registry.get('browserTestMode')===true);
+  });
+  await page.mouse.click(160,555);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(120);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(180);
+  await page.waitForFunction(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{sys:{isActive:()=>boolean}}}}}).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.getScene('run')?.sys.isActive());
+  });
+  return canvas;
+}
+
+async function readBrowserRunSnapshot(page: import('@playwright/test').Page): Promise<BrowserRunSnapshot> {
+  return page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestSnapshot:()=>BrowserRunSnapshot}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run').browserTestSnapshot();
+  });
+}
+
+async function spawnBrowserTestXp(page: import('@playwright/test').Page,xp:number): Promise<void> {
+  await page.evaluate(value => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestSpawnXpOrb:(amount:number)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestSpawnXpOrb(value);
+  },xp);
+}
+
+
+test('real level-up overlay supports XP, two rerolls, banish and one skip', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  const canvas=await startBrowserTestRun(page);
+
+  // The test orb is placed on the hunter; Phaser's actual Arcade overlap collects it.
+  await spawnBrowserTestXp(page,260);
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).paused).toBe(true);
+  const initial=await readBrowserRunSnapshot(page);
+  expect(initial.level).toBeGreaterThan(1);
+  expect(initial.queuedLevels).toBeGreaterThan(1);
+  expect(initial.choices).toHaveLength(4);
+  expect(initial.controls).toEqual({rerollsRemaining:2,banishesRemaining:1,skipsRemaining:1,bannedChoiceIds:[]});
+
+  const firstIds=initial.choices.map(choice=>choice.id).sort();
+  await canvas.click({position:{x:410,y:569}});
+  const afterFirstReroll=await readBrowserRunSnapshot(page);
+  expect(afterFirstReroll.controls.rerollsRemaining).toBe(1);
+  expect(afterFirstReroll.choices.map(choice=>choice.id).some(id=>firstIds.includes(id))).toBe(false);
+
+  const secondIds=afterFirstReroll.choices.map(choice=>choice.id).sort();
+  await canvas.click({position:{x:410,y:569}});
+  const afterSecondReroll=await readBrowserRunSnapshot(page);
+  expect(afterSecondReroll.controls.rerollsRemaining).toBe(0);
+  expect(afterSecondReroll.choices.map(choice=>choice.id).some(id=>secondIds.includes(id))).toBe(false);
+
+  const exhaustedRerollChoices=afterSecondReroll.choices.map(choice=>choice.id).sort();
+  await canvas.click({position:{x:410,y:569}});
+  expect((await readBrowserRunSnapshot(page)).choices.map(choice=>choice.id).sort()).toEqual(exhaustedRerollChoices);
+
+  const bannedId=afterSecondReroll.choices[0]!.id;
+  await canvas.click({position:{x:640,y:569}});
+  await canvas.click({position:{x:310,y:382}});
+  const afterBanish=await readBrowserRunSnapshot(page);
+  expect(afterBanish.controls.banishesRemaining).toBe(0);
+  expect(afterBanish.controls.bannedChoiceIds).toContain(bannedId);
+  expect(afterBanish.choices.map(choice=>choice.id)).not.toContain(bannedId);
+
+  const queuedBeforeSkip=afterBanish.queuedLevels;
+  await canvas.click({position:{x:870,y:569}});
+  const afterSkip=await readBrowserRunSnapshot(page);
+  expect(afterSkip.controls.skipsRemaining).toBe(0);
+  expect(afterSkip.queuedLevels).toBe(queuedBeforeSkip-1);
+
+  // A second click on the exhausted Skip control must not consume another queued level.
+  await canvas.click({position:{x:870,y:569}});
+  expect((await readBrowserRunSnapshot(page)).queuedLevels).toBe(afterSkip.queuedLevels);
+  expect(pageErrors).toEqual([]);
+});
+
+test('accelerated run clock reaches the 14-minute boss trigger without waiting 14 real minutes', async ({ page }) => {
+  const canvas=await startBrowserTestRun(page);
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestAdvanceElapsed(839_000);
+  });
+  expect((await readBrowserRunSnapshot(page)).bossSpawned).toBe(false);
+
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestAdvanceElapsed(1_000);
+  });
+  const atBoss=await readBrowserRunSnapshot(page);
+  expect(atBoss.elapsedMs).toBe(840_000);
+  expect(atBoss.bossSpawned).toBe(true);
+  expect((await canvas.screenshot()).length).toBeGreaterThan(1_000);
+});
+
