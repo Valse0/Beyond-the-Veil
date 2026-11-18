@@ -204,7 +204,7 @@ type BrowserRunSnapshot = {
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string}[];
   runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
-  bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
+  bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
   controls:{rerollsRemaining:number;banishesRemaining:number;skipsRemaining:number;bannedChoiceIds:string[]};
   runEvents:{selected:string[];active:{kind:string;progress:number;stage:number;status:string}|null;completed:string[];failed:string[]};
 };
@@ -435,11 +435,18 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   expect(beforeApproach.bossChestDiagnostics.chestBody?.width).toBeGreaterThan(0);
   expect(beforeApproach.bossChestDiagnostics.chestBody?.height).toBeGreaterThan(0);
 
-  // Move the hunter onto the chest. The real Arcade overlap may open and destroy it
-  // before the next browser snapshot; the overlap counter and persisted result are durable.
+  // Probe each hand-off independently: Arcade overlap -> collection handler -> chest open ->
+  // victory timer -> finishRun callback -> persisted result. This identifies the exact broken stage.
   await moveToBrowserTestBossChest(page);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.overlapCount,{timeout:3_000,message:'Player and boss chest bodies should produce a real Arcade overlap'}).toBeGreaterThan(0);
-  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved).toBe(true);
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.collectCount,{timeout:3_000,message:'Arcade overlap should enter the run-event collection handler'}).toBeGreaterThan(0);
+  const afterCollect=await readBrowserRunSnapshot(page);
+  expect(afterCollect.bossChestDiagnostics.lastCollectObjectActive).toBe(true);
+  expect(afterCollect.bossChestDiagnostics.lastCollectPending).toBe(true);
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.collectOutcome,{timeout:3_000,message:'Collection handler should open the pending boss chest'}).toBe('opened');
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.finishScheduledAtMs,{timeout:3_000,message:'Opening the chest should schedule the victory completion callback'}).not.toBeNull();
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.finishCallbackAtMs,{timeout:3_000,message:'Scheduled victory completion callback should execute'}).not.toBeNull();
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved,{timeout:3_000,message:'Victory completion should persist the run result'}).toBe(true);
   const victory=await readBrowserRunSnapshot(page);
   expect(victory.runFinished).toBe(true);
   expect(victory.bossChestAvailable).toBe(false);
