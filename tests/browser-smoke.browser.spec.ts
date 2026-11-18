@@ -280,10 +280,23 @@ test('real level-up overlay supports XP, two rerolls, banish and one skip', asyn
   const afterSkip=await readBrowserRunSnapshot(page);
   expect(afterSkip.controls.skipsRemaining).toBe(0);
   expect(afterSkip.queuedLevels).toBe(queuedBeforeSkip-1);
+  expect(afterSkip.choices.map(choice=>choice.id)).not.toContain(bannedId);
 
   // A second click on the exhausted Skip control must not consume another queued level.
   await canvas.click({position:{x:870,y:569}});
   expect((await readBrowserRunSnapshot(page)).queuedLevels).toBe(afterSkip.queuedLevels);
+
+  // End this run through the guarded harness, then use the real New Run result button.
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestFinishRun:()=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestFinishRun();
+  });
+  await canvas.click({position:{x:640,y:446}});
+  await page.waitForTimeout(220);
+  const restarted=await readBrowserRunSnapshot(page);
+  expect(restarted.level).toBe(1);
+  expect(restarted.controls).toEqual({rerollsRemaining:2,banishesRemaining:1,skipsRemaining:1,bannedChoiceIds:[]});
   expect(pageErrors).toEqual([]);
 });
 
