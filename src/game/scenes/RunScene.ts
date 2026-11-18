@@ -89,6 +89,7 @@ export class RunScene extends Phaser.Scene {
   private bossSpawned=false;
   private runFinished=false;
   private runSoulEssence=0;
+  private lastRunSaved:boolean|null=null;
   private basePowerBonus=0;
   private baseMagnetBonus=0;
   private baseHasteMultiplier=1;
@@ -106,6 +107,7 @@ export class RunScene extends Phaser.Scene {
   browserTestSnapshot():{
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;
     paused:boolean;bossSpawned:boolean;choices:{id:string;title:string}[];
+    runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
     controls:LevelUpControlState;
   } {
     this.assertBrowserTestMode();
@@ -113,6 +115,8 @@ export class RunScene extends Phaser.Scene {
       level:this.state.level,experience:this.state.experience,experienceToNext:this.state.experienceToNext,
       queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,paused:this.paused,bossSpawned:this.bossSpawned,
       choices:this.currentLevelChoices.map(({id,title})=>({id,title})),
+      runSoulEssence:this.runSoulEssence,kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
+      bossHealth:this.bossState?.health??null,
       controls:{...this.levelUpControls,bannedChoiceIds:[...this.levelUpControls.bannedChoiceIds]}
     };
   }
@@ -130,6 +134,21 @@ export class RunScene extends Phaser.Scene {
     this.state={...this.state,elapsedMs:Math.min(RUN_MS,this.state.elapsedMs+milliseconds)};
     if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
     this.refreshHud();
+  }
+
+  browserTestSpawnAndDefeatEnemy(enemyId:string):void {
+    this.assertBrowserTestMode();
+    const definition=ENEMIES.find(enemy=>enemy.id===enemyId);
+    if(!definition)throw new Error('Unknown test enemy: '+enemyId);
+    const enemy=this.createEnemy(this.player.x+30,this.player.y,definition,1);
+    this.damageEnemy(enemy,Number(enemy.getData('health'))+1);
+  }
+
+  browserTestDefeatBoss():void {
+    this.assertBrowserTestMode();
+    this.spawnBoss();
+    if(!this.bossSprite||!this.bossDefinition)throw new Error('The current region has no test boss.');
+    this.damageBossTarget(this.bossSprite,this.bossDefinition.health+1);
   }
 
   browserTestFinishRun():void {
@@ -154,7 +173,7 @@ export class RunScene extends Phaser.Scene {
     this.lastSpawn=this.time.now;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];
-    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.runFinished=false;this.runSoulEssence=0;
+    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.runFinished=false;this.runSoulEssence=0;this.lastRunSaved=null;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
@@ -394,11 +413,12 @@ export class RunScene extends Phaser.Scene {
     this.createEnemy(x,y,def,1+Math.min(2.5,this.state.elapsedMs/360000));
   }
 
-  private createEnemy(x:number,y:number,def:EnemyDefinition,scale:number):void {
+  private createEnemy(x:number,y:number,def:EnemyDefinition,scale:number):Phaser.Physics.Arcade.Sprite {
     const enemy=this.enemies.create(x,y,'enemy-'+def.id) as Phaser.Physics.Arcade.Sprite;
     enemy.setDepth(2).setCircle(def.radius).setData('enemyType',def.id).setData('health',Math.round(def.health*scale)).setData('maxHealth',Math.round(def.health*scale)).setData('experience',def.experience);
     if(def.behavior==='mimic'){enemy.setAlpha(.2).setTint(0xd5bd8b).setData('mimicRevealed',false);}
     this.enemyStates.set(enemy,{x,y,health:Math.round(def.health*scale),nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false,nextSpecialAt:this.time.now+1800,attackCount:0});
+    return enemy;
   }
 
   private spawnBoss():void {
@@ -879,7 +899,7 @@ export class RunScene extends Phaser.Scene {
 
   private finishRun(won:boolean):void {
     if(this.runFinished)return;this.runFinished=true;this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
-    const saved=this.persistRunResult(won);
+    const saved=this.persistRunResult(won);this.lastRunSaved=saved;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.9).setScrollFactor(0).setDepth(200);
     const title=this.add.text(w/2,h*.29,won?'KOŞU TAMAMLANDI':'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     const summary=this.add.text(w/2,h*.43,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman\n+'+this.runSoulEssence+' RUH ÖZÜ\n'+(saved?'İLERLEME KAYDEDİLDİ':'KAYIT BAŞARISIZ — İLERLEME KORUNAMADI'),{fontSize:'16px',color:saved?'#c0b5a8':'#e29a8d',align:'center',lineSpacing:7}).setOrigin(.5).setScrollFactor(0).setDepth(201);
