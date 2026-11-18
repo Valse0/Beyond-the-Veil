@@ -86,6 +86,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   create():void {
+    this.time.paused=false;this.physics.world.resume();
     this.state={...createRunState(),health:this.character.health,maxHealth:this.character.health,moveSpeed:this.character.moveSpeed,damage:18*this.character.stats.damageMultiplier,attackIntervalMs:720};
     this.build=EMPTY_BUILD;
     const startingWeapon=WEAPONS.find(w=>w.id===this.character.startingWeaponId)??WEAPONS[0]!;
