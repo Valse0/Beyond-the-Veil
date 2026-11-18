@@ -812,20 +812,6 @@ export class RunScene extends Phaser.Scene {
     this.overlay.push(button,text);this.registerOverlayOption(button,action);
   }
 
-  private showLevelUp():void {
-    this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
-    this.overlay.push(this.add.rectangle(w/2,h/2,w,h,0x08070b,.88).setScrollFactor(0).setDepth(200));
-    this.overlay.push(this.add.text(w/2,h*.23,'GÜÇLENME SEÇİMİ',{fontFamily:'Georgia',fontSize:'30px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
-    this.overlay.push(this.add.text(w/2,h*.31,'Bir gelişim seç. Her seçim koşunu değiştirir.',{fontSize:'15px',color:'#aaa0a0'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
-    this.buildChoices().forEach((choice,i)=>{
-      const x=w/2+(i-1.5)*220;
-      const card=this.add.rectangle(x,h*.55,196,170,0x28212a,.98).setStrokeStyle(2,0x9b8059).setScrollFactor(0).setDepth(201).setInteractive({useHandCursor:true});
-      const name=this.add.text(x,h*.5,choice.title,{fontFamily:'Georgia',fontSize:'17px',color:'#e8d6ad',align:'center',wordWrap:{width:170}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-      const detail=this.add.text(x,h*.61,choice.detail,{fontSize:'12px',color:'#b9b0ae',align:'center',wordWrap:{width:165}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-      this.overlay.push(card,name,detail);this.registerOverlayOption(card,()=>this.chooseUpgrade(choice));
-    });
-  }
-
   private chooseUpgrade(choice:LevelChoice):void {
     this.banishMode=false;
     if(choice.kind==='base'){
