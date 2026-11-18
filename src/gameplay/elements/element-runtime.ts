@@ -8,7 +8,8 @@ export function applyElementHit(state:ElementState, element:ElementDefinition, b
   const current=state[element.id]??{buildup:0,stacks:0,expiresAt:0,nextTickAt:now+1000};
   const buildup=current.buildup+element.buildupPerHit;
   const triggered=buildup>=element.threshold;
-  const stacks=triggered?Math.min(element.id==='dark'?3:element.id==='blood'||element.id==='poison'?5:1,current.stacks+1):current.stacks;
+  const maxStacks=element.id==='dark'?3:element.id==='poison'?5:element.id==='blood'?4:1;
+  const stacks=triggered?Math.min(maxStacks,current.stacks+1):current.stacks;
   const next:ElementState={...state,[element.id]:{buildup:triggered?buildup-element.threshold:buildup,stacks,expiresAt:triggered?now+element.durationMs:Math.max(current.expiresAt,now+element.durationMs),nextTickAt:current.expiresAt>now?current.nextTickAt:now+1000}};
   let reaction:ElementHitResult['reaction'];
   for(const activeId of Object.keys(state) as ElementId[]) {
