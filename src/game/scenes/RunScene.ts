@@ -177,7 +177,7 @@ export class RunScene extends Phaser.Scene {
 
   browserTestMoveToBossChest():void {
     this.assertBrowserTestMode();
-    const chest=this.eventObjects.getChildren().find(object=>object.getData('eventObjectType')==='boss-chest');
+    const chest=this.eventObjects.getChildren().find(object=>object.getData('eventObjectType')==='boss-chest') as Phaser.GameObjects.GameObject&{x:number;y:number}|undefined;
     if(!chest)throw new Error('The boss chest has not spawned.');
     this.player.setPosition(chest.x,chest.y).setVelocity(0,0);
   }
