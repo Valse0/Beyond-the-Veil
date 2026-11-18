@@ -111,7 +111,7 @@ export class RegionSelectScene extends Phaser.Scene {
     });
 
     this.makeButton(64, height - 76, '‹  AVCIYA GERİ DÖN', () => {
-      this.scene.start('character-select');
+      this.scene.start('character-select', { characterId: this.characterId });
     }, 190);
     this.makeButton(width - 248, height - 76, 'KOŞUYU BAŞLAT  ›', () => this.startRun(), 184);
     this.add.text(width / 2, height - 48, '← / → veya D-PAD: BÖLGE SEÇ     A / ENTER: BAŞLAT     B / ESC: GERİ', {
@@ -121,8 +121,8 @@ export class RegionSelectScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-LEFT', () => this.moveSelection(-1));
     this.input.keyboard?.on('keydown-RIGHT', () => this.moveSelection(1));
     this.input.keyboard?.on('keydown-ENTER', () => this.startRun());
-    this.input.keyboard?.on('keydown-ESC', () => this.scene.start('character-select'));
-    this.input.keyboard?.on('keydown-BACKSPACE', () => this.scene.start('character-select'));
+    this.input.keyboard?.on('keydown-ESC', () => this.scene.start('character-select', { characterId: this.characterId }));
+    this.input.keyboard?.on('keydown-BACKSPACE', () => this.scene.start('character-select', { characterId: this.characterId }));
     this.refreshSelection();
   }
 
@@ -136,7 +136,7 @@ export class RegionSelectScene extends Phaser.Scene {
     if (left && !this.previousPad.left) this.moveSelection(-1);
     if (right && !this.previousPad.right) this.moveSelection(1);
     if (confirm && !this.previousPad.confirm) this.startRun();
-    if (back && !this.previousPad.back) this.scene.start('character-select');
+    if (back && !this.previousPad.back) this.scene.start('character-select', { characterId: this.characterId });
     this.previousPad = { left, right, confirm, back };
   }
 
