@@ -87,6 +87,7 @@ test('mimics conceal themselves at range while phase stalkers use timed vanish w
  const actor={x:0,y:0,health:100,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false};
  assert.equal(stepEnemyAI(mimic,actor,{x:300,y:0},5000,16).state.burrowed,true);
  assert.equal(stepEnemyAI(mimic,actor,{x:100,y:0},5000,16).state.burrowed,false);
+ assert.equal(stepEnemyAI(mimic,{...actor,exposedUntil:9000},{x:300,y:0},5000,16).state.burrowed,false);
  assert.equal(stepEnemyAI(stalker,actor,{x:100,y:0},3200,16).state.burrowed,true);
 });
 test('enemy attack counters advance only when a telegraphed attack is issued',()=>{
