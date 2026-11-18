@@ -29,7 +29,6 @@ const BASE_CHOICES: { id: UpgradeId; title: string; detail: string }[] = [
 type LevelChoice = { id:string; title:string; detail:string; kind:'base'|'weapon-add'|'weapon-up'|'passive-add'|'passive-up'; contentId?:string };
 
 const elementTint:Record<ElementId,number>={fire:0xff8652,ice:0x8fdcff,poison:0x9ac65d,dark:0x9b78c8,spirit:0x73d7c8,lightning:0xf4dc74,blood:0xc84c60};
-const unit=(x:number,y:number)=>{const d=Math.hypot(x,y)||1;return{x:x/d,y:y/d};};
 
 export class RunScene extends Phaser.Scene {
   private state:RunState=createRunState();
@@ -75,6 +74,9 @@ export class RunScene extends Phaser.Scene {
   private hazardLabel?:Phaser.GameObjects.Text;
   private bossSpawned=false;
   private runFinished=false;
+  private basePowerBonus=0;
+  private baseMagnetBonus=0;
+  private baseHasteMultiplier=1;
 
   constructor(){super('run');}
 
@@ -92,6 +94,7 @@ export class RunScene extends Phaser.Scene {
     this.paused=false;this.queuedLevels=0;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;
     this.lastSpawn=this.time.now;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
+    this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;
     this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.runFinished=false;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
@@ -187,7 +190,7 @@ export class RunScene extends Phaser.Scene {
     const targets=this.activeTargets();
     for(const enemy of targets){
       if(Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)>this.character.ability.range)continue;
-      this.damageEnemy(enemy,this.state.damage*this.character.ability.damageMultiplier*stats.damageMultiplier,element);
+      this.damageEnemy(enemy,this.state.damage*this.character.ability.damageMultiplier*stats.damageMultiplier*this.character.stats.damageMultiplier,element);
       const a=Phaser.Math.Angle.Between(this.player.x,this.player.y,enemy.x,enemy.y);
       enemy.setVelocity(Math.cos(a)*150,Math.sin(a)*150);
     }
@@ -277,7 +280,7 @@ export class RunScene extends Phaser.Scene {
       const target=findNearestTarget(this.player,targets);if(!target)continue;
       const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,target.x,target.y);
       if(distance>stats.range)continue;
-      this.weaponReady[weapon.id]=time+stats.intervalMs/this.currentBuildStats().attackSpeedMultiplier;
+      this.weaponReady[weapon.id]=time+stats.intervalMs/(this.currentBuildStats().attackSpeedMultiplier*this.baseHasteMultiplier);
       const damage=stats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier;
       const behavior=progress.evolved?this.evolvedWeaponBehavior(weapon):weapon.behavior;
       this.executeWeapon(weapon,behavior,damage,stats.projectiles,stats.range,target);
@@ -448,7 +451,7 @@ export class RunScene extends Phaser.Scene {
 
   private refreshBuildStats():void {
     const stats=this.currentBuildStats();this.state={...this.state,moveSpeed:this.character.moveSpeed*stats.moveSpeedMultiplier,
-      damage:18*this.character.stats.damageMultiplier*stats.damageMultiplier,magnetRadius:112+stats.magnetRadiusBonus};
+      damage:18+this.basePowerBonus,magnetRadius:112+this.baseMagnetBonus+stats.magnetRadiusBonus};
   }
 
   private magnetize():void {
@@ -498,7 +501,12 @@ export class RunScene extends Phaser.Scene {
   }
 
   private chooseUpgrade(choice:LevelChoice):void {
-    if(choice.kind==='base')this.state=applyUpgrade(this.state,choice.id as UpgradeId);
+    if(choice.kind==='base'){
+      if(choice.id==='power'){this.basePowerBonus+=6;this.refreshBuildStats();}
+      else if(choice.id==='haste'){this.baseHasteMultiplier=Math.min(1.65,this.baseHasteMultiplier*1.1);}
+      else if(choice.id==='magnet'){this.baseMagnetBonus+=65;this.refreshBuildStats();}
+      else this.state=applyUpgrade(this.state,choice.id as UpgradeId);
+    }
     if(choice.kind==='weapon-add'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def)this.build=addWeapon(this.build,def);}
     if(choice.kind==='weapon-up'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def)this.build=upgradeWeapon(this.build,def);}
     if(choice.kind==='passive-add'){const def=PASSIVES.find(p=>p.id===choice.contentId);if(def)this.build=addPassive(this.build,def);}
