@@ -71,9 +71,9 @@ export function resolveGamepadInput(
     westPressed: current.west && !previous.west,
     eastPressed: current.east && !previous.east,
     startPressed: current.start && !previous.start,
-    leftPressed: current.dpadLeft && !previous.dpadLeft,
-    rightPressed: current.dpadRight && !previous.dpadRight,
-    upPressed: current.dpadUp && !previous.dpadUp,
-    downPressed: current.dpadDown && !previous.dpadDown
+    leftPressed: (current.dpadLeft || current.axisX < -0.55) && !(previous.dpadLeft || previous.axisX < -0.55),
+    rightPressed: (current.dpadRight || current.axisX > 0.55) && !(previous.dpadRight || previous.axisX > 0.55),
+    upPressed: (current.dpadUp || current.axisY < -0.55) && !(previous.dpadUp || previous.axisY < -0.55),
+    downPressed: (current.dpadDown || current.axisY > 0.55) && !(previous.dpadDown || previous.axisY > 0.55)
   };
 }
