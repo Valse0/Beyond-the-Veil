@@ -17,21 +17,23 @@ async function hunterScreenX(
     if (!context) throw new Error('Could not decode the Phaser canvas screenshot.');
 
     context.drawImage(image, 0, 0);
-    const sample = context.getImageData(560, 280, 160, 160).data;
+    const frame = context.getImageData(0, 0, decoded.width, decoded.height).data;
     let count = 0;
     let totalX = 0;
 
-    for (let y = 0; y < 160; y += 1) {
-      for (let x = 0; x < 160; x += 1) {
-        const index = (y * 160 + x) * 4;
-        const red = sample[index]!;
-        const green = sample[index + 1]!;
-        const blue = sample[index + 2]!;
-        const alpha = sample[index + 3]!;
+    // The camera follows the hunter, so its screen position is not fixed to one crop.
+    // Match the generated hunter texture across the full canvas instead.
+    for (let y = 0; y < decoded.height; y += 1) {
+      for (let x = 0; x < decoded.width; x += 1) {
+        const index = (y * decoded.width + x) * 4;
+        const red = frame[index]!;
+        const green = frame[index + 1]!;
+        const blue = frame[index + 2]!;
+        const alpha = frame[index + 3]!;
         if (
-          red >= 184 && red <= 204 &&
-          green >= 153 && green <= 173 &&
-          blue >= 99 && blue <= 119 &&
+          red >= 174 && red <= 214 &&
+          green >= 143 && green <= 183 &&
+          blue >= 89 && blue <= 129 &&
           alpha >= 240
         ) {
           count += 1;
@@ -43,7 +45,7 @@ async function hunterScreenX(
     if (count < 80) {
       throw new Error(`Could not locate the hunter sprite in the rendered frame (matched ${count} pixels).`);
     }
-    return 560 + totalX / count;
+    return totalX / count;
   }, screenshot.toString('base64'));
 }
 
@@ -54,6 +56,25 @@ test('player can select a hunter and an unlocked region before starting a run', 
   await page.goto('/');
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
+
+  // A first launch creates a versioned local profile before the Phaser scenes start.
+  const firstSave = await page.evaluate(() => {
+    const raw = window.localStorage.getItem('beyond-the-veil.save');
+    return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string }; progression: { unlockedCharacterIds: string[]; unlockedRegionIds: string[] } } : null;
+  });
+  expect(firstSave?.schemaVersion).toBe(1);
+  expect(firstSave?.progression.unlockedCharacterIds).toContain('cursed-hunter');
+  expect(firstSave?.progression.unlockedRegionIds).toContain('cursed-forest');
+
+  // Reloading the page must retain the same profile rather than creating a new one.
+  await page.reload();
+  await expect(canvas).toBeVisible();
+  const reloadedSave = await page.evaluate(() => {
+    const raw = window.localStorage.getItem('beyond-the-veil.save');
+    return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string } } : null;
+  });
+  expect(reloadedSave?.schemaVersion).toBe(1);
+  expect(reloadedSave?.profile.createdAt).toBe(firstSave?.profile.createdAt);
   const dimensions = await canvas.evaluate((element: HTMLCanvasElement) => ({
     width: element.width,
     height: element.height
@@ -105,7 +126,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
   expect(runFrame.equals(lockedRegionFrame)).toBe(false);
 
   // Verify real movement by tracking the starting hunter's rendered sprite pixels.
-  const initialHunterX = await hunterScreenX(page, canvas);
+  // Let the camera finish its initial follow-in before recording the baseline.\n  await page.waitForTimeout(900);\n  const initialHunterX = await hunterScreenX(page, canvas);
   await page.keyboard.down('ArrowRight');
   let movedHunterX: number;
   try {
