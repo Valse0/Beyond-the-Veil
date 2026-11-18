@@ -228,8 +228,9 @@ export class RunScene extends Phaser.Scene {
       }
       enemy.setVelocity(effects.stunned?0:vx,effects.stunned?0:vy);
       if(effects.damage>0)this.damageEnemy(enemy,effects.damage);
-      enemy.setAlpha(intent.state.burrowed?.35:1);
-      if(intent.attack){
+      const concealed=intent.state.burrowed||Number(enemy.getData('untargetableUntil')??0)>time;
+      enemy.setAlpha(concealed?.28:1);
+      if(intent.attack&&intent.special?.kind!=='pounce'){
         const empowered=def.behavior==='ambush'&&(intent.state.attackCount??0)===1&&!enemy.getData('ambushSpent');
         if(empowered)enemy.setData('ambushSpent',true);
         const buffed=Number(enemy.getData('damageBuffUntil')??0)>time?Number(enemy.getData('damageBuff')??1):1;
@@ -591,7 +592,9 @@ export class RunScene extends Phaser.Scene {
     if(special.kind==='trap'||special.kind==='web'||special.kind==='spore-cloud'){
       const damage=special.kind==='trap'?special.amount:special.kind==='spore-cloud'?special.amount:0;
       const slow=special.kind==='web'?.5:0;
-      this.createEnemyZone(special.targetX,special.targetY,special.radius,special.durationMs,damage,special.kind==='web'?0x83c6c9:0x9ac65d,slow);
+      const color=special.kind==='web'?0x83c6c9:0x9ac65d;
+      const warning=this.add.graphics().setDepth(6);warning.lineStyle(3,color,.9);warning.strokeCircle(special.targetX,special.targetY,special.radius);warning.fillStyle(color,.12);warning.fillCircle(special.targetX,special.targetY,special.radius);
+      this.time.delayedCall(680,()=>{warning.destroy();if(!this.runFinished)this.createEnemyZone(special.targetX,special.targetY,special.radius,special.durationMs,damage,color,slow);});
       return;
     }
     if(special.kind==='frost-trail'){
