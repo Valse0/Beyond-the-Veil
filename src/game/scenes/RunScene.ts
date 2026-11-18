@@ -138,11 +138,12 @@ export class RunScene extends Phaser.Scene {
     orb.setCircle(6).setData('xp',xp);
   }
 
-  browserTestAdvanceElapsed(milliseconds:number):void {
+  browserTestAdvanceElapsed(milliseconds:number,skipTimedSystems=false):void {
     this.assertBrowserTestMode();
     if(!Number.isFinite(milliseconds)||milliseconds<0)throw new Error('Test time must be a non-negative finite number.');
     this.state={...this.state,elapsedMs:Math.min(RUN_MS,this.state.elapsedMs+milliseconds)};
-    this.updateRunEvent(this.time.now);
+    if(skipTimedSystems){this.runEventState={...this.runEventState,nextEventIndex:3,activeEvent:null};this.eventSetupPending=false;this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};}
+    else this.updateRunEvent(this.time.now);
     if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
     this.refreshHud();
   }
