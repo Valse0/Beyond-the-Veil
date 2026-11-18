@@ -1,5 +1,5 @@
 import type {EnemyDefinition} from '../core/types/content.js';
-type Row=[string,string,string,string,number,number,number,number,string,string,number,string,string,string];
+type Row=[string,string,string,string,number,number,number,number,string,string,number,string,string,string,string];
 const rows:Row[]=[
 ['rootbound-husk','Kök Tutsağı','cursed-forest','pursue',34,62,8,2,'poison','melee-swipe',8,'cone','Kökleri geriye çekilir','Yan adım at; yalnızca öne vurur.','Düz hatla takip eder.'],
 ['thorn-pouncer','Diken Sıçrayıcısı','cursed-forest','flank',26,112,7,3,'poison','leap-strike',12,'line','Yere ince diken izi düşer','Atılım çizgisinden dik açıyla kaç.','Son hareket yönünü tahmin edip çaprazdan yaklaşır.'],
@@ -29,3 +29,5 @@ const rows:Row[]=[
 ];
 export const ENEMIES:readonly EnemyDefinition[]=rows.map((r,i)=>({id:r[0],name:r[1],regionId:r[2] as EnemyDefinition['regionId'],behavior:r[3] as EnemyDefinition['behavior'],role:r[3],health:r[4],speed:r[5],contactDamage:r[6],experience:r[7],radius:[13,10,14,20,19][i%5],color:[0x8c5264,0x9b6b4d,0x78934f,0x6d7950,0xa58a58][i%5],element:r[8] as EnemyDefinition['element'],resistances:{[r[8]]:.15},attack:{id:r[0]+'-attack',name:r[9],kind:r[9],damage:r[10],range:180,cooldownMs:3000,telegraph:{shape:r[11] as EnemyDefinition['attack']['telegraph']['shape'],warningMs:700,cue:r[12]},counter:r[13]},specialRule:r[14],mutationSlots:['armored','cursed','fast'],assetId:'enemy.'+r[0]}));
 export const STARTING_ENEMIES=ENEMIES.slice(0,3);
+
+export type {EnemyDefinition};
