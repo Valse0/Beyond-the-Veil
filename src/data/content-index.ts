@@ -1,0 +1,2 @@
+import {CHARACTERS} from './characters.js';import {ENEMIES} from './enemies.js';import {BOSSES} from './bosses.js';import {WEAPONS} from './weapons.js';import {PASSIVES} from './passives.js';import {ELEMENTS} from './elements.js';import {REGIONS} from './regions.js';import {ASSET_REGISTRY} from './asset-registry.js';
+export const CONTENT_CATALOG={characters:CHARACTERS,enemies:ENEMIES,bosses:BOSSES,weapons:WEAPONS,passives:PASSIVES,elements:ELEMENTS,regions:REGIONS,assets:ASSET_REGISTRY} as const;

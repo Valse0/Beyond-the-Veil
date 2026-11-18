@@ -1,9 +1,31 @@
-export interface EnemyDefinition {
-  id: string; name: string; health: number; speed: number; contactDamage: number;
-  experience: number; radius: number; color: number; behavior: 'pursue' | 'orbit' | 'surge';
-}
-export const STARTING_ENEMIES: readonly EnemyDefinition[] = [
-  { id: 'hollow', name: 'Boşluk Leşi', health: 34, speed: 62, contactDamage: 8, experience: 2, radius: 13, color: 0x8c5264, behavior: 'pursue' },
-  { id: 'wisp', name: 'Kayıp Ruh', health: 20, speed: 94, contactDamage: 6, experience: 2, radius: 9, color: 0x69a9a5, behavior: 'orbit' },
-  { id: 'brute', name: 'Mezar Yarması', health: 88, speed: 39, contactDamage: 16, experience: 5, radius: 19, color: 0xa58a58, behavior: 'surge' }
+import type {EnemyDefinition} from '../core/types/content.js';
+type Row=[string,string,string,string,number,number,number,number,string,string,number,string,string,string];
+const rows:Row[]=[
+['rootbound-husk','Kök Tutsağı','cursed-forest','pursue',34,62,8,2,'poison','melee-swipe',8,'cone','Kökleri geriye çekilir','Yan adım at; yalnızca öne vurur.','Düz hatla takip eder.'],
+['thorn-pouncer','Diken Sıçrayıcısı','cursed-forest','flank',26,112,7,3,'poison','leap-strike',12,'line','Yere ince diken izi düşer','Atılım çizgisinden dik açıyla kaç.','Son hareket yönünü tahmin edip çaprazdan yaklaşır.'],
+['spore-spitter','Spor Tüküren','cursed-forest','poison-volley',42,42,5,4,'poison','ranged-fan',7,'cone','Başlığında üç spor birikir','Yelpazenin dışına çık; bulut yerde kalır.','Orta mesafeyi koruyup zehir alanı bırakır.'],
+['gravebloom-nest','Mezar Çiçeği Yuvası','cursed-forest','nest-summon',76,18,10,7,'dark','summon',0,'ring','Üç kök halkası parlar','Çağrı başlamadan yuvayı yok et.','En fazla dört filiz sınırıyla iki yaratık çağırır.'],
+['briarback-charger','Diken Sırtlı Koç','cursed-forest','surge',92,38,17,6,'fire','charge',18,'line','Boynuzlarını yere sürter','Yana kaç; duvara çarparsa sersemler.','Hücumda yön değiştiremez; çarpışınca açılır.'],
+['tomb-warden','Mezar Muhafızı','forgotten-graveyard','shield-advance',108,34,15,7,'dark','frontal-slam',19,'cone','Kalkanı başının üstüne kalkar','Arkasına geç; önden hasarı emer.','Ön hasarın yüzde 65’ini azaltır.'],
+['wailing-wisp','Feryat Eden Ruh','forgotten-graveyard','soul-snipe',24,72,5,4,'spirit','aimed-projectile',10,'line','Oyuncuya ince ruh ipi uzanır','Atıştan önce yön değiştir; son konuma kilitlenir.','Atış sonrası kısa süre silikleşir.'],
+['bone-skitter','Kemik Kaydıran','forgotten-graveyard','swarm',17,126,4,1,'dark','quick-melee',4,'circle','Çene kemikleri açılır','Hareketli kal; itme etkilerine hassastır.','Sürü halinde çevreler; tek başına zayıftır.'],
+['mourner-acolyte','Yas Akoliti','forgotten-graveyard','support-heal',48,46,6,5,'spirit','enemy-heal',0,'ring','Mor iplik yakındaki düşmana bağlanır','Öncelikli hedef al; iplik kesilince iyileşme durur.','Dört saniyede bir yakındaki düşmanı yüzde 12 iyileştirir.'],
+['crypt-leaper','Mahzen Sıçrayıcısı','forgotten-graveyard','leap',56,82,12,5,'dark','leap-impact',15,'circle','İniş noktası çatlak daireyle işaretlenir','İşaretli daireden çık; iniş sonrası açılır.','Engellerin üzerinden atlar.'],
+['brass-sentinel','Pirinç Nöbetçi','deep-dungeon','shield-advance',126,31,16,8,'fire','cross-slam',18,'cross','Göğsündeki dört rün parlar','Kolların arasındaki güvenli boşluğa gir.','Ön zırhı yıldırım veya arkadan ağır darbeyle kırılır.'],
+['ember-mortar','Kor Havanı','deep-dungeon','artillery',58,22,7,6,'fire','lobbed-explosion',16,'circle','Hedefte köz halkası oluşur','Patlama alanından çık; atışta yavaşlar.','0.7 saniye sonraki konumuna atış yapar.'],
+['chain-duelist','Zincir Düellocusu','deep-dungeon','duelist',68,76,11,6,'lightning','parry-lunge',17,'line','Zincirini göğsünde çaprazlar','Parry hazırlığında saldırma; boşa çıkınca açılır.','Yakın saldırı başladığında karşı duruşa geçer.'],
+['tunnel-burrower','Tünel Kazıcısı','deep-dungeon','burrow',52,88,13,5,'dark','burrow-emerge',16,'circle','Toprak kabarıp taşlar yükselir','Hareketli kal; çıkış izini takip et.','Yer altındayken hedeflenemez; çıkınca savunmasızdır.'],
+['rune-sapper','Rün Sabotajcısı','deep-dungeon','rune-sapper',44,52,7,6,'dark','delayed-trap',14,'zone','Üçgen rün ağı çizilir','Rün kapanmadan çık; mayın yok edilebilir.','Kaçış hattına en fazla iki rün bırakır.'],
+['mire-lurker','Bataklık Pusu Avcısı','rotten-swamp','ambush',62,98,12,6,'poison','ambush-grab',16,'line','Çamurda kabarcık izi belirir','İzden uzaklaş; başarısız olursa görünür olur.','Saklanır; ilk saldırısı güçlendirilmiştir.'],
+['bog-leech','Bataklık Sülüğü','rotten-swamp','blood-drain',38,90,8,4,'blood','drain-beam',7,'line','Kırmızı ip uzar','Menzilden çık; emdiği canı geri kazanmasını engelle.','Verdiği hasarın yüzde 35’i kadar iyileşir.'],
+['gas-sac','Çürük Gaz Kesesi','rotten-swamp','volatile-bomber',30,54,5,4,'poison','suicide-explosion',22,'circle','Gövdesi şişer ve sarı ışık atar','Patlamadan uzaklaş; uzaktan öldür.','Erken öldürülürse patlama alanı yarıya iner.'],
+['mire-witch','Çamur Cadısı','rotten-swamp','hex-caster',54,48,6,7,'dark','hex-zone',9,'zone','Mor mantarlar hedef alanı işaretler','Sis dolmadan alanı terk et.','Sis içindeki düşmanlara yüzde 15 hız verir.'],
+['web-weaver','Sis Ağ Örücüsü','rotten-swamp','web-control',46,58,7,5,'ice','snare-grid',8,'cross','İnce ağ çizgileri kesişir','Kesişen çizgilerden çık; yavaşlatma hasarı düşüktür.','Ağ düşmanları da yavaşlatır.'],
+['veil-stalker','Perde Avcısı','cursed-castle','phase-stalk',72,92,13,8,'dark','phase-dash',18,'line','İki soluk kopya saldırı yönünü gösterir','Gerçek gölge belirince yana dash at.','Her üç saniyede kısa süre hedeflenemez olur.'],
+['frost-hound','Mühür Tazısı','cursed-castle','frost-hunt',64,104,11,7,'ice','chase-bite',15,'cone','Nefesi buzlanır, çenesi parlar','Yön değiştir; ısırık kısa menzillidir.','Takipte buz izi bırakır.'],
+['mirror-mimic','Ayna Taklitçisi','cursed-castle','mimic',86,68,14,10,'spirit','delayed-copy',17,'circle','Yansıma hareketi ters taklit eder','Gerçek gövdeyi hedefle; kopya hasar vermez.','İlk darbeye kadar sandık görünümündedir.'],
+['soul-anchor','Ruh Çapası','cursed-castle','soul-anchor',118,20,12,10,'spirit','radial-pull',13,'ring','Zincirleri gerilir ve halka belirir','Halka kapanmadan çık; uzaktan yok edilebilir.','Yakındaki düşmanlara yüzde 12 hasar azaltımı verir.'],
+['dusk-revenant','Alacakaranlık Hortlağı','cursed-castle','wraith',94,74,15,11,'blood','three-hit-combo',12,'cone','Kılıcı üç kez titreşir','İlk vuruştan sonra dash at; kombo yön değiştiremez.','Yarı can altında hızlanır ama kombodan sonra açılır.']
 ];
+export const ENEMIES:readonly EnemyDefinition[]=rows.map((r,i)=>({id:r[0],name:r[1],regionId:r[2] as EnemyDefinition['regionId'],behavior:r[3] as EnemyDefinition['behavior'],role:r[3],health:r[4],speed:r[5],contactDamage:r[6],experience:r[7],radius:[13,10,14,20,19][i%5],color:[0x8c5264,0x9b6b4d,0x78934f,0x6d7950,0xa58a58][i%5],element:r[8] as EnemyDefinition['element'],resistances:{[r[8]]:.15},attack:{id:r[0]+'-attack',name:r[9],kind:r[9],damage:r[10],range:180,cooldownMs:3000,telegraph:{shape:r[11] as EnemyDefinition['attack']['telegraph']['shape'],warningMs:700,cue:r[12]},counter:r[13]},specialRule:r[14],mutationSlots:['armored','cursed','fast'],assetId:'enemy.'+r[0]}));
+export const STARTING_ENEMIES=ENEMIES.slice(0,3);
