@@ -16,6 +16,7 @@ import { addPassive, addWeapon, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upg
 import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState } from '../../gameplay/bosses/boss-runtime.js';
 import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent } from '../../gameplay/regions/region-runtime.js';
 import { applyRunResult } from '../../gameplay/run/run-results.js';
+import { createWaveDirector, stepWaveDirector, waveRandom, type WaveDirectorState } from '../../gameplay/spawning/wave-director.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
 import { createLevelUpControlState, drawLevelUpChoices as drawChoicesFromPool, spendLevelUpBanish, spendLevelUpReroll, spendLevelUpSkip, type LevelUpControlState } from '../../gameplay/level-up/level-up-controls.js';
@@ -71,7 +72,8 @@ export class RunScene extends Phaser.Scene {
   private dashUntil=0;
   private abilityReady=0;
   private lastHud=0;
-  private lastSpawn=0;
+  private waveDirector:WaveDirectorState=createWaveDirector(1);
+  private runSeed=1;
   private weaponReady:Record<string,number>={};
   private bossDefinition?:BossDefinition;
   private bossState?:BossEncounterState;
@@ -170,7 +172,10 @@ export class RunScene extends Phaser.Scene {
     this.build=addWeapon(this.build,startingWeapon);this.build=addPassive(this.build,startingPassive);
     this.paused=false;this.queuedLevels=0;this.levelUpControls=createLevelUpControlState();this.currentLevelChoices=[];this.banishMode=false;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;
     this.previousGamepadFrame=EMPTY_GAMEPAD_FRAME;this.gamepadMoveX=0;this.gamepadMoveY=0;this.clearOverlay();
-    this.lastSpawn=this.time.now;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
+    const requestedSeed=this.registry.get('runSeed');
+    this.runSeed=typeof requestedSeed==='number'&&Number.isFinite(requestedSeed)?requestedSeed>>>0:((Date.now()^Math.floor(Math.random()*0xffffffff))>>>0);
+    if(this.runSeed===0)this.runSeed=1;
+    this.waveDirector=createWaveDirector(this.runSeed);this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];
     this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.runFinished=false;this.runSoulEssence=0;this.lastRunSaved=null;
@@ -310,10 +315,23 @@ export class RunScene extends Phaser.Scene {
         if(Boolean(enemy.getData('primed'))!==primed){enemy.setData('primed',primed);enemy.setTint(primed?0xf2b34d:0xffffff);}
       }
       if(def.behavior==='surge'&&(enemy.x<def.radius+36||enemy.x>WORLD_W-def.radius-36||enemy.y<def.radius+36||enemy.y>WORLD_H-def.radius-36)&&intent.speedMultiplier>1){enemy.setVelocity(0,0);this.enemyStates.set(enemy,{...intent.state,exposedUntil:time+1250});}
+      const isElite=Boolean(enemy.getData('isElite'));
+      if(isElite){
+        const marker=enemy.getData('eliteMarker') as Phaser.GameObjects.Arc|undefined;marker?.setPosition(enemy.x,enemy.y);
+        const health=Number(enemy.getData('health')),maximum=Number(enemy.getData('maxHealth'));
+        if(!enemy.getData('eliteEnraged')&&health<=maximum*.5){enemy.setData('eliteEnraged',true).setTint(0xf2a85c);}
+        if(time>=Number(enemy.getData('eliteAttackReady')??0)){
+          const shape:Record<RegionId,string>={'cursed-forest':'ring','forgotten-graveyard':'cross','deep-dungeon':'line','rotten-swamp':'zone','cursed-castle':'cone'};
+          const radius=this.region.id==='cursed-castle'?82:this.region.id==='deep-dungeon'?118:76;
+          this.telegraphAttack(enemy,def,this.player.x,this.player.y,def.attack.damage*1.55,720,shape[this.region.id],radius);
+          enemy.setData('eliteAttackReady',time+6200);
+        }
+      }
       const status=this.elementStates.get(enemy)??{};
       const effects=tickElementStatuses(status,time);this.elementStates.set(enemy,effects.state);
       const slow=effects.slowed?.55:1;
       let vx=intent.velocityX*slow,vy=intent.velocityY*slow;
+      if(isElite){const boost=enemy.getData('eliteEnraged')?1.32:1.12;vx*=boost;vy*=boost;}
       if(Number(enemy.getData('pounceUntil')??0)>time){vx=Number(enemy.getData('pounceX'))*def.speed*3.1;vy=Number(enemy.getData('pounceY'))*def.speed*3.1;}
       if(def.behavior==='swarm'){
         const pack=this.activeTargets().filter(other=>other!==enemy&&this.enemyDefinition(other)?.behavior==='swarm'&&Phaser.Math.Distance.Between(enemy.x,enemy.y,other.x,other.y)<115).length;
@@ -327,7 +345,7 @@ export class RunScene extends Phaser.Scene {
         const empowered=def.behavior==='ambush'&&(intent.state.attackCount??0)===1&&!enemy.getData('ambushSpent');
         if(empowered)enemy.setData('ambushSpent',true);
         const buffed=Number(enemy.getData('damageBuffUntil')??0)>time?Number(enemy.getData('damageBuff')??1):1;
-        const damage=intent.attack.damage*(empowered?1.8:1)*buffed;
+        const damage=intent.attack.damage*(empowered?1.8:1)*buffed*(isElite?1.35:1);
         if(def.behavior==='artillery'){
           const velocity=(this.player.body as Phaser.Physics.Arcade.Body).velocity;
           this.telegraphAttack(enemy,def,this.player.x+velocity.x*.7,this.player.y+velocity.y*.7,damage,intent.attack.telegraphMs,'circle',58);
@@ -398,32 +416,55 @@ export class RunScene extends Phaser.Scene {
   }
 
   private spawnDirector(time:number):void {
-    if(time-this.lastSpawn<Math.max(420,1450-this.state.elapsedMs/850)||this.enemies.countActive(true)>=42)return;
-    this.lastSpawn=time;this.spawnEnemy();
-    if(this.state.elapsedMs>90000&&Math.random()<.25)this.spawnEnemy();
+    const pool=this.region.enemyIds.map(id=>ENEMIES.find(enemy=>enemy.id===id)).filter((enemy):enemy is EnemyDefinition=>Boolean(enemy));
+    if(!pool.length)return;
+    const children=this.enemies.getChildren() as Phaser.Physics.Arcade.Sprite[];
+    const activeEliteCount=children.filter(enemy=>enemy.active&&Boolean(enemy.getData('isElite'))).length;
+    const plan=stepWaveDirector(this.waveDirector,this.state.elapsedMs,this.enemies.countActive(true),activeEliteCount,42,pool.length);
+    if(plan.spawnCount===0)return;
+    const previousIndex=this.waveDirector.spawnIndex;
+    this.waveDirector=plan.state;
+    const scale=1+Math.min(2.5,this.state.elapsedMs/360000);
+    for(let i=0;i<plan.spawnCount;i++){
+      const sequence=previousIndex+i;
+      const angle=waveRandom(this.runSeed,sequence,21)*Math.PI*2;
+      const distance=390+waveRandom(this.runSeed,sequence,22)*180;
+      const x=Phaser.Math.Clamp(this.player.x+Math.cos(angle)*distance,35,WORLD_W-35);
+      const y=Phaser.Math.Clamp(this.player.y+Math.sin(angle)*distance,35,WORLD_H-35);
+      const definition=pool[plan.enemyIndices[i]??0]!;
+      this.createEnemy(x,y,definition,scale,plan.eliteDue&&i===0);
+    }
   }
 
   private spawnEnemy():void {
-    const angle=Math.random()*Math.PI*2,distance=Phaser.Math.Between(390,570);
+    const pool=this.region.enemyIds.map(id=>ENEMIES.find(enemy=>enemy.id===id)).filter((enemy):enemy is EnemyDefinition=>Boolean(enemy));
+    if(!pool.length)return;
+    const def=pool[0]!;
+    const angle=waveRandom(this.runSeed,0,31)*Math.PI*2;
+    const distance=390+waveRandom(this.runSeed,0,32)*180;
     const x=Phaser.Math.Clamp(this.player.x+Math.cos(angle)*distance,35,WORLD_W-35);
     const y=Phaser.Math.Clamp(this.player.y+Math.sin(angle)*distance,35,WORLD_H-35);
-    const pool=this.region.enemyIds.map(id=>ENEMIES.find(e=>e.id===id)).filter((e):e is EnemyDefinition=>Boolean(e));
-    if(!pool.length)return;
-    const def=pool[Phaser.Math.Between(0,pool.length-1)]!;
-    this.createEnemy(x,y,def,1+Math.min(2.5,this.state.elapsedMs/360000));
+    this.createEnemy(x,y,def,1);
   }
 
-  private createEnemy(x:number,y:number,def:EnemyDefinition,scale:number):Phaser.Physics.Arcade.Sprite {
+  private createEnemy(x:number,y:number,def:EnemyDefinition,scale:number,isElite=false):Phaser.Physics.Arcade.Sprite {
+    const healthScale=scale*(isElite?2.4:1);
+    const maxHealth=Math.round(def.health*healthScale);
+    const experience=Math.round(def.experience*(isElite?3:1));
     const enemy=this.enemies.create(x,y,'enemy-'+def.id) as Phaser.Physics.Arcade.Sprite;
-    enemy.setDepth(2).setCircle(def.radius).setData('enemyType',def.id).setData('health',Math.round(def.health*scale)).setData('maxHealth',Math.round(def.health*scale)).setData('experience',def.experience);
-    if(def.behavior==='mimic'){enemy.setAlpha(.2).setTint(0xd5bd8b).setData('mimicRevealed',false);}
-    this.enemyStates.set(enemy,{x,y,health:Math.round(def.health*scale),nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false,nextSpecialAt:this.time.now+1800,attackCount:0});
+    enemy.setDepth(2).setCircle(def.radius).setData('enemyType',def.id).setData('health',maxHealth).setData('maxHealth',maxHealth).setData('experience',experience);
+    if(isElite){
+      const marker=this.add.circle(x,y,def.radius+8,0xd9ad5c,.12).setStrokeStyle(3,0xe8c77a,.95).setDepth(1);
+      enemy.setTint(0xd9ad5c).setData('isElite',true).setData('eliteId',this.region.elite.id).setData('eliteName',this.region.elite.name).setData('eliteMarker',marker).setData('eliteAttackReady',this.time.now+2400).setData('eliteEnraged',false);
+    }
+    if(def.behavior==='mimic'&&!isElite){enemy.setAlpha(.2).setTint(0xd5bd8b).setData('mimicRevealed',false);}
+    this.enemyStates.set(enemy,{x,y,health:maxHealth,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false,nextSpecialAt:this.time.now+1800,attackCount:0});
     return enemy;
   }
 
   private spawnBoss():void {
-    if(this.bossSpawned)return;
-    this.bossSpawned=true;this.bossDefinition=BOSSES.find(b=>b.id===this.region.bossId);
+    if(this.bossSpawned||this.enemies.countActive(true)>=42)return;
+    this.bossDefinition=BOSSES.find(b=>b.id===this.region.bossId);
     if(!this.bossDefinition)return;
     this.bossState=createBossEncounter(this.bossDefinition);
     const boss=this.enemies.create(this.player.x+330,this.player.y,'boss-'+this.bossDefinition.id) as Phaser.Physics.Arcade.Sprite;
@@ -557,7 +598,8 @@ export class RunScene extends Phaser.Scene {
       this.time.delayedCall(260,()=>blast.destroy());
     }
     const experience=Number(enemy.getData('experience'));
-    this.runSoulEssence+=Math.floor(Math.max(0,experience)/2);
+    this.runSoulEssence+=Math.floor(Math.max(0,experience)/2)+(enemy.getData('isElite')?35:0);
+    const eliteMarker=enemy.getData('eliteMarker') as Phaser.GameObjects.GameObject|undefined;eliteMarker?.destroy();
     this.dropExperience(enemy,experience);this.state=recordKill(this.state);enemy.destroy();
   }
 
@@ -585,7 +627,7 @@ export class RunScene extends Phaser.Scene {
     boss.setData('health',transition.state.health).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(boss.active)boss.clearTint();});
     if(transition.changed&&!transition.state.defeated){this.bossPhaseText?.setText(transition.current.name);this.cameras.main.flash(320,90,38,55);
-      for(const id of transition.current.addEnemyIds){const def=ENEMIES.find(e=>e.id===id);if(def)this.createEnemy(boss.x+Phaser.Math.Between(-90,90),boss.y+Phaser.Math.Between(-90,90),def,1.2);}}
+      for(const id of transition.current.addEnemyIds){if(this.enemies.countActive(true)>=42)break;const def=ENEMIES.find(e=>e.id===id);if(def)this.createEnemy(boss.x+Phaser.Math.Between(-90,90),boss.y+Phaser.Math.Between(-90,90),def,1.2);}}
     this.bossHealth?.setSize(300*Phaser.Math.Clamp(transition.state.health/transition.state.maxHealth,0,1),5);
     if(transition.state.defeated)this.defeatBoss(boss);
   }
@@ -604,7 +646,7 @@ export class RunScene extends Phaser.Scene {
 
   private contactDamage(enemy:Phaser.Physics.Arcade.Sprite):void {
     if(this.time.now<this.nextDamage||this.time.now<this.dashUntil||!enemy.active)return;
-    const def=this.enemyDefinition(enemy);const actor=this.enemyStates.get(enemy);if(actor?.burrowed||Number(enemy.getData('untargetableUntil')??0)>this.time.now)return;const damage=enemy.getData('isBoss')?(this.bossDefinition?.contactDamage??24):(def?.contactDamage??9);
+    const def=this.enemyDefinition(enemy);const actor=this.enemyStates.get(enemy);if(actor?.burrowed||Number(enemy.getData('untargetableUntil')??0)>this.time.now)return;const damage=enemy.getData('isBoss')?(this.bossDefinition?.contactDamage??24):(def?.contactDamage??9)*(enemy.getData('isElite')?1.4:1);
     this.nextDamage=this.time.now+650;this.receiveCombatDamage(damage);
   }
 
