@@ -1,299 +1,532 @@
 import Phaser from 'phaser';
+import type { ElementId, RegionId, EnemyDefinition, BossDefinition, CharacterDefinition, WeaponDefinition, PassiveDefinition } from '../../core/types/content.js';
 import type { RunState, UpgradeId } from '../../core/types/game.js';
-import { STARTING_CHARACTER } from '../../data/characters.js';
-import { STARTING_ENEMIES, type EnemyDefinition } from '../../data/enemies.js';
-import { STARTING_WEAPON } from '../../data/weapons.js';
+import { CHARACTERS, STARTING_CHARACTER } from '../../data/characters.js';
+import { ENEMIES } from '../../data/enemies.js';
+import { BOSSES } from '../../data/bosses.js';
+import { WEAPONS } from '../../data/weapons.js';
+import { PASSIVES } from '../../data/passives.js';
+import { ELEMENTS } from '../../data/elements.js';
+import { REGIONS } from '../../data/regions.js';
 import { calculateDamage, findNearestTarget } from '../../gameplay/combat/combat-rules.js';
 import { advanceRun, applyUpgrade, createRunState, gainExperience, receiveDamage, recordKill } from '../../gameplay/run/run-model.js';
+import { stepEnemyAI, type EnemyActorState } from '../../gameplay/enemies/enemy-runtime.js';
+import { applyElementHit, tickElementStatuses, type ElementState } from '../../gameplay/elements/element-runtime.js';
+import { addPassive, addWeapon, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState, type WeaponProgress } from '../../gameplay/weapons/build-runtime.js';
+import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState } from '../../gameplay/bosses/boss-runtime.js';
+import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent } from '../../gameplay/regions/region-runtime.js';
 
 const RUN_MS = 900000;
+const BOSS_START_MS = 720000;
 const WORLD_W = 2400;
 const WORLD_H = 1800;
-const CHOICES: { id: UpgradeId; title: string; detail: string }[] = [
-  { id: 'power', title: 'Keskin Ruh', detail: 'Hasar +6' },
-  { id: 'haste', title: 'Hızlı Akış', detail: 'Saldırı hızı artar' },
+const BASE_CHOICES: { id: UpgradeId; title: string; detail: string }[] = [
+  { id: 'power', title: 'Keskin Ruh', detail: 'Temel hasar +6' },
+  { id: 'haste', title: 'Hızlı Akış', detail: 'Temel saldırı aralığı azalır' },
   { id: 'vitality', title: 'Kara Yaşam', detail: 'Azami can +20' },
-  { id: 'magnet', title: 'Ruh Mıknatısı', detail: 'XP alanı +65' }
+  { id: 'magnet', title: 'Ruh Mıknatısı', detail: 'XP çekim alanı +65' }
 ];
+type LevelChoice = { id:string; title:string; detail:string; kind:'base'|'weapon-add'|'weapon-up'|'passive-add'|'passive-up'; contentId?:string };
+
+const elementTint:Record<ElementId,number>={fire:0xff8652,ice:0x8fdcff,poison:0x9ac65d,dark:0x9b78c8,spirit:0x73d7c8,lightning:0xf4dc74,blood:0xc84c60};
+const unit=(x:number,y:number)=>{const d=Math.hypot(x,y)||1;return{x:x/d,y:y/d};};
 
 export class RunScene extends Phaser.Scene {
-  private state: RunState = createRunState();
-  private player!: Phaser.Physics.Arcade.Sprite;
-  private enemies!: Phaser.Physics.Arcade.Group;
-  private shots!: Phaser.Physics.Arcade.Group;
-  private orbs!: Phaser.Physics.Arcade.Group;
-  private keys!: Record<string, Phaser.Input.Keyboard.Key>;
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private hud!: Phaser.GameObjects.Text;
-  private clock!: Phaser.GameObjects.Text;
-  private health!: Phaser.GameObjects.Rectangle;
-  private joystick!: Phaser.GameObjects.Arc;
-  private thumb!: Phaser.GameObjects.Arc;
-  private touchStart?: Phaser.Math.Vector2;
-  private overlay: Phaser.GameObjects.GameObject[] = [];
-  private paused = false;
-  private queuedLevels = 0;
-  private lastShot = 0;
-  private lastSpawn = 0;
-  private nextDamage = 0;
-  private dashReady = 0;
-  private dashUntil = 0;
-  private abilityReady = 0;
-  private lastHud = 0;
+  private state:RunState=createRunState();
+  private character:CharacterDefinition=STARTING_CHARACTER;
+  private region=REGIONS[0]!;
+  private build:BuildState={weapons:[],passives:[]};
+  private player!:Phaser.Physics.Arcade.Sprite;
+  private enemies!:Phaser.Physics.Arcade.Group;
+  private shots!:Phaser.Physics.Arcade.Group;
+  private orbs!:Phaser.Physics.Arcade.Group;
+  private keys!:Record<string,Phaser.Input.Keyboard.Key>;
+  private cursors!:Phaser.Types.Input.Keyboard.CursorKeys;
+  private hud!:Phaser.GameObjects.Text;
+  private clock!:Phaser.GameObjects.Text;
+  private health!:Phaser.GameObjects.Rectangle;
+  private bossHud?:Phaser.GameObjects.Text;
+  private bossHealth?:Phaser.GameObjects.Rectangle;
+  private joystick!:Phaser.GameObjects.Arc;
+  private thumb!:Phaser.GameObjects.Arc;
+  private touchStart?:Phaser.Math.Vector2;
+  private overlay:Phaser.GameObjects.GameObject[]=[];
+  private paused=false;
+  private queuedLevels=0;
+  private nextDamage=0;
+  private dashReady=0;
+  private dashUntil=0;
+  private abilityReady=0;
+  private lastHud=0;
+  private lastSpawn=0;
+  private weaponReady:Record<string,number>={};
+  private bossDefinition?:BossDefinition;
+  private bossState?:BossEncounterState;
+  private bossSprite?:Phaser.Physics.Arcade.Sprite;
+  private bossPhaseText?:Phaser.GameObjects.Text;
+  private enemyStates=new WeakMap<Phaser.Physics.Arcade.Sprite,EnemyActorState>();
+  private elementStates=new WeakMap<Phaser.Physics.Arcade.Sprite,ElementState>();
+  private bossElementState:ElementState={};
+  private hazardCycle:HazardCycle=createHazardCycle();
+  private hazardMarker?:Phaser.GameObjects.Graphics;
+  private hazardTarget={x:0,y:0};
+  private activeHazardId='';
+  private hazardHasHit=false;
+  private hazardLabel?:Phaser.GameObjects.Text;
+  private bossSpawned=false;
+  private runFinished=false;
 
-  constructor() { super('run'); }
+  constructor(){super('run');}
 
-  create(): void {
-    this.state = { ...createRunState(), health: STARTING_CHARACTER.health, maxHealth: STARTING_CHARACTER.health,
-      moveSpeed: STARTING_CHARACTER.moveSpeed, damage: STARTING_WEAPON.baseDamage, attackIntervalMs: STARTING_WEAPON.intervalMs };
-    this.paused = false; this.queuedLevels = 0; this.lastShot = this.time.now; this.lastSpawn = this.time.now;
-    this.nextDamage = 0; this.dashReady = 0; this.dashUntil = 0; this.abilityReady = 0;
+  init(data:{characterId?:string;regionId?:RegionId}):void {
+    this.character=CHARACTERS.find(c=>c.id===data?.characterId)??STARTING_CHARACTER;
+    this.region=REGIONS.find(r=>r.id===data?.regionId)??REGIONS[0]!;
+  }
+
+  create():void {
+    this.state={...createRunState(),health:this.character.health,maxHealth:this.character.health,moveSpeed:this.character.moveSpeed,damage:18*this.character.stats.damageMultiplier,attackIntervalMs:720};
+    this.build=EMPTY_BUILD;
+    const startingWeapon=WEAPONS.find(w=>w.id===this.character.startingWeaponId)??WEAPONS[0]!;
+    const startingPassive=PASSIVES.find(p=>p.id===this.character.startingPassiveId)??PASSIVES[0]!;
+    this.build=addWeapon(this.build,startingWeapon);this.build=addPassive(this.build,startingPassive);
+    this.paused=false;this.queuedLevels=0;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;
+    this.lastSpawn=this.time.now;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
+    this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
+    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.runFinished=false;
     this.makeTextures();
-    this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H);
-    this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H).setBackgroundColor('#15131a');
-    const floor = this.add.graphics();
-    floor.fillStyle(0x19171d, 1); floor.fillRect(0, 0, WORLD_W, WORLD_H);
-    floor.lineStyle(1, 0x3a3337, 0.17);
-    for (let x = 0; x <= WORLD_W; x += 96) floor.lineBetween(x, 0, x, WORLD_H);
-    for (let y = 0; y <= WORLD_H; y += 96) floor.lineBetween(0, y, WORLD_W, y);
+    this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
+    this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
+    const floor=this.add.graphics();floor.fillStyle(0x19171d,1);floor.fillRect(0,0,WORLD_W,WORLD_H);
+    floor.lineStyle(1,0x3a3337,0.12);
+    for(let i=0;i<28;i++){const x=Phaser.Math.Between(80,WORLD_W-80),y=Phaser.Math.Between(80,WORLD_H-80);floor.lineStyle(2,0x8a795d,0.08);floor.strokeCircle(x,y,Phaser.Math.Between(18,64));}
     floor.setDepth(-10);
-    this.enemies = this.physics.add.group(); this.shots = this.physics.add.group(); this.orbs = this.physics.add.group();
-    this.player = this.physics.add.sprite(WORLD_W / 2, WORLD_H / 2, 'hunter').setCircle(12).setCollideWorldBounds(true).setDepth(3);
-    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
-    this.cursors = this.input.keyboard!.createCursorKeys();
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,SPACE,E,ESC') as Record<string, Phaser.Input.Keyboard.Key>;
-    this.physics.add.overlap(this.shots, this.enemies, (a, b) => this.hitEnemy(a as Phaser.Physics.Arcade.Sprite, b as Phaser.Physics.Arcade.Sprite));
-    this.physics.add.overlap(this.player, this.enemies, (_p, enemy) => this.contactDamage(enemy as Phaser.Physics.Arcade.Sprite));
-    this.physics.add.overlap(this.player, this.orbs, (_p, orb) => this.collectOrb(orb as Phaser.Physics.Arcade.Sprite));
-    this.createHud(); this.createTouchControls(); this.spawnEnemy();
+    this.enemies=this.physics.add.group();this.shots=this.physics.add.group({maxSize:100});this.orbs=this.physics.add.group({maxSize:80});
+    this.player=this.physics.add.sprite(WORLD_W/2,WORLD_H/2,'hunter').setCircle(12).setCollideWorldBounds(true).setDepth(3);
+    this.cameras.main.startFollow(this.player,true,0.08,0.08);
+    this.cursors=this.input.keyboard!.createCursorKeys();
+    this.keys=this.input.keyboard!.addKeys('W,A,S,D,SPACE,E,ESC') as Record<string,Phaser.Input.Keyboard.Key>;
+    this.physics.add.overlap(this.shots,this.enemies,(a,b)=>this.hitEnemy(a as Phaser.Physics.Arcade.Sprite,b as Phaser.Physics.Arcade.Sprite));
+    this.physics.add.overlap(this.player,this.enemies,(_p,e)=>this.contactDamage(e as Phaser.Physics.Arcade.Sprite));
+    this.physics.add.overlap(this.player,this.orbs,(_p,o)=>this.collectOrb(o as Phaser.Physics.Arcade.Sprite));
+    this.createHud();this.createTouchControls();this.spawnEnemy();this.refreshBuildStats();
   }
 
-  private makeTextures(): void {
-    const make = (key: string, color: number, r: number): void => {
-      if (this.textures.exists(key)) return;
-      const g = this.add.graphics();
-      g.fillStyle(color, 1); g.fillCircle(r + 3, r + 3, r);
-      g.lineStyle(2, 0xe8d7b6, 0.75); g.strokeCircle(r + 3, r + 3, r);
-      g.generateTexture(key, (r + 3) * 2, (r + 3) * 2); g.destroy();
+  private makeTextures():void {
+    const make=(key:string,color:number,r:number):void=>{
+      if(this.textures.exists(key))return;
+      const g=this.add.graphics();g.fillStyle(color,1);g.fillCircle(r+3,r+3,r);g.lineStyle(2,0xe8d7b6,.75);g.strokeCircle(r+3,r+3,r);
+      g.generateTexture(key,(r+3)*2,(r+3)*2);g.destroy();
     };
-    make('hunter', 0xc2a36d, 13); make('shot', 0xe8c77a, 5); make('orb', 0x69b7a5, 5);
-    STARTING_ENEMIES.forEach(e => make('enemy-' + e.id, e.color, e.radius));
+    make('hunter',0xc2a36d,13);make('shot',0xe8c77a,5);make('orb',0x69b7a5,5);make('boss-'+this.region.bossId,0x8e4567,31);
+    for(const id of this.region.enemyIds){const enemy=ENEMIES.find(e=>e.id===id);if(enemy)make('enemy-'+enemy.id,enemy.color,enemy.radius);}
   }
 
-  private createHud(): void {
-    const w = this.scale.width;
-    this.hud = this.add.text(22, 18, '', { fontFamily: 'Arial', fontSize: '15px', color: '#eee5d6', lineSpacing: 6 }).setScrollFactor(0).setDepth(100);
-    this.clock = this.add.text(w / 2, 18, '00:00', { fontFamily: 'Georgia', fontSize: '23px', color: '#d4b777' }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(100);
-    this.add.rectangle(w - 130, 32, 180, 12, 0x352d32).setScrollFactor(0).setDepth(100);
-    this.health = this.add.rectangle(w - 220, 32, 160, 8, 0xb95d62).setOrigin(0, 0.5).setScrollFactor(0).setDepth(101);
-    const pause = this.add.text(w - 34, 68, 'Ⅱ', { fontSize: '25px', color: '#d6c8b3' }).setOrigin(0.5).setScrollFactor(0).setDepth(110).setInteractive();
-    pause.on('pointerup', () => this.openPause()); this.refreshHud();
+  private createHud():void {
+    const w=this.scale.width;
+    this.hud=this.add.text(22,18,'',{fontFamily:'Arial',fontSize:'15px',color:'#eee5d6',lineSpacing:6}).setScrollFactor(0).setDepth(100);
+    this.clock=this.add.text(w/2,18,'00:00',{fontFamily:'Georgia',fontSize:'23px',color:'#d4b777'}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
+    this.add.rectangle(w-130,32,180,12,0x352d32).setScrollFactor(0).setDepth(100);
+    this.health=this.add.rectangle(w-220,32,160,8,0xb95d62).setOrigin(0,.5).setScrollFactor(0).setDepth(101);
+    const pause=this.add.text(w-34,68,'Ⅱ',{fontSize:'25px',color:'#d6c8b3'}).setOrigin(.5).setScrollFactor(0).setDepth(110).setInteractive();
+    pause.on('pointerup',()=>this.openPause());
+    this.bossHud=this.add.text(w/2,56,'',{fontSize:'13px',color:'#e7c9a1',align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.add.rectangle(w/2,82,300,8,0x352d32).setScrollFactor(0).setDepth(109).setVisible(false);
+    this.bossHealth=this.add.rectangle(w/2-150,82,300,5,0xb94b5b).setOrigin(0,.5).setScrollFactor(0).setDepth(111).setVisible(false);
+    this.bossPhaseText=this.add.text(w/2,96,'',{fontSize:'11px',color:'#c8b69d'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.refreshHud();
   }
 
-  private createTouchControls(): void {
-    const h = this.scale.height; const w = this.scale.width;
-    this.joystick = this.add.circle(88, h - 90, 47, 0xd9c7a7, 0.12).setStrokeStyle(2, 0xd9c7a7, 0.35).setScrollFactor(0).setDepth(105);
-    this.thumb = this.add.circle(88, h - 90, 19, 0xd9c7a7, 0.28).setScrollFactor(0).setDepth(106);
-    const button = (x: number, label: string, color: number, fn: () => void): void => {
-      const c = this.add.circle(x, h - 86, 34, color, 0.75).setStrokeStyle(2, 0xe5d6ba, 0.6).setScrollFactor(0).setDepth(105).setInteractive();
-      this.add.text(x, h - 86, label, { fontSize: '12px', color: '#fff2df', fontStyle: 'bold' }).setOrigin(0.5).setScrollFactor(0).setDepth(106);
-      c.on('pointerdown', fn);
+  private createTouchControls():void {
+    const h=this.scale.height,w=this.scale.width;
+    this.joystick=this.add.circle(88,h-90,47,0xd9c7a7,.12).setStrokeStyle(2,0xd9c7a7,.35).setScrollFactor(0).setDepth(105);
+    this.thumb=this.add.circle(88,h-90,19,0xd9c7a7,.28).setScrollFactor(0).setDepth(106);
+    const button=(x:number,label:string,color:number,fn:()=>void):void=>{
+      const c=this.add.circle(x,h-86,34,color,.75).setStrokeStyle(2,0xe5d6ba,.6).setScrollFactor(0).setDepth(105).setInteractive();
+      this.add.text(x,h-86,label,{fontSize:'12px',color:'#fff2df',fontStyle:'bold'}).setOrigin(.5).setScrollFactor(0).setDepth(106);c.on('pointerdown',fn);
     };
-    button(w - 130, 'DASH', 0x73534c, () => this.tryDash()); button(w - 52, 'E', 0x586f69, () => this.useAbility());
-    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      if (p.x < w * 0.48 && p.y > h * 0.48) this.touchStart = new Phaser.Math.Vector2(p.x, p.y);
+    button(w-130,'DASH',0x73534c,()=>this.tryDash());button(w-52,'E',0x586f69,()=>this.useAbility());
+    this.input.on('pointerdown',(p:Phaser.Input.Pointer)=>{if(p.x<w*.48&&p.y>h*.48)this.touchStart=new Phaser.Math.Vector2(p.x,p.y);});
+    this.input.on('pointerup',()=>{this.touchStart=undefined;this.thumb.setPosition(this.joystick.x,this.joystick.y);});
+  }
+
+  update(time:number,delta:number):void {
+    if(this.paused||this.runFinished)return;
+    this.state=advanceRun(this.state,delta);
+    this.move(time);this.moveEnemies(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
+    this.expireShots(time);this.magnetize();this.updateElementStatuses(time);this.updateRegionHazard(time);
+    if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
+    if(this.state.elapsedMs>=RUN_MS&&!this.bossState&&!this.bossSpawned)this.spawnBoss();
+    if(time-this.lastHud>120){this.refreshHud();this.lastHud=time;}
+  }
+
+  private move(time:number):void {
+    let x=(this.keys.D.isDown||this.cursors.right.isDown?1:0)-(this.keys.A.isDown||this.cursors.left.isDown?1:0);
+    let y=(this.keys.S.isDown||this.cursors.down.isDown?1:0)-(this.keys.W.isDown||this.cursors.up.isDown?1:0);
+    if(this.touchStart&&this.input.activePointer.isDown){const p=this.input.activePointer,dx=p.x-this.touchStart.x,dy=p.y-this.touchStart.y,len=Math.max(1,Math.hypot(dx,dy));x=dx/len;y=dy/len;this.thumb.setPosition(this.joystick.x+Phaser.Math.Clamp(dx,-27,27),this.joystick.y+Phaser.Math.Clamp(dy,-27,27));}
+    const dir=new Phaser.Math.Vector2(x,y);if(dir.length()>1)dir.normalize();
+    if(Phaser.Input.Keyboard.JustDown(this.keys.SPACE))this.tryDash();
+    if(Phaser.Input.Keyboard.JustDown(this.keys.E))this.useAbility();
+    if(Phaser.Input.Keyboard.JustDown(this.keys.ESC))this.openPause();
+    const stats=this.currentBuildStats();const speed=this.character.moveSpeed*stats.moveSpeedMultiplier;
+    if(time>=this.dashUntil)this.player.setVelocity(dir.x*speed,dir.y*speed);
+    else if(dir.length()>0)this.player.setVelocity(dir.x*speed*2.6,dir.y*speed*2.6);
+  }
+
+  private tryDash():void {
+    if(this.time.now<this.dashReady||this.paused)return;
+    const velocity=(this.player.body as Phaser.Physics.Arcade.Body).velocity.clone();
+    const dir=velocity.length()?velocity.normalize():new Phaser.Math.Vector2(1,0);
+    this.dashUntil=this.time.now+190;this.dashReady=this.time.now+1150;
+    this.player.setVelocity(dir.x*this.state.moveSpeed*2.8,dir.y*this.state.moveSpeed*2.8);this.cameras.main.shake(75,.0018);
+  }
+
+  private useAbility():void {
+    if(this.time.now<this.abilityReady||this.paused)return;
+    const stats=this.currentBuildStats();this.abilityReady=this.time.now+this.character.ability.cooldownMs*stats.abilityCooldownMultiplier;
+    const element=this.character.elementSynergies[0];
+    const targets=this.activeTargets();
+    for(const enemy of targets){
+      if(Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)>this.character.ability.range)continue;
+      this.damageEnemy(enemy,this.state.damage*this.character.ability.damageMultiplier*stats.damageMultiplier,element);
+      const a=Phaser.Math.Angle.Between(this.player.x,this.player.y,enemy.x,enemy.y);
+      enemy.setVelocity(Math.cos(a)*150,Math.sin(a)*150);
+    }
+    this.cameras.main.shake(110,.003);
+  }
+
+  private moveEnemies(time:number):void {
+    for(const child of this.enemies.getChildren()){
+      const enemy=child as Phaser.Physics.Arcade.Sprite;if(!enemy.active)continue;
+      if(enemy.getData('isBoss')){this.moveBoss(enemy,time);continue;}
+      const def=this.enemyDefinition(enemy);if(!def)continue;
+      const old=this.enemyStates.get(enemy)??{x:enemy.x,y:enemy.y,health:Number(enemy.getData('health')),nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false};
+      const state={...old,x:enemy.x,y:enemy.y,health:Number(enemy.getData('health'))};
+      const intent=stepEnemyAI(def,state,{x:this.player.x,y:this.player.y},time,16);
+      this.enemyStates.set(enemy,intent.state);
+      const status=this.elementStates.get(enemy)??{};
+      const effects=tickElementStatuses(status,time);this.elementStates.set(enemy,effects.state);
+      const slow=effects.slowed?.55:1;
+      enemy.setVelocity(effects.stunned?0:intent.velocityX*slow,effects.stunned?0:intent.velocityY*slow);
+      if(effects.damage>0)this.damageEnemy(enemy,effects.damage);
+      enemy.setAlpha(intent.state.burrowed?.45:1);
+      if(intent.attack)this.telegraphAttack(enemy,def,intent.attack.targetX,intent.attack.targetY,intent.attack.damage,intent.attack.telegraphMs,def.attack.telegraph.shape,46);
+    }
+  }
+
+  private moveBoss(boss:Phaser.Physics.Arcade.Sprite,time:number):void {
+    if(!this.bossDefinition||!this.bossState)return;
+    const dx=this.player.x-boss.x,dy=this.player.y-boss.y,dist=Math.hypot(dx,dy)||1;
+    if(dist>145)boss.setVelocity(dx/dist*this.bossDefinition.health*.006,dy/dist*this.bossDefinition.health*.006);else boss.setVelocity(0,0);
+    const phase=this.bossDefinition.phases[this.bossState.phaseIndex]!;
+    const attack=getBossAttack(this.bossState,phase,time);this.bossState=attack.state;
+    if(attack.attack)this.telegraphAttack(boss,undefined,this.player.x,this.player.y,attack.attack.damage,attack.attack.telegraph.warningMs,attack.attack.telegraph.shape,100);
+  }
+
+  private telegraphAttack(source:Phaser.Physics.Arcade.Sprite,def:EnemyDefinition|undefined,x:number,y:number,damage:number,warning:number,shape:string,radius:number):void {
+    const marker=this.add.graphics().setDepth(8);
+    const color=def?0xd5ad63:0xc95a65;
+    marker.lineStyle(3,color,.9);marker.strokeCircle(x,y,radius);marker.fillStyle(color,.13);marker.fillCircle(x,y,radius);
+    this.time.delayedCall(Math.max(0,warning),()=>{
+      if(!source.active||this.runFinished){marker.destroy();return;}
+      marker.clear();marker.lineStyle(2,0xe65d63,.95);marker.strokeCircle(x,y,radius);marker.fillStyle(0xe65d63,.22);marker.fillCircle(x,y,radius);
+      if(Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)<=radius+18)this.receiveCombatDamage(damage);
+      this.time.delayedCall(180,()=>marker.destroy());
     });
-    this.input.on('pointerup', () => { this.touchStart = undefined; this.thumb.setPosition(this.joystick.x, this.joystick.y); });
+    void shape;
   }
 
-  update(time: number, delta: number): void {
-    if (this.paused) return;
-    this.state = advanceRun(this.state, delta);
-    if (this.state.elapsedMs >= RUN_MS) { this.finishRun(true); return; }
-    this.move(time); this.moveEnemies(time); this.spawnDirector(time); this.fireAutomatically(time);
-    this.expireShots(time); this.magnetize();
-    if (time - this.lastHud > 120) { this.refreshHud(); this.lastHud = time; }
+  private spawnDirector(time:number):void {
+    if(time-this.lastSpawn<Math.max(420,1450-this.state.elapsedMs/850)||this.enemies.countActive(true)>=42)return;
+    this.lastSpawn=time;this.spawnEnemy();
+    if(this.state.elapsedMs>90000&&Math.random()<.25)this.spawnEnemy();
   }
 
-  private move(time: number): void {
-    let x = (this.keys.D.isDown || this.cursors.right.isDown ? 1 : 0) - (this.keys.A.isDown || this.cursors.left.isDown ? 1 : 0);
-    let y = (this.keys.S.isDown || this.cursors.down.isDown ? 1 : 0) - (this.keys.W.isDown || this.cursors.up.isDown ? 1 : 0);
-    if (this.touchStart && this.input.activePointer.isDown) {
-      const p = this.input.activePointer; const dx = p.x - this.touchStart.x; const dy = p.y - this.touchStart.y;
-      const length = Math.max(1, Math.hypot(dx, dy)); x = dx / length; y = dy / length;
-      this.thumb.setPosition(this.joystick.x + Phaser.Math.Clamp(dx, -27, 27), this.joystick.y + Phaser.Math.Clamp(dy, -27, 27));
-    }
-    const dir = new Phaser.Math.Vector2(x, y); if (dir.length() > 1) dir.normalize();
-    if (Phaser.Input.Keyboard.JustDown(this.keys.SPACE)) this.tryDash();
-    if (Phaser.Input.Keyboard.JustDown(this.keys.E)) this.useAbility();
-    if (Phaser.Input.Keyboard.JustDown(this.keys.ESC)) this.openPause();
-    if (time >= this.dashUntil) this.player.setVelocity(dir.x * this.state.moveSpeed, dir.y * this.state.moveSpeed);
-    else if (dir.length() > 0) this.player.setVelocity(dir.x * this.state.moveSpeed * 2.6, dir.y * this.state.moveSpeed * 2.6);
+  private spawnEnemy():void {
+    const angle=Math.random()*Math.PI*2,distance=Phaser.Math.Between(390,570);
+    const x=Phaser.Math.Clamp(this.player.x+Math.cos(angle)*distance,35,WORLD_W-35);
+    const y=Phaser.Math.Clamp(this.player.y+Math.sin(angle)*distance,35,WORLD_H-35);
+    const pool=this.region.enemyIds.map(id=>ENEMIES.find(e=>e.id===id)).filter((e):e is EnemyDefinition=>Boolean(e));
+    if(!pool.length)return;
+    const def=pool[Phaser.Math.Between(0,pool.length-1)]!;
+    this.createEnemy(x,y,def,1+Math.min(2.5,this.state.elapsedMs/360000));
   }
 
-  private tryDash(): void {
-    if (this.time.now < this.dashReady || this.paused) return;
-    const velocity = (this.player.body as Phaser.Physics.Arcade.Body).velocity.clone();
-    const dir = velocity.length() ? velocity.normalize() : new Phaser.Math.Vector2(1, 0);
-    this.dashUntil = this.time.now + 190; this.dashReady = this.time.now + 1150;
-    this.player.setVelocity(dir.x * this.state.moveSpeed * 2.8, dir.y * this.state.moveSpeed * 2.8);
-    this.cameras.main.shake(75, 0.0018);
+  private createEnemy(x:number,y:number,def:EnemyDefinition,scale:number):void {
+    const enemy=this.enemies.create(x,y,'enemy-'+def.id) as Phaser.Physics.Arcade.Sprite;
+    enemy.setDepth(2).setCircle(def.radius).setData('enemyType',def.id).setData('health',Math.round(def.health*scale)).setData('experience',def.experience);
+    this.enemyStates.set(enemy,{x,y,health:Math.round(def.health*scale),nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false});
   }
 
-  private useAbility(): void {
-    if (this.time.now < this.abilityReady || this.paused) return;
-    this.abilityReady = this.time.now + 8500;
-    for (const child of this.enemies.getChildren()) {
-      const e = child as Phaser.Physics.Arcade.Sprite;
-      if (!e.active || Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y) > 190) continue;
-      this.damageEnemy(e, calculateDamage(this.state.damage * 1.8));
-      const a = Phaser.Math.Angle.Between(this.player.x, this.player.y, e.x, e.y);
-      e.setVelocity(Math.cos(a) * 150, Math.sin(a) * 150);
-    }
-    this.cameras.main.shake(110, 0.003);
+  private spawnBoss():void {
+    if(this.bossSpawned)return;
+    this.bossSpawned=true;this.bossDefinition=BOSSES.find(b=>b.id===this.region.bossId);
+    if(!this.bossDefinition)return;
+    this.bossState=createBossEncounter(this.bossDefinition);
+    const boss=this.enemies.create(this.player.x+330,this.player.y,'boss-'+this.bossDefinition.id) as Phaser.Physics.Arcade.Sprite;
+    boss.setDepth(4).setCircle(32).setData('isBoss',true).setData('health',this.bossDefinition.health).setData('experience',80);
+    this.bossSprite=boss;this.bossHud?.setText(this.bossDefinition.name).setVisible(true);this.bossHealth?.setVisible(true);this.bossPhaseText?.setText(this.bossDefinition.phases[0]!.name).setVisible(true);
+    this.cameras.main.flash(450,70,25,40);
   }
 
-  private moveEnemies(time: number): void {
-    for (const child of this.enemies.getChildren()) {
-      const e = child as Phaser.Physics.Arcade.Sprite; if (!e.active) continue;
-      const d = STARTING_ENEMIES.find(item => item.id === e.getData('enemyType'))!;
-      const a = Phaser.Math.Angle.Between(e.x, e.y, this.player.x, this.player.y);
-      let vx = Math.cos(a); let vy = Math.sin(a);
-      if (d.behavior === 'orbit') { vx = vx * 0.72 - Math.sin(a) * 0.55; vy = vy * 0.72 + Math.cos(a) * 0.55; }
-      const surge = d.behavior === 'surge' && Math.floor(time / 1600) % 3 === 0 ? 1.45 : 1;
-      e.setVelocity(vx * d.speed * surge, vy * d.speed * surge);
+  private fireWeapons(time:number):void {
+    const targets=this.activeTargets();if(!targets.length)return;
+    for(const progress of this.build.weapons){
+      const weapon=WEAPONS.find(w=>w.id===progress.weaponId);if(!weapon)continue;
+      const stats=weaponLevelStats(progress,weapon),ready=this.weaponReady[weapon.id]??0;
+      if(time<ready)continue;
+      const target=findNearestTarget(this.player,targets);if(!target)continue;
+      const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,target.x,target.y);
+      if(distance>stats.range)continue;
+      this.weaponReady[weapon.id]=time+stats.intervalMs/this.currentBuildStats().attackSpeedMultiplier;
+      const damage=stats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier;
+      this.executeWeapon(weapon,stats.behavior,damage,stats.projectiles,stats.range,target);
     }
   }
 
-  private spawnDirector(time: number): void {
-    if (time - this.lastSpawn < Math.max(420, 1450 - this.state.elapsedMs / 850) || this.enemies.countActive(true) >= 42) return;
-    this.lastSpawn = time; this.spawnEnemy();
-    if (this.state.elapsedMs > 90000 && Math.random() < 0.25) this.spawnEnemy();
-  }
-
-  private spawnEnemy(): void {
-    const a = Math.random() * Math.PI * 2; const d = Phaser.Math.Between(390, 570);
-    const x = Phaser.Math.Clamp(this.player.x + Math.cos(a) * d, 35, WORLD_W - 35);
-    const y = Phaser.Math.Clamp(this.player.y + Math.sin(a) * d, 35, WORLD_H - 35);
-    const pool = this.state.elapsedMs > 180000 ? STARTING_ENEMIES : STARTING_ENEMIES.slice(0, 2);
-    const def = pool[Phaser.Math.Between(0, pool.length - 1)];
-    this.createEnemy(x, y, def, 1 + Math.min(2.5, this.state.elapsedMs / 360000));
-  }
-
-  private createEnemy(x: number, y: number, def: EnemyDefinition, scale: number): void {
-    const e = this.enemies.create(x, y, 'enemy-' + def.id) as Phaser.Physics.Arcade.Sprite;
-    e.setDepth(2).setCircle(def.radius).setData('enemyType', def.id).setData('health', Math.round(def.health * scale)).setData('experience', def.experience);
-  }
-
-  private fireAutomatically(time: number): void {
-    if (time - this.lastShot < this.state.attackIntervalMs) return;
-    const targets = this.enemies.getChildren().filter(c => c.active) as Phaser.Physics.Arcade.Sprite[];
-    const target = findNearestTarget(this.player, targets); if (!target) return;
-    this.lastShot = time;
-    const shot = this.shots.create(this.player.x, this.player.y, 'shot') as Phaser.Physics.Arcade.Sprite;
-    shot.setDepth(4).setCircle(5).setData('damage', this.state.damage).setData('expires', time + 1700);
-    const a = Phaser.Math.Angle.Between(this.player.x, this.player.y, target.x, target.y);
-    shot.setVelocity(Math.cos(a) * STARTING_WEAPON.projectileSpeed, Math.sin(a) * STARTING_WEAPON.projectileSpeed);
-  }
-
-  private expireShots(time: number): void {
-    for (const child of this.shots.getChildren()) {
-      const shot = child as Phaser.Physics.Arcade.Sprite;
-      if (shot.active && time > Number(shot.getData('expires'))) shot.destroy();
+  private executeWeapon(weapon:WeaponDefinition,behavior:string,damage:number,projectiles:number,range:number,target:Phaser.Physics.Arcade.Sprite):void {
+    const targets=this.activeTargets(),element=weapon.element;
+    const angle=Phaser.Math.Angle.Between(this.player.x,this.player.y,target.x,target.y);
+    if(behavior==='cleaving-arc'||behavior==='defensive-pulse'||behavior==='orbiting-blades'){
+      const radius=behavior==='cleaving-arc'?Math.min(150,range):behavior==='orbiting-blades'?Math.min(105,range):Math.min(135,range);
+      for(const enemy of targets){const d=Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y);if(d>radius)continue;
+        if(behavior==='cleaving-arc'){const a=Phaser.Math.Angle.Between(this.player.x,this.player.y,enemy.x,enemy.y);if(Math.abs(Phaser.Math.Angle.Wrap(a-angle))>1.15)continue;}
+        this.damageEnemy(enemy,damage,element);
+      }
+      this.cameras.main.shake(45,.001);return;
+    }
+    if(behavior==='chain-lightning'){
+      let current=target;const hit=new Set<Phaser.Physics.Arcade.Sprite>();
+      for(let i=0;i<Math.min(3,projectiles+1);i++){if(hit.has(current))break;hit.add(current);this.damageEnemy(current,damage*(1-i*.16),element);
+        const next=targets.filter(t=>!hit.has(t)).sort((a,b)=>Phaser.Math.Distance.Between(current.x,current.y,a.x,a.y)-Phaser.Math.Distance.Between(current.x,current.y,b.x,b.y))[0];if(!next||Phaser.Math.Distance.Between(current.x,current.y,next.x,next.y)>170)break;current=next;}
+      return;
+    }
+    if(behavior==='life-tether'){this.damageEnemy(target,damage,element);this.healPlayer(damage*this.currentBuildStats().lifesteal);return;}
+    if(behavior==='delayed-mortar'||behavior==='delayed-sigil'||behavior==='area-seed'){
+      const marker=this.add.graphics().setDepth(7);marker.lineStyle(2,elementTint[element],.9);marker.strokeCircle(target.x,target.y,Math.min(72,range*.28));
+      this.time.delayedCall(behavior==='area-seed'?450:650,()=>{if(!this.runFinished){this.damageTargetsInRadius(target.x,target.y,Math.min(78,range*.3),damage,element);}marker.destroy();});return;
+    }
+    const count=behavior==='fan-volley'?Math.max(3,projectiles):projectiles;
+    for(let i=0;i<count;i++){
+      const spread=count>1?(i-(count-1)/2)*.22:0;
+      this.createProjectile(weapon,damage,element,angle+spread,behavior==='homing-projectile'||behavior==='spirit-seeker',behavior==='piercing-thrust'?2:1,target);
     }
   }
 
-  private hitEnemy(shot: Phaser.Physics.Arcade.Sprite, enemy: Phaser.Physics.Arcade.Sprite): void {
-    if (!shot.active || !enemy.active) return;
-    this.damageEnemy(enemy, Number(shot.getData('damage'))); shot.destroy();
+  private createProjectile(weapon:WeaponDefinition,damage:number,element:ElementId,angle:number,homing:boolean,pierce:number,target:Phaser.Physics.Arcade.Sprite):void {
+    const shot=this.shots.create(this.player.x,this.player.y,'shot') as Phaser.Physics.Arcade.Sprite;
+    shot.setDepth(5).setCircle(5).setTint(elementTint[element]).setData('damage',damage).setData('element',element).setData('expires',this.time.now+1900)
+      .setData('weaponId',weapon.id).setData('homing',homing).setData('target',target).setData('pierce',pierce).setData('area',weapon.behavior==='area-seed'?70:0);
+    shot.setVelocity(Math.cos(angle)*Math.max(180,weapon.projectileSpeed),Math.sin(angle)*Math.max(180,weapon.projectileSpeed));
   }
 
-  private damageEnemy(enemy: Phaser.Physics.Arcade.Sprite, damage: number): void {
-    const hp = Number(enemy.getData('health')) - damage; enemy.setData('health', hp).setTint(0xffffff);
-    this.time.delayedCall(65, () => { if (enemy.active) enemy.clearTint(); });
-    if (hp > 0) return;
-    const orb = this.orbs.create(enemy.x, enemy.y, 'orb') as Phaser.Physics.Arcade.Sprite;
-    orb.setDepth(2).setCircle(6).setData('xp', Number(enemy.getData('experience')));
-    this.state = recordKill(this.state); enemy.destroy();
-  }
-
-  private contactDamage(enemy: Phaser.Physics.Arcade.Sprite): void {
-    if (this.time.now < this.nextDamage || this.time.now < this.dashUntil) return;
-    const definition = STARTING_ENEMIES.find(item => item.id === enemy.getData('enemyType'));
-    this.nextDamage = this.time.now + 650; this.state = receiveDamage(this.state, definition?.contactDamage ?? 9);
-    this.cameras.main.shake(90, 0.002); this.refreshHud();
-    if (this.state.health <= 0) this.finishRun(false);
-  }
-
-  private magnetize(): void {
-    for (const child of this.orbs.getChildren()) {
-      const orb = child as Phaser.Physics.Arcade.Sprite; if (!orb.active) continue;
-      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, orb.x, orb.y);
-      if (d <= this.state.magnetRadius) {
-        const a = Phaser.Math.Angle.Between(orb.x, orb.y, this.player.x, this.player.y);
-        orb.setVelocity(Math.cos(a) * 250, Math.sin(a) * 250);
-      } else orb.setVelocity(0, 0);
+  private updateProjectiles(_time:number):void {
+    for(const child of this.shots.getChildren()){
+      const shot=child as Phaser.Physics.Arcade.Sprite;if(!shot.active||!shot.getData('homing'))continue;
+      let target=shot.getData('target') as Phaser.Physics.Arcade.Sprite|undefined;
+      if(!target?.active){target=findNearestTarget(shot,this.activeTargets());if(target)shot.setData('target',target);}
+      if(target?.active){const angle=Phaser.Math.Angle.Between(shot.x,shot.y,target.x,target.y);shot.setVelocity(Math.cos(angle)*330,Math.sin(angle)*330);}
     }
   }
 
-  private collectOrb(orb: Phaser.Physics.Arcade.Sprite): void {
-    if (!orb.active || this.paused) return;
-    const result = gainExperience(this.state, Number(orb.getData('xp')));
-    this.state = result.state; this.queuedLevels += result.levelsGained; orb.destroy();
-    if (this.queuedLevels > 0) this.showLevelUp();
+  private expireShots(time:number):void {
+    for(const child of this.shots.getChildren()){const shot=child as Phaser.Physics.Arcade.Sprite;if(shot.active&&time>Number(shot.getData('expires')))shot.destroy();}
   }
 
-  private showLevelUp(): void {
-    this.paused = true; this.clearOverlay();
-    const w = this.scale.width; const h = this.scale.height;
-    this.overlay.push(this.add.rectangle(w/2,h/2,w,h,0x08070b,0.86).setScrollFactor(0).setDepth(200));
-    this.overlay.push(this.add.text(w/2,h*0.23,'GÜÇLENME SEÇİMİ',{fontFamily:'Georgia',fontSize:'30px',color:'#e8d6ad'}).setOrigin(0.5).setScrollFactor(0).setDepth(201));
-    this.overlay.push(this.add.text(w/2,h*0.31,'Bir gelişim seç. Her seçim koşunu değiştirir.',{fontSize:'15px',color:'#aaa0a0'}).setOrigin(0.5).setScrollFactor(0).setDepth(201));
-    CHOICES.forEach((c,i)=>{
+  private hitEnemy(shot:Phaser.Physics.Arcade.Sprite,enemy:Phaser.Physics.Arcade.Sprite):void {
+    if(!shot.active||!enemy.active)return;
+    const area=Number(shot.getData('area')??0),element=shot.getData('element') as ElementId|undefined;
+    this.damageEnemy(enemy,Number(shot.getData('damage')),element);
+    if(area>0)this.damageTargetsInRadius(enemy.x,enemy.y,area,Number(shot.getData('damage'))*.55,element);
+    const pierce=Number(shot.getData('pierce')??1)-1;
+    if(pierce>0)shot.setData('pierce',pierce);else shot.destroy();
+  }
+
+  private damageTargetsInRadius(x:number,y:number,radius:number,damage:number,element?:ElementId):void {
+    for(const target of this.activeTargets())if(Phaser.Math.Distance.Between(x,y,target.x,target.y)<=radius)this.damageEnemy(target,damage,element);
+  }
+
+  private damageEnemy(enemy:Phaser.Physics.Arcade.Sprite,baseDamage:number,element?:ElementId):void {
+    if(!enemy.active||this.runFinished)return;
+    if(enemy.getData('isBoss')){this.damageBossTarget(enemy,baseDamage,element);return;}
+    const def=this.enemyDefinition(enemy);if(!def)return;
+    let damage=baseDamage;
+    if(element){const state=this.elementStates.get(enemy)??{};const hit=applyElementHit(state,ELEMENTS.find(e=>e.id===element)!,baseDamage,def.resistances[element]??0,this.time.now,ELEMENTS);
+      this.elementStates.set(enemy,hit.state);damage=hit.damage+(hit.reaction?.damage??0);}
+    const hp=Number(enemy.getData('health'))-damage;enemy.setData('health',hp).setTint(element?elementTint[element]:0xffffff);
+    this.time.delayedCall(70,()=>{if(enemy.active)enemy.clearTint();});
+    if(hp>0)return;
+    this.dropExperience(enemy,Number(enemy.getData('experience')));this.state=recordKill(this.state);enemy.destroy();
+  }
+
+  private damageBossTarget(boss:Phaser.Physics.Arcade.Sprite,baseDamage:number,element?:ElementId):void {
+    if(!this.bossDefinition||!this.bossState||this.bossState.defeated)return;
+    let damage=baseDamage;
+    if(element){const hit=applyElementHit(this.bossElementState,ELEMENTS.find(e=>e.id===element)!,baseDamage,this.bossDefinition.resistance[element]??0,this.time.now,ELEMENTS);
+      this.bossElementState=hit.state;damage=hit.damage+(hit.reaction?.damage??0);}
+    if(element&&this.bossDefinition.weakness.includes(element))damage*=1.3;
+    const transition=damageBoss(this.bossState,this.bossDefinition,damage,this.time.now);this.bossState=transition.state;
+    boss.setData('health',transition.state.health).setTint(element?elementTint[element]:0xffffff);
+    this.time.delayedCall(70,()=>{if(boss.active)boss.clearTint();});
+    if(transition.changed){this.bossPhaseText?.setText(transition.current.name);this.cameras.main.flash(320,90,38,55);
+      for(const id of transition.current.addEnemyIds){const def=ENEMIES.find(e=>e.id===id);if(def)this.createEnemy(boss.x+Phaser.Math.Between(-90,90),boss.y+Phaser.Math.Between(-90,90),def,1.2);}}
+    this.bossHealth?.setSize(300*Phaser.Math.Clamp(transition.state.health/transition.state.maxHealth,0,1),5);
+    if(transition.state.defeated)this.defeatBoss(boss);
+  }
+
+  private defeatBoss(boss:Phaser.Physics.Arcade.Sprite):void {
+    this.dropExperience(boss,80);boss.destroy();this.bossSprite=undefined;this.bossHud?.setText('BOSS YENİLDİ');this.bossPhaseText?.setText('Sandık ödülü kazanıldı');
+    for(const progress of [...this.build.weapons]){const weapon=WEAPONS.find(w=>w.id===progress.weaponId);if(weapon)this.build=evolveWeapon(this.build,weapon);}
+    this.refreshBuildStats();this.cameras.main.flash(500,175,135,72);
+    this.time.delayedCall(900,()=>this.finishRun(true));
+  }
+
+  private dropExperience(source:Phaser.Physics.Arcade.Sprite,xp:number):void {
+    const orb=this.orbs.create(source.x,source.y,'orb') as Phaser.Physics.Arcade.Sprite;
+    orb.setDepth(2).setCircle(6).setData('xp',xp);
+  }
+
+  private contactDamage(enemy:Phaser.Physics.Arcade.Sprite):void {
+    if(this.time.now<this.nextDamage||this.time.now<this.dashUntil||!enemy.active)return;
+    const def=this.enemyDefinition(enemy);const damage=enemy.getData('isBoss')?(this.bossDefinition?.contactDamage??24):(def?.contactDamage??9);
+    this.nextDamage=this.time.now+650;this.receiveCombatDamage(damage);
+  }
+
+  private receiveCombatDamage(amount:number):void {
+    const armor=this.currentBuildStats().armor+this.character.stats.armor;
+    const reduced=Math.max(1,amount*(1-armor/(armor+100)));
+    this.state=receiveDamage(this.state,reduced);this.cameras.main.shake(90,.002);this.refreshHud();
+    if(this.state.health<=0)this.finishRun(false);
+  }
+
+  private healPlayer(amount:number):void {this.state={...this.state,health:Math.min(this.state.maxHealth,this.state.health+Math.max(0,amount))};}
+
+  private updateElementStatuses(time:number):void {
+    for(const child of this.enemies.getChildren()){
+      const enemy=child as Phaser.Physics.Arcade.Sprite;if(!enemy.active)continue;
+      const status=this.elementStates.get(enemy);if(!status)continue;
+      const tick=tickElementStatuses(status,time);this.elementStates.set(enemy,tick.state);
+      if(tick.damage>0)this.damageEnemy(enemy,tick.damage);
+      if(tick.slowed)enemy.setAlpha(.72);else if(!enemy.getData('isBoss'))enemy.setAlpha(1);
+    }
+    if(this.bossState&&this.bossSprite?.active){const tick=tickElementStatuses(this.bossElementState,time);this.bossElementState=tick.state;if(tick.damage>0)this.damageBossTarget(this.bossSprite,tick.damage);}
+  }
+
+  private updateRegionHazard(time:number):void {
+    const result=stepRegionHazard(this.region,this.hazardCycle,time);this.hazardCycle=result.cycle;
+    const event:HazardEvent=result.event;
+    if(event.phase==='idle'){this.hazardMarker?.destroy();this.hazardMarker=undefined;this.hazardLabel?.destroy();this.hazardLabel=undefined;this.activeHazardId='';this.hazardHasHit=false;return;}
+    if(this.activeHazardId!==event.hazard.id){
+      this.activeHazardId=event.hazard.id;this.hazardHasHit=false;
+      const angle=Math.random()*Math.PI*2;this.hazardTarget={x:Phaser.Math.Clamp(this.player.x+Math.cos(angle)*150,50,WORLD_W-50),y:Phaser.Math.Clamp(this.player.y+Math.sin(angle)*150,50,WORLD_H-50)};
+      this.hazardMarker?.destroy();this.hazardMarker=this.add.graphics().setDepth(6);
+      this.hazardLabel?.destroy();this.hazardLabel=this.add.text(this.hazardTarget.x,this.hazardTarget.y-58,event.hazard.name,{fontSize:'12px',color:'#f1d59b',backgroundColor:'#251d20',padding:{x:5,y:3}}).setOrigin(.5).setDepth(7);
+    }
+    if(this.hazardMarker){this.hazardMarker.clear();const active=event.phase==='active';this.hazardMarker.lineStyle(3,active?0xe55d54:0xd7b568,.95);this.hazardMarker.fillStyle(active?0xd84f4f:0xd7b568,active?.25:.1);this.hazardMarker.strokeCircle(this.hazardTarget.x,this.hazardTarget.y,66);this.hazardMarker.fillCircle(this.hazardTarget.x,this.hazardTarget.y,66);}
+    if(event.phase==='active'&&!this.hazardHasHit&&Phaser.Math.Distance.Between(this.player.x,this.player.y,this.hazardTarget.x,this.hazardTarget.y)<82){this.hazardHasHit=true;this.receiveCombatDamage(12);}
+  }
+
+  private enemyDefinition(enemy:Phaser.Physics.Arcade.Sprite):EnemyDefinition|undefined {
+    return ENEMIES.find(def=>def.id===enemy.getData('enemyType'));
+  }
+
+  private activeTargets():Phaser.Physics.Arcade.Sprite[] {
+    return this.enemies.getChildren().filter(child=>(child as Phaser.Physics.Arcade.Sprite).active) as Phaser.Physics.Arcade.Sprite[];
+  }
+
+  private currentBuildStats(){return deriveBuildStats(this.build,PASSIVES);}
+
+  private refreshBuildStats():void {
+    const stats=this.currentBuildStats();this.state={...this.state,moveSpeed:this.character.moveSpeed*stats.moveSpeedMultiplier,
+      damage:18*this.character.stats.damageMultiplier*stats.damageMultiplier,magnetRadius:112+stats.magnetRadiusBonus};
+  }
+
+  private fireWeaponsUnusedGuard():WeaponProgress|undefined {return this.build.weapons[0];}
+
+  private spawnUnusedCharacterGuard():CharacterDefinition {return this.character;}
+
+  private magnetize():void {
+    const radius=this.state.magnetRadius;
+    for(const child of this.orbs.getChildren()){const orb=child as Phaser.Physics.Arcade.Sprite;if(!orb.active)continue;
+      const d=Phaser.Math.Distance.Between(this.player.x,this.player.y,orb.x,orb.y);
+      if(d<=radius){const a=Phaser.Math.Angle.Between(orb.x,orb.y,this.player.x,this.player.y);orb.setVelocity(Math.cos(a)*250,Math.sin(a)*250);}else orb.setVelocity(0,0);
+    }
+  }
+
+  private collectOrb(orb:Phaser.Physics.Arcade.Sprite):void {
+    if(!orb.active||this.paused)return;
+    const gain=Number(orb.getData('xp'))*this.currentBuildStats().xpGainMultiplier;
+    const result=gainExperience(this.state,gain);this.state=result.state;this.queuedLevels+=result.levelsGained;orb.destroy();
+    if(this.queuedLevels>0)this.showLevelUp();
+  }
+
+  private buildChoices():LevelChoice[] {
+    const choices:LevelChoice[]=BASE_CHOICES.map(c=>({...c,kind:'base'}));
+    for(const weapon of WEAPONS){
+      const owned=this.build.weapons.find(w=>w.weaponId===weapon.id);
+      if(owned&&owned.level<weapon.maxLevel)choices.push({id:'weapon-up:'+weapon.id,title:weapon.name+' +',detail:'Silah seviyesi '+(owned.level+1),kind:'weapon-up',contentId:weapon.id});
+      else if(!owned&&this.build.weapons.length<6)choices.push({id:'weapon-add:'+weapon.id,title:weapon.name,detail:weapon.category+' silahını kuşan',kind:'weapon-add',contentId:weapon.id});
+    }
+    for(const passive of PASSIVES){
+      const owned=this.build.passives.find(p=>p.passiveId===passive.id);
+      if(owned&&owned.level<passive.maxLevel)choices.push({id:'passive-up:'+passive.id,title:passive.name+' +',detail:'Pasif seviyesi '+(owned.level+1),kind:'passive-up',contentId:passive.id});
+      else if(!owned&&this.build.passives.length<6)choices.push({id:'passive-add:'+passive.id,title:passive.name,detail:passive.category+' pasifini kuşan',kind:'passive-add',contentId:passive.id});
+    }
+    const shuffled=[...choices];for(let i=shuffled.length-1;i>0;i--){const j=Phaser.Math.Between(0,i);[shuffled[i],shuffled[j]]=[shuffled[j]!,shuffled[i]!];}
+    return shuffled.slice(0,4);
+  }
+
+  private showLevelUp():void {
+    this.paused=true;this.clearOverlay();const w=this.scale.width,h=this.scale.height;
+    this.overlay.push(this.add.rectangle(w/2,h/2,w,h,0x08070b,.88).setScrollFactor(0).setDepth(200));
+    this.overlay.push(this.add.text(w/2,h*.23,'GÜÇLENME SEÇİMİ',{fontFamily:'Georgia',fontSize:'30px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    this.overlay.push(this.add.text(w/2,h*.31,'Bir gelişim seç. Her seçim koşunu değiştirir.',{fontSize:'15px',color:'#aaa0a0'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    this.buildChoices().forEach((choice,i)=>{
       const x=w/2+(i-1.5)*220;
-      const card=this.add.rectangle(x,h*0.55,196,170,0x28212a,0.98).setStrokeStyle(2,0x9b8059).setScrollFactor(0).setDepth(201).setInteractive({useHandCursor:true});
-      const name=this.add.text(x,h*0.5,c.title,{fontFamily:'Georgia',fontSize:'19px',color:'#e8d6ad',align:'center',wordWrap:{width:170}}).setOrigin(0.5).setScrollFactor(0).setDepth(202);
-      const detail=this.add.text(x,h*0.61,c.detail,{fontSize:'13px',color:'#b9b0ae',align:'center',wordWrap:{width:165}}).setOrigin(0.5).setScrollFactor(0).setDepth(202);
-      card.on('pointerover',()=>card.setFillStyle(0x463344,1)); card.on('pointerout',()=>card.setFillStyle(0x28212a,0.98));
-      card.on('pointerup',()=>this.chooseUpgrade(c.id)); this.overlay.push(card,name,detail);
+      const card=this.add.rectangle(x,h*.55,196,170,0x28212a,.98).setStrokeStyle(2,0x9b8059).setScrollFactor(0).setDepth(201).setInteractive({useHandCursor:true});
+      const name=this.add.text(x,h*.5,choice.title,{fontFamily:'Georgia',fontSize:'17px',color:'#e8d6ad',align:'center',wordWrap:{width:170}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      const detail=this.add.text(x,h*.61,choice.detail,{fontSize:'12px',color:'#b9b0ae',align:'center',wordWrap:{width:165}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      card.on('pointerover',()=>card.setFillStyle(0x463344,1));card.on('pointerout',()=>card.setFillStyle(0x28212a,.98));
+      card.on('pointerup',()=>this.chooseUpgrade(choice));this.overlay.push(card,name,detail);
     });
   }
 
-  private chooseUpgrade(id: UpgradeId): void {
-    this.state=applyUpgrade(this.state,id); this.queuedLevels=Math.max(0,this.queuedLevels-1); this.clearOverlay(); this.refreshHud();
-    if(this.queuedLevels>0)this.showLevelUp(); else this.paused=false;
+  private chooseUpgrade(choice:LevelChoice):void {
+    if(choice.kind==='base')this.state=applyUpgrade(this.state,choice.id as UpgradeId);
+    if(choice.kind==='weapon-add'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def)this.build=addWeapon(this.build,def);}
+    if(choice.kind==='weapon-up'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def)this.build=upgradeWeapon(this.build,def);}
+    if(choice.kind==='passive-add'){const def=PASSIVES.find(p=>p.id===choice.contentId);if(def)this.build=addPassive(this.build,def);}
+    if(choice.kind==='passive-up'){const def=PASSIVES.find(p=>p.id===choice.contentId);if(def)this.build=upgradePassive(this.build,def);}
+    this.refreshBuildStats();this.queuedLevels=Math.max(0,this.queuedLevels-1);this.clearOverlay();this.refreshHud();
+    if(this.queuedLevels>0)this.showLevelUp();else this.paused=false;
   }
 
-  private openPause(): void {
-    if(this.paused)return; this.paused=true; this.clearOverlay();
-    const w=this.scale.width,h=this.scale.height;
-    const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,0.84).setScrollFactor(0).setDepth(200);
-    const title=this.add.text(w/2,h*0.36,'DURAKLATILDI',{fontFamily:'Georgia',fontSize:'34px',color:'#e8d6ad'}).setOrigin(0.5).setScrollFactor(0).setDepth(201);
-    const resume=this.add.text(w/2,h*0.52,'DEVAM ET',{fontSize:'20px',color:'#fff',backgroundColor:'#5b3d32',padding:{x:24,y:12}}).setOrigin(0.5).setScrollFactor(0).setDepth(201).setInteractive();
-    const menu=this.add.text(w/2,h*0.64,'ANA MENÜ',{fontSize:'16px',color:'#c9bda9'}).setOrigin(0.5).setScrollFactor(0).setDepth(201).setInteractive();
-    resume.on('pointerup',()=>{this.clearOverlay();this.paused=false;}); menu.on('pointerup',()=>this.scene.start('main-menu'));
-    this.overlay.push(shade,title,resume,menu);
+  private openPause():void {
+    if(this.paused)return;this.paused=true;this.clearOverlay();const w=this.scale.width,h=this.scale.height;
+    const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.84).setScrollFactor(0).setDepth(200);
+    const title=this.add.text(w/2,h*.36,'DURAKLATILDI',{fontFamily:'Georgia',fontSize:'34px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
+    const resume=this.add.text(w/2,h*.52,'DEVAM ET',{fontSize:'20px',color:'#fff',backgroundColor:'#5b3d32',padding:{x:24,y:12}}).setOrigin(.5).setScrollFactor(0).setDepth(201).setInteractive();
+    const menu=this.add.text(w/2,h*.64,'ANA MENÜ',{fontSize:'16px',color:'#c9bda9'}).setOrigin(.5).setScrollFactor(0).setDepth(201).setInteractive();
+    resume.on('pointerup',()=>{this.clearOverlay();this.paused=false;});menu.on('pointerup',()=>this.scene.start('main-menu'));this.overlay.push(shade,title,resume,menu);
   }
 
-  private finishRun(won: boolean): void {
-    if(this.paused && this.overlay.length>0)return; this.paused=true; this.clearOverlay();
-    const w=this.scale.width,h=this.scale.height;
-    const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,0.9).setScrollFactor(0).setDepth(200);
-    const title=this.add.text(w/2,h*0.32,won?'KOŞU TAMAMLANDI':'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(0.5).setScrollFactor(0).setDepth(201);
-    const summary=this.add.text(w/2,h*0.45,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman',{fontSize:'18px',color:'#c0b5a8'}).setOrigin(0.5).setScrollFactor(0).setDepth(201);
-    const retry=this.add.text(w/2,h*0.59,'YENİ KOŞU',{fontSize:'20px',color:'#fff',backgroundColor:'#5b3d32',padding:{x:24,y:12}}).setOrigin(0.5).setScrollFactor(0).setDepth(201).setInteractive();
-    const menu=this.add.text(w/2,h*0.7,'ANA MENÜ',{fontSize:'16px',color:'#c9bda9'}).setOrigin(0.5).setScrollFactor(0).setDepth(201).setInteractive();
-    retry.on('pointerup',()=>this.scene.restart()); menu.on('pointerup',()=>this.scene.start('main-menu'));
-    this.overlay.push(shade,title,summary,retry,menu);
+  private finishRun(won:boolean):void {
+    if(this.runFinished)return;this.runFinished=true;this.paused=true;this.clearOverlay();const w=this.scale.width,h=this.scale.height;
+    const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.9).setScrollFactor(0).setDepth(200);
+    const title=this.add.text(w/2,h*.32,won?'KOŞU TAMAMLANDI':'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
+    const summary=this.add.text(w/2,h*.45,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman',{fontSize:'18px',color:'#c0b5a8'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
+    const retry=this.add.text(w/2,h*.59,'YENİ KOŞU',{fontSize:'20px',color:'#fff',backgroundColor:'#5b3d32',padding:{x:24,y:12}}).setOrigin(.5).setScrollFactor(0).setDepth(201).setInteractive();
+    const menu=this.add.text(w/2,h*.7,'ANA MENÜ',{fontSize:'16px',color:'#c9bda9'}).setOrigin(.5).setScrollFactor(0).setDepth(201).setInteractive();
+    retry.on('pointerup',()=>this.scene.restart());menu.on('pointerup',()=>this.scene.start('main-menu'));this.overlay.push(shade,title,summary,retry,menu);
   }
 
-  private clearOverlay(): void { this.overlay.forEach(o=>o.destroy()); this.overlay=[]; }
+  private clearOverlay():void {this.overlay.forEach(o=>o.destroy());this.overlay=[];}
 
-  private refreshHud(): void {
+  private refreshHud():void {
     if(!this.hud||!this.clock||!this.health)return;
     const seconds=Math.floor(this.state.elapsedMs/1000);
     this.clock.setText(String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0'));
-    this.hud.setText(STARTING_CHARACTER.name+'  •  LV '+this.state.level+'\nXP '+this.state.experience+' / '+this.state.experienceToNext+'  •  Düşman '+this.state.kills);
+    this.hud.setText(this.character.name+'  •  LV '+this.state.level+'\nXP '+Math.floor(this.state.experience)+' / '+this.state.experienceToNext+'  •  Düşman '+this.state.kills+'\n'+this.region.name+'  •  Silah '+this.build.weapons.length+'/6  •  Pasif '+this.build.passives.length+'/6');
     this.health.setSize(160*Phaser.Math.Clamp(this.state.health/this.state.maxHealth,0,1),8);
+    if(this.bossState){this.bossHud?.setVisible(true);this.bossHealth?.setVisible(true);this.bossHealth?.setSize(300*Phaser.Math.Clamp(this.bossState.health/this.bossState.maxHealth,0,1),5);}
   }
 }
