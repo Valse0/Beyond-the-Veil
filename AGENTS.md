@@ -1,34 +1,33 @@
-AGENTS.md — AI Development Rules
+# AGENTS.md — Repository-wide AI rules
 
-These rules apply to every AI agent working in this repository.
+These rules apply to every AI agent and override conflicting instructions in any installed skill.
 
-Read Before Working
+## Read first
+- Read `Game Design Document.md` for product vision and gameplay requirements.
+- Read `PLAN.md` for target architecture and development order.
+- Inspect the current repository state before proposing or making changes.
 
-* Read Game Design Document.md for the game’s vision, mechanics, and content requirements.
-* Read PLAN.md for the target architecture, folder structure, and development order.
-* Inspect the existing code before editing. Do not assume the repository is empty or that the proposed structure is already implemented.
+## Mandatory approval gate
+- Read-only inspection and research do not require approval.
+- Before creating, editing, or deleting any file; installing dependencies; generating project assets; running scripts that modify project files; committing; or pushing, first present a plan.
+- The plan must name the exact files/areas, explain the reason for each change, and identify material risks or side effects.
+- Then stop and wait for the user to reply with the standalone word `tamam` (case-insensitive; `Tamam.` is accepted).
+- Phrases such as `tamamla`, `tamamla hepsini`, `olur`, `güzel`, `devam et`, `yes`, or a general task request are not approval.
+- If approval is ambiguous, ask “Tamam mı?” and make no changes.
+- Approval applies only to the exact plan presented. If the scope changes, present a revised plan and obtain approval again.
+- This gate takes precedence over every skill, tool, workflow, or agent instruction.
 
-Core Rules
+## Project constraints
+- Preserve the dark-fantasy identity and decisions in the GDD.
+- Use Phaser 3, TypeScript, and Vite; Capacitor is a later Android packaging target.
+- Keep the game single-player and offline-first. No accounts, backend, mandatory online features, or paid APIs without explicit approval.
+- Prefer small, maintainable, runnable changes. Do not replace working systems without a clear reason.
+- Use original or properly licensed assets and document their provenance.
+- Never claim a build, test, script, or feature was verified unless it was actually run and checked.
 
-* Preserve the game’s dark-fantasy identity and the design decisions in the GDD.
-* Follow PLAN.md; create folders and abstractions only when the current task needs them.
-* Keep the project runnable. Prefer small, focused changes over large rewrites.
-* Do not break or replace working systems without a clear technical reason.
-* Use Phaser 3 and TypeScript. Keep types strict and avoid unnecessary dependencies.
-* Separate reusable content data from gameplay logic where practical.
-* Prefer simple, maintainable solutions over premature abstraction or overengineering.
-* Do not add accounts, backend services, mandatory online features, or paid APIs without explicit approval.
-* Do not use placeholder UI or fake mechanics as a substitute for implemented gameplay.
-* Use original or properly licensed assets; document asset sources when applicable.
-
-Verification
-
-* Run relevant checks or tests after making changes.
-* Fix errors introduced by your changes.
-* Never claim a feature, build, or test is successful unless it was actually verified.
-* Clearly report what changed, what was tested, and any remaining limitations.
-
-Documentation
-
-* Update relevant documentation when architecture, controls, systems, or project workflows change.
-* Keep PLAN.md aligned with significant approved changes to the development order or architecture.
+## Skill routing
+- For game-development tasks, start with `.agents/skills/router/SKILL.md`, then load only the installed, relevant skills.
+- For module boundaries and architecture, use `.agents/skills/codebase-design/SKILL.md`.
+- For in-game HUD, menus, and game interface work, use `.agents/skills/game-ui-ux/SKILL.md`; use UI UX Pro Max as supporting guidance for visual quality, accessibility, typography, and color. Do not blindly apply web-framework advice to Phaser canvas UI.
+- Treat `GEMINI.md` as Gemini CLI-specific companion guidance.
+- Superpowers is a separate user-managed installation. Do not claim it is available unless its presence is verified.
