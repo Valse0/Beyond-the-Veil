@@ -36,7 +36,7 @@ export function tickElementStatuses(state:ElementState, now:number):{state:Eleme
       if(id==='lightning'&&s.stacks>0)next[id]!.stunnedUntil=now+260;
     }
     if(id==='ice') slowed=true;
-    if(id==='lightning'&&s.stacks>0&&(s.stunnedUntil??0)>now)stunned=true;
+    if(id==='lightning'&&s.stacks>0&&(next[id]!.stunnedUntil??0)>now)stunned=true;
   }
   return {state:next,damage:Math.round(damage),slowed,stunned};
 }
