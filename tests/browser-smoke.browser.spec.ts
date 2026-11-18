@@ -146,7 +146,10 @@ test('player can select a hunter and an unlocked region before starting a run', 
   // ESC opens pause and freezes the rendered world.
   const activeFrame = await canvas.screenshot();
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(100);
+  // Wait for the actual Phaser run state, not an arbitrary delay or visual overlay.
+  await expect.poll(async () => (await readBrowserRunSnapshot(page)).paused, {
+    message: 'Escape should put the run into its paused state'
+  }).toBe(true);
   const pausedFrame = await canvas.screenshot();
   expect(pausedFrame.equals(activeFrame)).toBe(false);
 
