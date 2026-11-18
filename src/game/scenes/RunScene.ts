@@ -113,7 +113,7 @@ export class RunScene extends Phaser.Scene {
 
   /** Development-only bridge used by Playwright; never callable in production builds. */
   browserTestSnapshot():{
-    level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;
+    level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     paused:boolean;bossSpawned:boolean;choices:{id:string;title:string}[];
     runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
     runEvents:{selected:RunEventKind[];active:{kind:RunEventKind;progress:number;stage:number;status:string}|null;completed:RunEventKind[];failed:RunEventKind[]};
@@ -122,7 +122,7 @@ export class RunScene extends Phaser.Scene {
     this.assertBrowserTestMode();
     return {
       level:this.state.level,experience:this.state.experience,experienceToNext:this.state.experienceToNext,
-      queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,paused:this.paused,bossSpawned:this.bossSpawned,
+      queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,paused:this.paused,bossSpawned:this.bossSpawned,
       choices:this.currentLevelChoices.map(({id,title})=>({id,title})),
       runSoulEssence:this.runSoulEssence,kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
       bossHealth:this.bossState?.health??null,
@@ -510,7 +510,7 @@ export class RunScene extends Phaser.Scene {
     this.bossState=createBossEncounter(this.bossDefinition);
     const boss=this.enemies.create(this.player.x+330,this.player.y,'boss-'+this.bossDefinition.id) as Phaser.Physics.Arcade.Sprite;
     boss.setDepth(4).setCircle(32).setData('isBoss',true).setData('health',this.bossDefinition.health).setData('experience',80);
-    this.bossSprite=boss;this.bossHud?.setText(this.bossDefinition.name).setVisible(true);this.bossHealth?.setVisible(true);this.bossPhaseText?.setText(this.bossDefinition.phases[0]!.name).setVisible(true);
+    this.bossSprite=boss;this.bossSpawned=true;this.bossHud?.setText(this.bossDefinition.name).setVisible(true);this.bossHealth?.setVisible(true);this.bossPhaseText?.setText(this.bossDefinition.phases[0]!.name).setVisible(true);
     this.cameras.main.flash(450,70,25,40);
   }
 
