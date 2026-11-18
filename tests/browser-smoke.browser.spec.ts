@@ -139,6 +139,10 @@ test('player can select a hunter and an unlocked region before starting a run', 
   }
   expect(movedHunterX!).toBeGreaterThan(initialHunterX + 4);
 
+  // Let the camera's follow easing settle after movement before comparing paused frames.
+  // Otherwise the camera can continue drifting briefly even though gameplay input has stopped.
+  await page.waitForTimeout(900);
+
   // ESC opens pause and freezes the rendered world.
   const activeFrame = await canvas.screenshot();
   await page.keyboard.press('Escape');
