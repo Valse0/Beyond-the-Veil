@@ -71,7 +71,7 @@ export class RunScene extends Phaser.Scene {
   private makeTextures(): void {
     const make = (key: string, color: number, r: number): void => {
       if (this.textures.exists(key)) return;
-      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      const g = this.add.graphics();
       g.fillStyle(color, 1); g.fillCircle(r + 3, r + 3, r);
       g.lineStyle(2, 0xe8d7b6, 0.75); g.strokeCircle(r + 3, r + 3, r);
       g.generateTexture(key, (r + 3) * 2, (r + 3) * 2); g.destroy();
@@ -81,7 +81,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private createHud(): void {
-    const w = this.scale.width; const h = this.scale.height;
+    const w = this.scale.width;
     this.hud = this.add.text(22, 18, '', { fontFamily: 'Arial', fontSize: '15px', color: '#eee5d6', lineSpacing: 6 }).setScrollFactor(0).setDepth(100);
     this.clock = this.add.text(w / 2, 18, '00:00', { fontFamily: 'Georgia', fontSize: '23px', color: '#d4b777' }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(100);
     this.add.rectangle(w - 130, 32, 180, 12, 0x352d32).setScrollFactor(0).setDepth(100);
