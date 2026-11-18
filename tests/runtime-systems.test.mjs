@@ -66,3 +66,34 @@ test('blood buildup respects its four-stack cap',()=>{
  for(let i=0;i<30;i++)state=applyElementHit(state,blood,10,0,1000+i*10,ELEMENTS).state;
  assert.equal(state.blood.stacks,4);
 });
+
+test('authored support, control and zone enemies emit their distinct special actions',()=>{
+ const expected={
+  'gravebloom-nest':'summon','mourner-acolyte':'heal','rune-sapper':'trap',
+  'mire-witch':'hex','web-weaver':'web','frost-hound':'frost-trail',
+  'chain-duelist':'parry','spore-spitter':'spore-cloud','thorn-pouncer':'pounce'
+ };
+ for(const [id,kind] of Object.entries(expected)){
+  const enemy=ENEMIES.find(e=>e.id===id);
+  const actor={x:0,y:0,health:enemy.health,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false,nextSpecialAt:0,attackCount:0};
+  const intent=stepEnemyAI(enemy,actor,{x:120,y:0},5000,16);
+  assert.equal(intent.special?.kind,kind,id+' should emit '+kind);
+  assert.ok(intent.state.nextSpecialAt>5000,id+' should schedule its next special');
+ }
+});
+test('mimics conceal themselves at range while phase stalkers use timed vanish windows',()=>{
+ const mimic=ENEMIES.find(e=>e.id==='mirror-mimic');
+ const stalker=ENEMIES.find(e=>e.id==='veil-stalker');
+ const actor={x:0,y:0,health:100,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false};
+ assert.equal(stepEnemyAI(mimic,actor,{x:300,y:0},5000,16).state.burrowed,true);
+ assert.equal(stepEnemyAI(mimic,actor,{x:100,y:0},5000,16).state.burrowed,false);
+ assert.equal(stepEnemyAI(stalker,actor,{x:100,y:0},3200,16).state.burrowed,true);
+});
+test('enemy attack counters advance only when a telegraphed attack is issued',()=>{
+ const enemy=ENEMIES.find(e=>e.id==='rootbound-husk');
+ const actor={x:0,y:0,health:100,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false,attackCount:2};
+ const intent=stepEnemyAI(enemy,actor,{x:100,y:0},5000,16);
+ assert.equal(intent.state.attackCount,3);
+ const cooling=stepEnemyAI(enemy,{...intent.state,nextAttackAt:9000},{x:100,y:0},5100,16);
+ assert.equal(cooling.state.attackCount,3);
+});
