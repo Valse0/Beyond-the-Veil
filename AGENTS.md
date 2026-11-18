@@ -21,9 +21,19 @@ These rules apply to every AI agent and override conflicting instructions in any
 - Preserve the dark-fantasy identity and decisions in the GDD.
 - Use Phaser 3, TypeScript, and Vite; Capacitor is a later Android packaging target.
 - Keep the game single-player and offline-first. No accounts, backend, mandatory online features, or paid APIs without explicit approval.
-- Prefer small, maintainable, runnable changes. Do not replace working systems without a clear reason.
+- Build toward the complete game defined by the GDD. Do not substitute a small prototype or vertical slice for the intended full game.
+- Implement the game as coherent, maintainable modules while keeping the project runnable and testable throughout development.
+- Keep gameplay logic, content data, presentation, and asset references separated. Use stable asset IDs and data-driven content definitions so placeholder visuals can be replaced without rewriting gameplay systems.
+- Placeholder graphics are temporary production aids only. They must not be represented as final art or as completion of the visual-production requirements.
 - Use original or properly licensed assets and document their provenance.
 - Never claim a build, test, script, or feature was verified unless it was actually run and checked.
+
+## Versioning
+- The first public/release version is `0.1.0`.
+- For every subsequent game update, increment only the final numeric component by one: `0.1.1`, `0.1.2`, `0.1.3`, and so on.
+- Do not independently change the first or middle numeric components under this project rule.
+- Keep the version consistent across the application metadata and release documentation when those are introduced.
+- Do not assign or announce a new version until the corresponding update is ready to be recorded.
 
 ## Skill routing
 - For game-development tasks, start with `.agents/skills/router/SKILL.md`, then load only the installed, relevant skills.
