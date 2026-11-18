@@ -397,13 +397,13 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.collectOutcome,{timeout:3_000,message:'Collection handler should open the pending boss chest'}).toBe('opened');
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.finishScheduledAtMs,{timeout:3_000,message:'Opening the chest should schedule the victory completion callback'}).not.toBeNull();
   const scheduled=await readBrowserRunSnapshot(page);
-  expect(scheduled.sceneTime.active).toBe(true);
-  expect(scheduled.sceneTime.paused).toBe(false);
+  expect(scheduled.bossChestDiagnostics.sceneTime.active).toBe(true);
+  expect(scheduled.bossChestDiagnostics.sceneTime.paused).toBe(false);
   expect(scheduled.bossChestDiagnostics.finishTimer).not.toBeNull();
   expect(scheduled.bossChestDiagnostics.finishTimer?.paused).toBe(false);
   await page.waitForTimeout(700);
   const afterTimerWait=await readBrowserRunSnapshot(page);
-  expect(afterTimerWait.sceneTime.now).toBeGreaterThan(scheduled.sceneTime.now);
+  expect(afterTimerWait.bossChestDiagnostics.sceneTime.now).toBeGreaterThan(scheduled.bossChestDiagnostics.sceneTime.now);
   expect(afterTimerWait.bossChestDiagnostics.finishTimer?.elapsed).toBeGreaterThan(0);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.finishCallbackAtMs,{timeout:3_000,message:'Scheduled victory completion callback should execute'}).not.toBeNull();
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved,{timeout:3_000,message:'Victory completion should persist the run result'}).toBe(true);
