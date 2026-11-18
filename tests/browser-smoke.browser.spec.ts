@@ -209,6 +209,8 @@ async function startBrowserTestRun(page: import('@playwright/test').Page): Promi
     return Boolean(game&&game.registry.get('browserTestMode')===true);
   });
   await page.mouse.click(160,555);
+  await page.mouse.move(1240,40);
+  await page.waitForTimeout(150);
   await page.keyboard.press('Enter');
   await page.waitForTimeout(120);
   await page.keyboard.press('Enter');
