@@ -63,7 +63,7 @@ test('elite schedule waits for the previous elite and then resumes every two min
   assert.equal(held.eliteDue,false);
   assert.equal(held.state.nextEliteAtMs,540000);
 
-  const next=stepWaveDirector(held.state,540000,12,0,42,5);
+  const next=stepWaveDirector(held.state,540820,12,0,42,5);
   assert.equal(next.eliteDue,true);
   assert.equal(next.state.eliteIndex,2);
   assert.equal(next.state.nextEliteAtMs,660000);
