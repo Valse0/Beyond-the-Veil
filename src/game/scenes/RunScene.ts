@@ -18,6 +18,7 @@ import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent
 import { applyRunResult } from '../../gameplay/run/run-results.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
+import { createLevelUpControlState, drawLevelUpChoices as drawChoicesFromPool, spendLevelUpBanish, spendLevelUpReroll, spendLevelUpSkip, type LevelUpControlState } from '../../gameplay/level-up/level-up-controls.js';
 
 const RUN_MS = 900000;
 const BOSS_START_MS = 840000;
@@ -62,6 +63,9 @@ export class RunScene extends Phaser.Scene {
   private overlay:Phaser.GameObjects.GameObject[]=[];
   private paused=false;
   private queuedLevels=0;
+  private levelUpControls:LevelUpControlState=createLevelUpControlState();
+  private currentLevelChoices:LevelChoice[]=[];
+  private banishMode=false;
   private nextDamage=0;
   private dashReady=0;
   private dashUntil=0;
@@ -106,7 +110,7 @@ export class RunScene extends Phaser.Scene {
     const startingWeapon=WEAPONS.find(w=>w.id===this.character.startingWeaponId)??WEAPONS[0]!;
     const startingPassive=PASSIVES.find(p=>p.id===this.character.startingPassiveId)??PASSIVES[0]!;
     this.build=addWeapon(this.build,startingWeapon);this.build=addPassive(this.build,startingPassive);
-    this.paused=false;this.queuedLevels=0;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;
+    this.paused=false;this.queuedLevels=0;this.levelUpControls=createLevelUpControlState();this.currentLevelChoices=[];this.banishMode=false;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;
     this.previousGamepadFrame=EMPTY_GAMEPAD_FRAME;this.gamepadMoveX=0;this.gamepadMoveY=0;this.clearOverlay();
     this.lastSpawn=this.time.now;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
@@ -693,8 +697,72 @@ export class RunScene extends Phaser.Scene {
       if(owned&&owned.level<passive.maxLevel)choices.push({id:'passive-up:'+passive.id,title:passive.name+' +',detail:'Pasif seviyesi '+(owned.level+1),kind:'passive-up',contentId:passive.id});
       else if(!owned&&this.build.passives.length<6)choices.push({id:'passive-add:'+passive.id,title:passive.name,detail:passive.category+' pasifini kuşan',kind:'passive-add',contentId:passive.id});
     }
-    const shuffled=[...choices];for(let i=shuffled.length-1;i>0;i--){const j=Phaser.Math.Between(0,i);[shuffled[i],shuffled[j]]=[shuffled[j]!,shuffled[i]!];}
-    return shuffled.slice(0,4);
+    return choices;
+  }
+
+  private drawLevelUpChoices(excludedIds:readonly string[]=[]):LevelChoice[] {
+    return drawChoicesFromPool(this.buildChoices(),this.levelUpControls,()=>Phaser.Math.RND.frac(),excludedIds);
+  }
+
+  private showLevelUp():void {
+    this.pauseRunWorld();
+    this.currentLevelChoices=this.drawLevelUpChoices();
+    this.banishMode=false;
+    this.renderLevelUpChoices();
+  }
+
+  private renderLevelUpChoices():void {
+    this.clearOverlay();const w=this.scale.width,h=this.scale.height;
+    this.overlay.push(this.add.rectangle(w/2,h/2,w,h,0x08070b,.88).setScrollFactor(0).setDepth(200));
+    this.overlay.push(this.add.text(w/2,h*.19,'GÜÇLENME SEÇİMİ',{fontFamily:'Georgia',fontSize:'30px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    const instruction=this.banishMode?'MÜHÜRLEME: ÇIKARMAK İSTEDİĞİN KARTI SEÇ':'Bir gelişim seç. Her seçim koşunu değiştirir.';
+    this.overlay.push(this.add.text(w/2,h*.27,instruction,{fontSize:'15px',color:this.banishMode?'#e59a8c':'#aaa0a0'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    this.currentLevelChoices.forEach((choice,i)=>{
+      const x=w/2+(i-1.5)*220;
+      const card=this.add.rectangle(x,h*.53,196,170,0x28212a,.98).setStrokeStyle(2,this.banishMode?0xc65d62:0x9b8059).setScrollFactor(0).setDepth(201).setInteractive({useHandCursor:true});
+      const name=this.add.text(x,h*.48,choice.title,{fontFamily:'Georgia',fontSize:'17px',color:'#e8d6ad',align:'center',wordWrap:{width:170}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      const detail=this.add.text(x,h*.59,choice.detail,{fontSize:'12px',color:'#b9b0ae',align:'center',wordWrap:{width:165}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      this.overlay.push(card,name,detail);
+      this.registerOverlayOption(card,()=>this.banishMode?this.banishLevelChoice(choice):this.chooseUpgrade(choice));
+    });
+    const status='Yenile: '+this.levelUpControls.rerollsRemaining+'   •   Mühürle: '+this.levelUpControls.banishesRemaining+'   •   Geç: '+this.levelUpControls.skipsRemaining;
+    this.overlay.push(this.add.text(w/2,h*.68,status,{fontSize:'14px',color:'#c9bda9'}).setOrigin(.5).setScrollFactor(0).setDepth(202));
+    this.createOverlayButton(w*.32,h*.79,190,48,'YENİLE ('+this.levelUpControls.rerollsRemaining+')',()=>this.rerollLevelChoices());
+    this.createOverlayButton(w*.5,h*.79,190,48,this.banishMode?'VAZGEÇ ('+this.levelUpControls.banishesRemaining+')':'MÜHÜRLE ('+this.levelUpControls.banishesRemaining+')',()=>this.toggleBanishMode());
+    this.createOverlayButton(w*.68,h*.79,190,48,'GEÇ ('+this.levelUpControls.skipsRemaining+')',()=>this.skipLevelChoice());
+  }
+
+  private rerollLevelChoices():void {
+    const nextState=spendLevelUpReroll(this.levelUpControls);
+    if(!nextState)return;
+    const visibleIds=this.currentLevelChoices.map(choice=>choice.id);
+    const nextChoices=drawChoicesFromPool(this.buildChoices(),nextState,()=>Phaser.Math.RND.frac(),visibleIds);
+    if(nextChoices.length===0)return;
+    this.levelUpControls=nextState;this.currentLevelChoices=nextChoices;this.banishMode=false;
+    this.renderLevelUpChoices();
+  }
+
+  private toggleBanishMode():void {
+    if(this.levelUpControls.banishesRemaining<=0)return;
+    this.banishMode=!this.banishMode;
+    this.renderLevelUpChoices();
+  }
+
+  private banishLevelChoice(choice:LevelChoice):void {
+    const nextState=spendLevelUpBanish(this.levelUpControls,choice.id);
+    if(!nextState)return;
+    const remainingIds=this.currentLevelChoices.filter(item=>item.id!==choice.id).map(item=>item.id);
+    const nextChoices=drawChoicesFromPool(this.buildChoices(),nextState,()=>Phaser.Math.RND.frac(),remainingIds);
+    this.levelUpControls=nextState;this.currentLevelChoices=nextChoices;this.banishMode=false;
+    this.renderLevelUpChoices();
+  }
+
+  private skipLevelChoice():void {
+    const nextState=spendLevelUpSkip(this.levelUpControls);
+    if(!nextState)return;
+    this.levelUpControls=nextState;this.queuedLevels=Math.max(0,this.queuedLevels-1);
+    this.clearOverlay();
+    if(this.queuedLevels>0)this.showLevelUp();else this.resumeRunWorld();
   }
 
   private pauseRunWorld():void {this.paused=true;this.time.paused=true;this.physics.world.pause();}
@@ -759,6 +827,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private chooseUpgrade(choice:LevelChoice):void {
+    this.banishMode=false;
     if(choice.kind==='base'){
       if(choice.id==='power'){this.basePowerBonus+=6;this.refreshBuildStats();}
       else if(choice.id==='haste'){this.baseHasteMultiplier=Math.min(1.65,this.baseHasteMultiplier*1.1);}
