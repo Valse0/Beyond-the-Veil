@@ -24,7 +24,7 @@ Each hunter has distinct base stats, active cooldown/effect, weapon and element 
 | Çürümüş Bataklık | Bataklık Pusu Avcısı, Bataklık Sülüğü, Çürük Gaz Kesesi, Çamur Cadısı, Sis Ağ Örücüsü | Bataklık Kâhini | Toxic water, slowing mud, collapsing ground |
 | Lanetli Kale | Perde Avcısı, Mühür Tazısı, Ayna Taklitçisi, Ruh Çapası, Alacakaranlık Hortlağı | Yazılmamış Hükümdar | Cursed seals, dark energy, shifting gates |
 
-Each enemy has its own behavior key, attack kind, telegraph cue, counterplay rule, reward, element and mutation slots. Each region also has two hazards, two exploration discoveries and a distinct elite contract.
+Each enemy has its own behavior key, attack kind, telegraph cue, counterplay rule, reward, element and mutation slots. Each region has four distinct hazards, two exploration discoveries and a distinct elite contract.
 
 ## Boss encounter contracts
 
