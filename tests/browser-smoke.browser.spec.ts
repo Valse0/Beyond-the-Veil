@@ -396,6 +396,23 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   expect(afterCollect.bossChestDiagnostics.lastCollectPending).toBe(true);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.collectOutcome,{timeout:3_000,message:'Collection handler should open the pending boss chest'}).toBe('opened');
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.finishScheduledAtMs,{timeout:3_000,message:'Opening the chest should schedule the victory completion callback'}).not.toBeNull();
+
+  // The boss also drops 80 XP at the chest location. Collecting it can open one or
+  // more real level-up overlays and pause the Phaser clock, so resolve each choice
+  // through the visible card UI before asserting that the victory timer can finish.
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).queuedLevels,{timeout:3_000,message:'Boss XP should be collected at the chest'}).toBeGreaterThan(0);
+  let pendingLevels=(await readBrowserRunSnapshot(page)).queuedLevels;
+  expect(pendingLevels).toBeGreaterThan(0);
+  while(pendingLevels>0){
+    const beforeChoice=await readBrowserRunSnapshot(page);
+    expect(beforeChoice.paused).toBe(true);
+    expect(beforeChoice.choices).toHaveLength(4);
+    await page.locator('#game-container canvas').click({position:{x:520,y:382}});
+    await expect.poll(async()=> (await readBrowserRunSnapshot(page)).queuedLevels,{message:'Selecting a level-up card should consume one queued level'}).toBeLessThan(pendingLevels);
+    pendingLevels=(await readBrowserRunSnapshot(page)).queuedLevels;
+  }
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).paused,{message:'Resolving the final level-up choice should resume the run'}).toBe(false);
+
   const scheduled=await readBrowserRunSnapshot(page);
   expect(scheduled.bossChestDiagnostics.sceneTime.active).toBe(true);
   expect(scheduled.bossChestDiagnostics.sceneTime.paused).toBe(false);
