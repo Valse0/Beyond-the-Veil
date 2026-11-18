@@ -41,3 +41,47 @@ These rules apply to every AI agent and override conflicting instructions in any
 - For in-game HUD, menus, and game interface work, use `.agents/skills/game-ui-ux/SKILL.md`; use UI UX Pro Max as supporting guidance for visual quality, accessibility, typography, and color. Do not blindly apply web-framework advice to Phaser canvas UI.
 - Treat `GEMINI.md` as Gemini CLI-specific companion guidance.
 - Superpowers is a separate user-managed installation. Do not claim it is available unless its presence is verified.
+
+## One-time bounded full-game execution authorization
+
+The user has explicitly approved the full-game execution workflow defined in `EXECUTION_MASTER.md`. This is a standing, one-time authorization for Gemini CLI to carry out the complete GDD project scope without requesting a separate `tamam` before every ordinary implementation batch.
+
+This authorization is strictly limited as follows:
+
+### Authorized branch
+- Use only the dedicated branch `full-game-development`.
+- If it does not exist, create it from the current `main` HEAD after inspecting the repository.
+- If it already exists, inspect its history and working state; continue safely without resetting or force-updating it.
+- All implementation commits and pushes must target this branch.
+- Never commit or push project work directly to `main`.
+- Do not merge the branch or open/merge a pull request unless the user separately asks.
+
+### Authorized project work
+Within `full-game-development`, Gemini CLI may:
+- Create and edit source code, tests, project configuration, lockfiles, technical/design documentation, content data, asset manifests, and original project assets required to implement the GDD.
+- Scaffold the Phaser 3 + TypeScript + Vite application because the repository may initially contain documentation only.
+- Install or update free, open-source dependencies when technically necessary, after checking license, maintenance, compatibility, and bundle impact. Do not add paid services or dependencies.
+- Run project-local build, test, lint, validation, and asset-processing commands that are necessary for implementation.
+- Commit coherent work and push commits to `full-game-development`.
+- Continue across sessions using `docs/IMPLEMENTATION_LEDGER.md` and `EXECUTION_MASTER.md`.
+
+### Still prohibited without separate explicit user approval
+- Any work on `main`, force-push, history rewrite, merge, release publication, public deployment, or distribution.
+- Paid APIs, paid asset packs, subscriptions, paid build services, or any action that can incur charges.
+- Creating or changing accounts, backend services, analytics/telemetry, advertising, payment processing, online requirements, or external infrastructure.
+- Changing repository visibility, permissions, secrets, organization settings, or branch protection.
+- Reading, printing, committing, or transmitting secrets, credentials, tokens, private keys, or personal data.
+- Deleting or overwriting pre-existing user-authored files or assets. If a destructive migration is necessary, stop and ask.
+- Changing the game's identity, removing GDD requirements, reducing the intended full-game scope, or weakening acceptance criteria to make the ledger pass.
+- Claiming final art/audio completion while placeholders remain.
+- Any external side effect not explicitly covered above.
+
+If a genuine blocker falls into a prohibited category, stop only the affected task, record it as `BLOCKED`, explain the exact decision needed, and continue other safe, independent work. Do not repeatedly ask for approval for ordinary work already covered by this authorization.
+
+### Required conduct
+- Read `EXECUTION_MASTER.md` and `docs/IMPLEMENTATION_LEDGER.md` before work.
+- Maintain exhaustive GDD traceability and evidence-backed states.
+- Keep all work on the authorized branch.
+- Never mark an item `VERIFIED` without actual evidence.
+- Preserve a runnable, testable project and leave a clear session checkpoint.
+- This bounded authorization does not override the GDD, the no-paid-services rule, or any prohibition above.
