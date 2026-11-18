@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { ElementId, RegionId, EnemyDefinition, BossDefinition, CharacterDefinition, WeaponDefinition, PassiveDefinition } from '../../core/types/content.js';
+import type { ElementId, RegionId, EnemyDefinition, BossDefinition, CharacterDefinition, WeaponDefinition } from '../../core/types/content.js';
 import type { RunState, UpgradeId } from '../../core/types/game.js';
 import { CHARACTERS, STARTING_CHARACTER } from '../../data/characters.js';
 import { ENEMIES } from '../../data/enemies.js';
@@ -8,11 +8,11 @@ import { WEAPONS } from '../../data/weapons.js';
 import { PASSIVES } from '../../data/passives.js';
 import { ELEMENTS } from '../../data/elements.js';
 import { REGIONS } from '../../data/regions.js';
-import { calculateDamage, findNearestTarget } from '../../gameplay/combat/combat-rules.js';
+import { findNearestTarget } from '../../gameplay/combat/combat-rules.js';
 import { advanceRun, applyUpgrade, createRunState, gainExperience, receiveDamage, recordKill } from '../../gameplay/run/run-model.js';
 import { stepEnemyAI, type EnemyActorState } from '../../gameplay/enemies/enemy-runtime.js';
 import { applyElementHit, tickElementStatuses, type ElementState } from '../../gameplay/elements/element-runtime.js';
-import { addPassive, addWeapon, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState, type WeaponProgress } from '../../gameplay/weapons/build-runtime.js';
+import { addPassive, addWeapon, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState } from '../../gameplay/weapons/build-runtime.js';
 import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState } from '../../gameplay/bosses/boss-runtime.js';
 import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent } from '../../gameplay/regions/region-runtime.js';
 
@@ -118,7 +118,7 @@ export class RunScene extends Phaser.Scene {
       g.generateTexture(key,(r+3)*2,(r+3)*2);g.destroy();
     };
     make('hunter',0xc2a36d,13);make('shot',0xe8c77a,5);make('orb',0x69b7a5,5);make('boss-'+this.region.bossId,0x8e4567,31);
-    for(const id of this.region.enemyIds){const enemy=ENEMIES.find(e=>e.id===id);if(enemy)make('enemy-'+enemy.id,enemy.color,enemy.radius);}
+    for(const enemy of ENEMIES)make('enemy-'+enemy.id,enemy.color,enemy.radius);
   }
 
   private createHud():void {
@@ -279,8 +279,19 @@ export class RunScene extends Phaser.Scene {
       if(distance>stats.range)continue;
       this.weaponReady[weapon.id]=time+stats.intervalMs/this.currentBuildStats().attackSpeedMultiplier;
       const damage=stats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier;
-      this.executeWeapon(weapon,stats.behavior,damage,stats.projectiles,stats.range,target);
+      const behavior=progress.evolved?this.evolvedWeaponBehavior(weapon):weapon.behavior;
+      this.executeWeapon(weapon,behavior,damage,stats.projectiles,stats.range,target);
     }
+  }
+
+  private evolvedWeaponBehavior(weapon:WeaponDefinition):string {
+    const evolved:Record<string,string>={
+      'veil-bolt':'fan-volley','gravecleaver':'cleaving-arc','oath-pike':'chain-lightning',
+      'ember-chains':'chain-lightning','winter-orbit':'orbiting-blades','briar-seed':'area-seed',
+      'soul-lantern':'spirit-seeker','blood-loom':'life-tether','stormglass':'fan-volley',
+      'iron-bell':'defensive-pulse','rune-mortar':'delayed-mortar','eclipse-sigil':'delayed-sigil'
+    };
+    return evolved[weapon.id]??weapon.behavior;
   }
 
   private executeWeapon(weapon:WeaponDefinition,behavior:string,damage:number,projectiles:number,range:number,target:Phaser.Physics.Arcade.Sprite):void {
@@ -350,7 +361,7 @@ export class RunScene extends Phaser.Scene {
     if(enemy.getData('isBoss')){this.damageBossTarget(enemy,baseDamage,element);return;}
     const def=this.enemyDefinition(enemy);if(!def)return;
     let damage=baseDamage;
-    if(element){const state=this.elementStates.get(enemy)??{};const hit=applyElementHit(state,ELEMENTS.find(e=>e.id===element)!,baseDamage,def.resistances[element]??0,this.time.now,ELEMENTS);
+    if(element){const state=this.elementStates.get(enemy)??{};const elementDef=ELEMENTS.find(e=>e.id===element)!;const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier};const hit=applyElementHit(state,tuned,baseDamage,def.resistances[element]??0,this.time.now,ELEMENTS);
       this.elementStates.set(enemy,hit.state);damage=hit.damage+(hit.reaction?.damage??0);}
     const hp=Number(enemy.getData('health'))-damage;enemy.setData('health',hp).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(enemy.active)enemy.clearTint();});
@@ -361,7 +372,7 @@ export class RunScene extends Phaser.Scene {
   private damageBossTarget(boss:Phaser.Physics.Arcade.Sprite,baseDamage:number,element?:ElementId):void {
     if(!this.bossDefinition||!this.bossState||this.bossState.defeated)return;
     let damage=baseDamage;
-    if(element){const hit=applyElementHit(this.bossElementState,ELEMENTS.find(e=>e.id===element)!,baseDamage,this.bossDefinition.resistance[element]??0,this.time.now,ELEMENTS);
+    if(element){const elementDef=ELEMENTS.find(e=>e.id===element)!;const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier};const hit=applyElementHit(this.bossElementState,tuned,baseDamage,this.bossDefinition.resistance[element]??0,this.time.now,ELEMENTS);
       this.bossElementState=hit.state;damage=hit.damage+(hit.reaction?.damage??0);}
     if(element&&this.bossDefinition.weakness.includes(element))damage*=1.3;
     const transition=damageBoss(this.bossState,this.bossDefinition,damage,this.time.now);this.bossState=transition.state;
@@ -439,10 +450,6 @@ export class RunScene extends Phaser.Scene {
     const stats=this.currentBuildStats();this.state={...this.state,moveSpeed:this.character.moveSpeed*stats.moveSpeedMultiplier,
       damage:18*this.character.stats.damageMultiplier*stats.damageMultiplier,magnetRadius:112+stats.magnetRadiusBonus};
   }
-
-  private fireWeaponsUnusedGuard():WeaponProgress|undefined {return this.build.weapons[0];}
-
-  private spawnUnusedCharacterGuard():CharacterDefinition {return this.character;}
 
   private magnetize():void {
     const radius=this.state.magnetRadius;
