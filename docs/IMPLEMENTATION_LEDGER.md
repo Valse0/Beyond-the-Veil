@@ -9,7 +9,7 @@ Allowed states: NOT_STARTED · IN_PROGRESS · IMPLEMENTED_UNVERIFIED · VERIFIED
 | ID | Requirement | GDD source | Acceptance criteria | State | Implementation references | Verification evidence | Notes |
 |---|---|---|---|---|---|---|---|
 | CORE-01 | Offline-first single-player runtime | §1, §2, §22 | Playable without account/network; local persistence. | NOT_STARTED | - | - | - |
-| CORE-02 | Phaser 3 + TypeScript + Vite | §1, §22 | Strict typecheck and production build pass; Phaser boot still needs runtime verification. | IMPLEMENTED_UNVERIFIED | package.json; tsconfig.json; src/main.ts; src/game/config/game-config.ts | CI run 44361746724: typecheck/build PASS | Browser/device runtime not checked. Vite upgraded to 6.4.6. |
+| CORE-02 | Phaser 3 + TypeScript + Vite | §1, §22 | Strict typecheck and production build pass; Phaser boot and menu-to-run transition verified in Chromium. | VERIFIED | package.json; tsconfig.json; src/main.ts; src/game/config/game-config.ts; tests/browser-smoke.browser.spec.ts | CI run 44376200655: typecheck/build PASS; Chromium canvas boot, 1280×720 render, menu-to-run transition and no uncaught page errors PASS | Desktop Chromium smoke coverage only; mobile/device runtime remains unverified. Vite upgraded to 6.4.6. |
 | CORE-03 | Landscape 3/4 top-down presentation | §1, §19 | Responsive landscape camera and gameplay framing. | NOT_STARTED | - | - | - |
 | RUN-01 | 15-minute standard run | §2, §7 | Pacing bands, timer, final boss and result flow. | IN_PROGRESS | src/game/scenes/RunScene.ts; src/gameplay/bosses/boss-runtime.ts | CI run 44368317948: typecheck, tests, build and audit PASS | Region enemy director and boss encounter are wired; boss enters at 14:00 and victory follows defeat. Timer/boss pacing is not playtest-balanced; run may extend beyond 15:00 until boss defeat. |
 | RUN-02 | Run/profile state separation | §2, §15, §22 | Temporary power is lost on defeat; permanent profile rewards persist. | NOT_STARTED | - | - | - |
@@ -118,7 +118,7 @@ Allowed states: NOT_STARTED · IN_PROGRESS · IMPLEMENTED_UNVERIFIED · VERIFIED
 | SAVE-01 | Local save, backup and migration | §22 | Versioned save, backups, corruption recovery and import/export. | NOT_STARTED | - | - | - |
 | PLATFORM-01 | Responsive offline Web build | §26 | Desktop/mobile landscape, input and offline behavior verified. | NOT_STARTED | - | - | - |
 | PLATFORM-02 | Capacitor Android build | §26 | Android package builds and is tested on a physical device. | NOT_STARTED | - | - | - |
-| QA-01 | Automated gameplay/content tests | §24 | Unit, integration, schema, asset and regression checks pass. | IN_PROGRESS | tests/run-model.test.mjs; tests/content-validation.test.mjs; tests/runtime-systems.test.mjs; tests/browser-smoke.browser.spec.ts; playwright.config.ts; .github/workflows/ci.yml | Existing unit/runtime checks pass; Chromium smoke test added and awaiting CI execution. | Browser test covers Phaser canvas boot, 1280×720 render, main-menu-to-run canvas transition and uncaught page errors; it does not verify full gameplay or mobile devices. |
+| QA-01 | Automated gameplay/content tests | §24 | Unit, integration, schema, asset and regression checks pass. | IN_PROGRESS | tests/run-model.test.mjs; tests/content-validation.test.mjs; tests/runtime-systems.test.mjs; tests/browser-smoke.browser.spec.ts; playwright.config.ts; .github/workflows/ci.yml | Existing 22 unit/runtime tests and initial Chromium smoke test PASS in CI run 44376200655; expanded movement, pause-freeze, resume and HUD-clock browser checks added in this package and pending CI. | Browser checks remain a focused smoke suite, not full combat correctness, long-session performance, accessibility, mobile input or Android verification. |
 | QA-02 | Runtime, performance and accessibility audit | §24, §29 | Browser/device flows, long sessions, memory and accessibility checked. | NOT_STARTED | - | - | - |
 | RELEASE-01 | Full GDD acceptance gate | §26, §29, §30 | All in-scope requirements VERIFIED; no critical defects; Web/Android verified. | NOT_STARTED | - | - | - |
 
@@ -149,7 +149,7 @@ Allowed states: NOT_STARTED · IN_PROGRESS · IMPLEMENTED_UNVERIFIED · VERIFIED
 | §21 Accessibility | ACCESS-01 | Not implemented. |
 | §22 Technical architecture | CORE-01..03, SAVE-01 | Engine foundation; persistence pending. |
 | §23 Monetization | CORE-01 | No monetization planned; no ads/paid dependencies. |
-| §24 QA | QA-01..02 | Initial tests and CI being established. |
+| §24 QA | QA-01..02 | Unit/runtime suites and initial Chromium smoke checks pass in CI; expanded interaction coverage is being verified; full QA remains outstanding. |
 | §25 Localization | LOC-01 | Not implemented. |
 | §26 Platform/release | PLATFORM-01..02, RELEASE-01 | Web first; Android later. |
 | §27 Initial content counts | CHAR-01..05, REGION-01..05, ENEMY-01..25, BOSS-01..05, WEAPON-01..12, PASSIVE-01..12, ELEM-01..07 | All target counts explicit; mostly unimplemented. |
@@ -195,10 +195,11 @@ Overall status: NOT COMPLETE. Full GDD remains the target.
 
 ## Browser smoke-test package (2026-11-18)
 
-Added Playwright Chromium smoke coverage on `full-game-development`:
+Playwright Chromium smoke coverage on `full-game-development`:
 - `playwright.config.ts` starts Vite on localhost:3000 and configures a 1280×720 Chromium viewport.
-- `tests/browser-smoke.browser.spec.ts` checks the Phaser canvas dimensions, captures the main-menu frame, clicks the existing “YENİ KOŞU” hit area, verifies that the canvas changes to the run scene, and fails on uncaught page errors.
+- `tests/browser-smoke.browser.spec.ts` verifies the Phaser canvas boot, fixed 1280×720 render, main-menu-to-run transition, keyboard-driven hunter movement (using the rendered hunter sprite position), ESC pause, a stable frozen frame while paused, resume interaction, advancing HUD clock, and absence of uncaught page errors.
 - `package.json` exposes `npm run test:browser` and includes `@playwright/test`.
 - `.github/workflows/ci.yml` installs Chromium and runs the browser smoke test after typecheck, unit tests, and production build.
-- This is a smoke test only. It does not verify combat correctness, long-session performance, accessibility, mobile input, or Android.
+- The initial smoke suite passed in CI run 44376200655. The expanded interaction assertions in this package are pending a new CI run.
+- This remains a smoke suite, not full combat correctness, long-session performance, accessibility, mobile input, or Android verification.
 
