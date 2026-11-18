@@ -11,6 +11,8 @@ export class CharacterSelectScene extends Phaser.Scene {
   init(data: { characterId?: string }): void {
     const index = CHARACTERS.findIndex(character => character.id === data?.characterId);
     this.selectedIndex = index >= 0 ? index : 0;
+    this.frames = [];
+    this.previousPad = { left: false, right: false, confirm: false, back: false };
   }
 
   create(): void {
