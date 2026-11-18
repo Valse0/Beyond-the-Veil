@@ -199,6 +199,7 @@ type BrowserRunSnapshot = {
   paused:boolean;bossSpawned:boolean;choices:{id:string;title:string}[];
   runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
   controls:{rerollsRemaining:number;banishesRemaining:number;skipsRemaining:number;bannedChoiceIds:string[]};
+  runEvents:{selected:string[];active:{kind:string;progress:number;stage:number;status:string}|null;completed:string[];failed:string[]};
 };
 
 async function startBrowserTestRun(page: import('@playwright/test').Page): Promise<import('@playwright/test').Locator> {
@@ -252,6 +253,14 @@ async function defeatBrowserTestBoss(page: import('@playwright/test').Page): Pro
     const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestDefeatBoss:()=>void}}}}).__BEYOND_VEIL_GAME__;
     if(!game)throw new Error('Development browser test bridge is not available.');
     game.scene.getScene('run').browserTestDefeatBoss();
+  });
+}
+
+async function completeBrowserTestEvent(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestCompleteActiveEvent:()=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestCompleteActiveEvent();
   });
 }
 
@@ -424,5 +433,30 @@ test('run results clearly report when browser storage refuses to save rewards', 
   const unchanged=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(unchanged.progression.soulEssence).toBe(0);
   expect(unchanged.progression.completedRuns).toBe(0);
+  expect(pageErrors).toEqual([]);
+});
+
+
+test('timed run event starts, resolves its objective and awards persistent-run essence', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestAdvanceElapsed(210_000);
+  });
+
+  const started=await readBrowserRunSnapshot(page);
+  expect(started.runEvents.active?.status).toBe('active');
+  expect(started.runEvents.selected).toHaveLength(3);
+  expect(new Set(started.runEvents.selected).size).toBe(3);
+
+  await completeBrowserTestEvent(page);
+  const completed=await readBrowserRunSnapshot(page);
+  expect(completed.runEvents.active?.status).toBe('completed');
+  expect(completed.runEvents.completed).toContain(started.runEvents.active?.kind);
+  expect(completed.runSoulEssence).toBeGreaterThan(0);
   expect(pageErrors).toEqual([]);
 });
