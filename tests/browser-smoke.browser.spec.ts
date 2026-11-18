@@ -90,8 +90,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
   await page.keyboard.press('Enter');
   await page.waitForTimeout(120);
 
-  // Return to the first, currently unlocked region and start.
-  for (let index = 0; index < 4; index += 1) await page.keyboard.press('ArrowLeft');
+  // The region screen reopens on the first unlocked region; start it.
   await page.keyboard.press('Enter');
   await page.waitForTimeout(150);
   const runFrame = await canvas.screenshot();
