@@ -21,15 +21,18 @@ Seven canonical elements: Ateş, Buz, Zehir, Karanlık, Ruh, Yıldırım and Kan
 ## Fairness and progression
 Spawn pressure must be capped and readable. Difficulty must add behaviors and patterns, not only health. Reroll, banish and skip protect level-up RNG. No resistance may invalidate an entire build. Permanent Ruh Özü and unlocks survive defeat; temporary run power does not. Hunter Hub, relics, crafting, quests, mastery, achievements, collections, New Game+ and Endless Mode remain full-game requirements.
 
-## Runtime-system layer added
-Engine-independent gameplay modules now exist for:
+## Runtime-system and Phaser scene integration
+
+Engine-independent gameplay modules provide:
 - 25 enemy archetype decision steps and attack intent: `src/gameplay/enemies/enemy-runtime.ts`
 - Seven-element buildup, resistance, reactions and timed status ticks: `src/gameplay/elements/element-runtime.ts`
 - Six-slot weapon/passive builds, five-level upgrades, evolution eligibility and derived stats: `src/gameplay/weapons/build-runtime.ts`
 - Boss health thresholds, three-phase transitions and per-attack cooldowns: `src/gameplay/bosses/boss-runtime.ts`
 - Region hazard telegraph/active cycles: `src/gameplay/regions/region-runtime.ts`
 
-These modules are pure TypeScript and covered by automated tests. They are not yet connected to the Phaser scene's live entities, projectiles, HUD or encounter visuals. That integration and actual browser/device playtesting remain outstanding. Their balance values are initial tuning defaults, not playtest-verified values.
+The Phaser run scene now consumes these modules for its selected character and region: region-specific enemy spawning, AI movement and attack telegraphs, elemental weapon hits/reactions/status ticks, six-slot weapon/passive acquisition and upgrades, weapon-specific attacks, boss phase transitions/adds/health display, region hazard warnings, and pause-safe overlay timing. The scene accepts `characterId` and `regionId` in its scene start data; the current main menu still launches the default hunter and first region.
+
+This is an integrated gameplay foundation, not completion of all GDD requirements. Region-specific maps and bespoke hazard mechanics, full character selection UI, all-region/boss playthroughs, weapon branches and special passive upgrades, final boss-chest interaction, persistent profile rewards, balance tuning, and browser/device playtesting remain outstanding. All in-scene visuals are temporary procedural shapes; no final art is claimed.
 
 ## Full content catalog status
-The first-release data catalog defines all five hunters, five regions, 25 base enemies, five multi-phase bosses, twelve weapons, twelve passives and seven elements. Each definition has stable IDs and typed cross-references. The runtime-system layer above now provides testable rules for the core catalog mechanics; the playable scene still needs to consume those rules. See [CONTENT_CATALOG.md](CONTENT_CATALOG.md).
+The first-release data catalog defines all five hunters, five regions, 25 base enemies, five multi-phase bosses, twelve weapons, twelve passives and seven elements. The current run scene can be started with a chosen character and region, but the shipped menu currently selects only the defaults. Only the first region/boss is reachable through the current menu flow. See [CONTENT_CATALOG.md](CONTENT_CATALOG.md).
