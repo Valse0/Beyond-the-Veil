@@ -15,6 +15,7 @@ import { applyElementHit, tickElementStatuses, type ElementState } from '../../g
 import { addPassive, addWeapon, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState } from '../../gameplay/weapons/build-runtime.js';
 import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState } from '../../gameplay/bosses/boss-runtime.js';
 import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent } from '../../gameplay/regions/region-runtime.js';
+import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
 
 const RUN_MS = 900000;
 const BOSS_START_MS = 840000;
@@ -41,6 +42,13 @@ export class RunScene extends Phaser.Scene {
   private orbs!:Phaser.Physics.Arcade.Group;
   private keys!:Record<string,Phaser.Input.Keyboard.Key>;
   private cursors!:Phaser.Types.Input.Keyboard.CursorKeys;
+  private previousGamepadFrame:GamepadFrame=EMPTY_GAMEPAD_FRAME;
+  private gamepadMoveX=0;
+  private gamepadMoveY=0;
+  private overlayButtons:Phaser.GameObjects.Rectangle[]=[];
+  private overlayActions:(()=>void)[]=[];
+  private overlaySelectionIndex=0;
+  private overlayBackIndex:number|null=null;
   private hud!:Phaser.GameObjects.Text;
   private clock!:Phaser.GameObjects.Text;
   private health!:Phaser.GameObjects.Rectangle;
@@ -96,6 +104,7 @@ export class RunScene extends Phaser.Scene {
     const startingPassive=PASSIVES.find(p=>p.id===this.character.startingPassiveId)??PASSIVES[0]!;
     this.build=addWeapon(this.build,startingWeapon);this.build=addPassive(this.build,startingPassive);
     this.paused=false;this.queuedLevels=0;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;
+    this.previousGamepadFrame=EMPTY_GAMEPAD_FRAME;this.gamepadMoveX=0;this.gamepadMoveY=0;this.clearOverlay();
     this.lastSpawn=this.time.now;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];
@@ -111,7 +120,7 @@ export class RunScene extends Phaser.Scene {
     this.player=this.physics.add.sprite(WORLD_W/2,WORLD_H/2,'hunter').setCircle(12).setCollideWorldBounds(true).setDepth(3);
     this.cameras.main.startFollow(this.player,true,0.08,0.08);
     this.cursors=this.input.keyboard!.createCursorKeys();
-    this.keys=this.input.keyboard!.addKeys('W,A,S,D,SPACE,E,ESC') as Record<string,Phaser.Input.Keyboard.Key>;
+    this.keys=this.input.keyboard!.addKeys('W,A,S,D,SPACE,E,ESC,ENTER') as Record<string,Phaser.Input.Keyboard.Key>;
     this.physics.add.overlap(this.shots,this.enemies,(a,b)=>this.hitEnemy(a as Phaser.Physics.Arcade.Sprite,b as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.enemies,(_p,e)=>this.contactDamage(e as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.orbs,(_p,o)=>this.collectOrb(o as Phaser.Physics.Arcade.Sprite));
@@ -157,7 +166,15 @@ export class RunScene extends Phaser.Scene {
   }
 
   update(time:number,delta:number):void {
-    if(this.paused||this.runFinished)return;
+    const frame=this.readGamepadFrame();
+    const gamepad=resolveGamepadInput(frame,this.previousGamepadFrame);
+    this.previousGamepadFrame=frame;
+    this.gamepadMoveX=gamepad.moveX;this.gamepadMoveY=gamepad.moveY;
+    if(this.paused){this.handleOverlayInput(gamepad);return;}
+    if(this.runFinished)return;
+    if(gamepad.southPressed)this.tryDash();
+    if(gamepad.westPressed)this.useAbility();
+    if(gamepad.startPressed){this.openPause();return;}
     this.state=advanceRun(this.state,delta);
     this.move(time);this.moveEnemies(time);this.updateEnemyZones(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
     this.expireShots(time);this.magnetize();this.updateElementStatuses(time);this.updateRegionHazard(time);
@@ -166,9 +183,20 @@ export class RunScene extends Phaser.Scene {
     if(time-this.lastHud>120){this.refreshHud();this.lastHud=time;}
   }
 
+  private readGamepadFrame():GamepadFrame {
+    const pad=this.input.gamepad?.getPad(0);
+    if(!pad)return EMPTY_GAMEPAD_FRAME;
+    return {
+      axisX:pad.leftStick.x,axisY:pad.leftStick.y,
+      dpadLeft:pad.left,dpadRight:pad.right,dpadUp:pad.up,dpadDown:pad.down,
+      south:pad.A,west:pad.X,east:pad.B,start:pad.start
+    };
+  }
+
   private move(time:number):void {
     let x=(this.keys.D.isDown||this.cursors.right.isDown?1:0)-(this.keys.A.isDown||this.cursors.left.isDown?1:0);
     let y=(this.keys.S.isDown||this.cursors.down.isDown?1:0)-(this.keys.W.isDown||this.cursors.up.isDown?1:0);
+    if(this.gamepadMoveX!==0||this.gamepadMoveY!==0){x=this.gamepadMoveX;y=this.gamepadMoveY;}
     if(this.touchStart&&this.input.activePointer.isDown){const p=this.input.activePointer,dx=p.x-this.touchStart.x,dy=p.y-this.touchStart.y,len=Math.max(1,Math.hypot(dx,dy));x=dx/len;y=dy/len;this.thumb.setPosition(this.joystick.x+Phaser.Math.Clamp(dx,-27,27),this.joystick.y+Phaser.Math.Clamp(dy,-27,27));}
     const dir=new Phaser.Math.Vector2(x,y);if(dir.length()>1)dir.normalize();
     if(Phaser.Input.Keyboard.JustDown(this.keys.SPACE))this.tryDash();
@@ -667,6 +695,50 @@ export class RunScene extends Phaser.Scene {
   private pauseRunWorld():void {this.paused=true;this.time.paused=true;this.physics.world.pause();}
   private resumeRunWorld():void {this.time.paused=false;this.physics.world.resume();this.paused=false;}
 
+  private handleOverlayInput(actions:GamepadActions):void {
+    if(actions.leftPressed||actions.upPressed)this.navigateOverlay(-1);
+    if(actions.rightPressed||actions.downPressed)this.navigateOverlay(1);
+    if(actions.southPressed||actions.startPressed)this.activateOverlayOption(this.overlaySelectionIndex);
+    else if(actions.eastPressed&&this.overlayBackIndex!==null)this.activateOverlayOption(this.overlayBackIndex);
+
+    if(Phaser.Input.Keyboard.JustDown(this.cursors.left)||Phaser.Input.Keyboard.JustDown(this.cursors.up))this.navigateOverlay(-1);
+    if(Phaser.Input.Keyboard.JustDown(this.cursors.right)||Phaser.Input.Keyboard.JustDown(this.cursors.down))this.navigateOverlay(1);
+    if(Phaser.Input.Keyboard.JustDown(this.keys.ENTER)||Phaser.Input.Keyboard.JustDown(this.keys.SPACE))this.activateOverlayOption(this.overlaySelectionIndex);
+    if(Phaser.Input.Keyboard.JustDown(this.keys.ESC)&&this.overlayBackIndex!==null)this.activateOverlayOption(this.overlayBackIndex);
+  }
+
+  private registerOverlayOption(button:Phaser.GameObjects.Rectangle,action:()=>void):void {
+    const index=this.overlayButtons.length;
+    this.overlayButtons.push(button);this.overlayActions.push(action);
+    button.on('pointerover',()=>this.setOverlaySelection(index));
+    button.on('pointerup',()=>this.activateOverlayOption(index));
+    this.setOverlaySelection(this.overlaySelectionIndex);
+  }
+
+  private setOverlaySelection(index:number):void {
+    if(!this.overlayButtons.length)return;
+    this.overlaySelectionIndex=(index+this.overlayButtons.length)%this.overlayButtons.length;
+    this.overlayButtons.forEach((button,i)=>{
+      const selected=i===this.overlaySelectionIndex;
+      button.setFillStyle(selected?0x463344:0x28212a,.98).setStrokeStyle(selected?3:2,selected?0xf0d39a:0x9b8059,.98);
+    });
+  }
+
+  private navigateOverlay(direction:number):void {
+    if(this.overlayButtons.length)this.setOverlaySelection(this.overlaySelectionIndex+direction);
+  }
+
+  private activateOverlayOption(index:number):void {
+    const action=this.overlayActions[index];
+    if(action)action();
+  }
+
+  private createOverlayButton(x:number,y:number,width:number,height:number,label:string,action:()=>void):void {
+    const button=this.add.rectangle(x,y,width,height,0x28212a,.98).setStrokeStyle(2,0x9b8059).setScrollFactor(0).setDepth(201).setInteractive({useHandCursor:true});
+    const text=this.add.text(x,y,label,{fontSize:'18px',color:'#fff2df',fontStyle:'bold'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+    this.overlay.push(button,text);this.registerOverlayOption(button,action);
+  }
+
   private showLevelUp():void {
     this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
     this.overlay.push(this.add.rectangle(w/2,h/2,w,h,0x08070b,.88).setScrollFactor(0).setDepth(200));
@@ -677,8 +749,7 @@ export class RunScene extends Phaser.Scene {
       const card=this.add.rectangle(x,h*.55,196,170,0x28212a,.98).setStrokeStyle(2,0x9b8059).setScrollFactor(0).setDepth(201).setInteractive({useHandCursor:true});
       const name=this.add.text(x,h*.5,choice.title,{fontFamily:'Georgia',fontSize:'17px',color:'#e8d6ad',align:'center',wordWrap:{width:170}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
       const detail=this.add.text(x,h*.61,choice.detail,{fontSize:'12px',color:'#b9b0ae',align:'center',wordWrap:{width:165}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-      card.on('pointerover',()=>card.setFillStyle(0x463344,1));card.on('pointerout',()=>card.setFillStyle(0x28212a,.98));
-      card.on('pointerup',()=>this.chooseUpgrade(choice));this.overlay.push(card,name,detail);
+      this.overlay.push(card,name,detail);this.registerOverlayOption(card,()=>this.chooseUpgrade(choice));
     });
   }
 
@@ -701,9 +772,10 @@ export class RunScene extends Phaser.Scene {
     if(this.paused)return;this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.84).setScrollFactor(0).setDepth(200);
     const title=this.add.text(w/2,h*.36,'DURAKLATILDI',{fontFamily:'Georgia',fontSize:'34px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
-    const resume=this.add.text(w/2,h*.52,'DEVAM ET',{fontSize:'20px',color:'#fff',backgroundColor:'#5b3d32',padding:{x:24,y:12}}).setOrigin(.5).setScrollFactor(0).setDepth(201).setInteractive();
-    const menu=this.add.text(w/2,h*.64,'ANA MENÜ',{fontSize:'16px',color:'#c9bda9'}).setOrigin(.5).setScrollFactor(0).setDepth(201).setInteractive();
-    resume.on('pointerup',()=>{this.clearOverlay();this.resumeRunWorld();});menu.on('pointerup',()=>this.scene.start('main-menu'));this.overlay.push(shade,title,resume,menu);
+    this.overlay.push(shade,title);
+    this.createOverlayButton(w/2,h*.52,260,54,'DEVAM ET',()=>{this.clearOverlay();this.resumeRunWorld();});
+    this.createOverlayButton(w/2,h*.64,260,54,'ANA MENÜ',()=>this.scene.start('main-menu'));
+    this.overlayBackIndex=0;
   }
 
   private finishRun(won:boolean):void {
@@ -711,12 +783,13 @@ export class RunScene extends Phaser.Scene {
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.9).setScrollFactor(0).setDepth(200);
     const title=this.add.text(w/2,h*.32,won?'KOŞU TAMAMLANDI':'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     const summary=this.add.text(w/2,h*.45,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman',{fontSize:'18px',color:'#c0b5a8'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
-    const retry=this.add.text(w/2,h*.59,'YENİ KOŞU',{fontSize:'20px',color:'#fff',backgroundColor:'#5b3d32',padding:{x:24,y:12}}).setOrigin(.5).setScrollFactor(0).setDepth(201).setInteractive();
-    const menu=this.add.text(w/2,h*.7,'ANA MENÜ',{fontSize:'16px',color:'#c9bda9'}).setOrigin(.5).setScrollFactor(0).setDepth(201).setInteractive();
-    retry.on('pointerup',()=>this.scene.restart());menu.on('pointerup',()=>this.scene.start('main-menu'));this.overlay.push(shade,title,summary,retry,menu);
+    this.overlay.push(shade,title,summary);
+    this.createOverlayButton(w/2,h*.59,260,54,'YENİ KOŞU',()=>this.scene.restart());
+    this.createOverlayButton(w/2,h*.7,260,54,'ANA MENÜ',()=>this.scene.start('main-menu'));
+    this.overlayBackIndex=1;
   }
 
-  private clearOverlay():void {this.overlay.forEach(o=>o.destroy());this.overlay=[];}
+  private clearOverlay():void {this.overlay.forEach(o=>o.destroy());this.overlay=[];this.overlayButtons=[];this.overlayActions=[];this.overlaySelectionIndex=0;this.overlayBackIndex=null;}
 
   private refreshHud():void {
     if(!this.hud||!this.clock||!this.health)return;
