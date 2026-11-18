@@ -214,8 +214,8 @@ async function startBrowserTestRun(page: import('@playwright/test').Page): Promi
   await page.keyboard.press('Enter');
   await page.waitForTimeout(180);
   await page.waitForFunction(() => {
-    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{sys:{isActive:()=>boolean}}}}}).__BEYOND_VEIL_GAME__;
-    return Boolean(game?.scene.getScene('run')?.sys.isActive());
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('run'));
   });
   return canvas;
 }
