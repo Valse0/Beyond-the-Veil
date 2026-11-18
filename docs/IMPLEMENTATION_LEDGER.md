@@ -129,15 +129,15 @@ Allowed states: NOT_STARTED · IN_PROGRESS · IMPLEMENTED_UNVERIFIED · VERIFIED
 | §1 Vision | CORE-01..03 | Identity/platform documented; runtime pending. |
 | §2 Core loop | RUN-01..05, PROG-01 | Partial playable loop; meta progression absent. |
 | §3 World and story | WORLD-01..02 | Lore and branching choices absent. |
-| §4 Regions | REGION-01..05, WORLD-03 | Five targets tracked; none implemented. |
+| §4 Regions | REGION-01..05, WORLD-03 | Five data targets; runtime accepts region selection and cycles hazards, but no selection/map/exploration flow yet. |
 | §5 Characters | CHAR-01..05 | Starting hunter only; complete kits remain. |
 | §6 Combat and movement | RUN-03..04, WEAPON-01..12, UI-09 | Basic movement/ability/weapon in progress. |
-| §7 Run system | RUN-01, RUN-07, RUN-09 | Timer and simple spawns only. |
-| §8 Enemies | ENEMY-01..25 | Three temporary patterns; full roster absent. |
-| §9 Bosses | BOSS-01..05 | Not implemented. |
-| §10 Weapons | WEAPON-01..12, RUN-08 | One starter weapon; evolution absent. |
-| §11 Passives | PASSIVE-01..12 | Not implemented. |
-| §12 Elements | ELEM-01..07 | Not implemented. |
+| §7 Run system | RUN-01, RUN-07, RUN-09 | Spawn pacing/cap and region boss flow are wired; event director, elite system and final tuning remain. |
+| §8 Enemies | ENEMY-01..25 | All 25 behavior keys feed scene AI movement and shaped attack telegraphs; bespoke specialRule actions, animation and playtesting remain. |
+| §9 Bosses | BOSS-01..05 | Three-phase runtime, attack cooldowns/telegraphs, adds, elemental weakness/resistance and HUD are wired; bespoke arena mechanics, reward UX and playtesting remain. |
+| §10 Weapons | WEAPON-01..12, RUN-08 | Twelve attack behavior dispatches, level stats and boss-gated evolution behavior are wired; branches, chest interaction, feedback and balance remain. |
+| §11 Passives | PASSIVE-01..12 | All twelve can be acquired/upgraded and supported stat effects are derived; special upgrades and remaining stat hooks are outstanding. |
+| §12 Elements | ELEM-01..07 | Seven-element buildup, resistance, reactions and partial unique status effects are integrated; full status depth and tuning remain. |
 | §13 XP and level-up | RUN-05..06 | XP/choices in progress; RNG controls absent. |
 | §14 Relics/crafting/equipment | PROG-02..04 | Not implemented. |
 | §15 Economy/progression | PROG-01, PROG-06 | Not implemented. |
@@ -177,7 +177,7 @@ Catalog counts reflect typed design data, not finished runtime content. Enemy AI
 |---|---|---|---|---|---|
 | 2026-11-18 | 801deb8677a78c80307af43f20a3d03696960a02 | Typecheck, 12 gameplay/content tests, production build, strict dependency audit; enforced 25 unique enemy behaviors/attack kinds and four hazards per region. | npm run typecheck; npm test (12 tests); npm run build; npm audit --audit-level=moderate | PASS | Run 44362325213: https://github.com/Valse0/Beyond-the-Veil/actions/runs/44362325213; npm audit: 0 vulnerabilities |
 
-| 2026-11-18 | d624b505dbaa2b1893695c7aa46cc70d29d3ce2c | Phaser run-scene integration: region enemy spawning, AI movement/attack telegraphs, twelve weapon attack dispatches, build upgrades, element hits/statuses, boss phase flow, region hazard cycle, boss HUD and pause-safe overlays. | GitHub Actions run 44368317948: npm run typecheck; npm test (19 tests); npm run build; npm audit --audit-level=moderate | PASS | https://github.com/Valse0/Beyond-the-Veil/actions/runs/44368317948. Browser/device playtest not run. |
+| 2026-11-18 | 89b1ec18e333f367b899c34b35f81eee29e6f46a | Phaser run-scene integration: region enemy spawning, AI movement/attack telegraphs, twelve weapon attack dispatches, build upgrades, all seven element application hooks, timed lightning stun, boss phase flow, region hazard cycle, boss HUD and pause-safe overlays. | GitHub Actions run 44368317948: typecheck PASS; 19 tests PASS; production build PASS; npm audit 0 vulnerabilities. No browser/device playtest. | https://github.com/Valse0/Beyond-the-Veil/actions/runs/44368317948. |
 ## Asset status
 
 Vector shapes are temporary placeholders. No final art/audio is claimed. The full stable-ID asset inventory, specifications, provenance and licenses remain outstanding.
