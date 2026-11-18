@@ -23,7 +23,7 @@ test('events start only in the three authored windows and never overlap', () => 
   assert.equal(state.nextEventIndex, 1);
   assert.equal(state.activeEvent?.status, 'active');
   assert.equal(startDueRunEvent(state, 450000), state, 'an active event blocks the next event');
-  state = advanceRunEvent(state, state.activeEvent!.deadlineAtMs);
+  state = advanceRunEvent(state, state.activeEvent.deadlineAtMs);
   state = startDueRunEvent(state, 450000);
   assert.equal(state.nextEventIndex, 2);
 });
@@ -87,9 +87,9 @@ test('hunter trial needs six kills and cursed wave needs three cleared stages', 
 test('events fail at their deadline and ignore late actions', () => {
   let state = createRunEventState(7);
   state = startDueRunEvent(state, 210000);
-  state = advanceRunEvent(state, state.activeEvent!.deadlineAtMs);
+  state = advanceRunEvent(state, state.activeEvent.deadlineAtMs);
   assert.equal(state.activeEvent?.status, 'failed');
   const failed = recordRunEventAction(state, 'kill', 10);
   assert.equal(failed.activeEvent?.progress, 0);
-  assert.deepEqual(failed.failedEvents, [state.activeEvent!.kind]);
+  assert.deepEqual(failed.failedEvents, [state.activeEvent.kind]);
 });
