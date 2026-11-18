@@ -6,3 +6,6 @@ test('every region has five assigned enemies and its own three-phase boss',()=>{
 test('all cross references, balance constraints and asset provenance validate',()=>{assert.deepEqual(validateContentCatalog(),[]);assert.equal(ASSET_REGISTRY.length,71);assert.ok(ASSET_REGISTRY.every(a=>a.status==='placeholder'&&a.path===null));});
 test('all weapons have five levels, two branches and a behavior-changing evolution',()=>{assert.ok(WEAPONS.every(w=>w.levels.length===5&&w.branches.length>=2&&w.evolution.behaviorChange.length>12));});
 test('all seven elements have status buildup and cross-element reactions',()=>{assert.ok(ELEMENTS.every(e=>e.threshold>=100&&e.reactions.length>=2));});
+
+test('all 25 enemies have distinct behavior and attack patterns',()=>{assert.equal(new Set(ENEMIES.map(e=>e.behavior)).size,25);assert.equal(new Set(ENEMIES.map(e=>e.attack.kind)).size,25);});
+test('all 12 weapons use distinct attack behavior contracts',()=>{assert.equal(new Set(WEAPONS.map(w=>w.behavior)).size,12);});
