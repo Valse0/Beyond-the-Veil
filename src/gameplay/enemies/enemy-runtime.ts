@@ -46,7 +46,7 @@ export function stepEnemyAI(def:EnemyDefinition,actor:EnemyActorState,target:{x:
    if(distance<150){vx=-dir.x*.5;vy=-dir.y*.5;}else if(distance>250){vx=dir.x*.5;vy=dir.y*.5;}break;
   case 'phase-stalk':if(now%3200<550){speed=2.2;vx=dir.x;vy=dir.y;next.burrowed=true;}else{vx=dir.x*.7;vy=dir.y*.7;next.burrowed=false;}break;
   case 'frost-hunt':speed=distance>260?1.35:1;vx=dir.x;vy=dir.y;break;
-  case 'mimic':speed=distance<260?1.65:.65;vx=dir.x;vy=dir.y;next.burrowed=distance>190;break;
+  case 'mimic':speed=distance<260?1.65:.65;vx=dir.x;vy=dir.y;next.burrowed=actor.exposedUntil<=now&&distance>190;break;
   case 'volatile-bomber':speed=distance<190?1.8:1.1;vx=dir.x;vy=dir.y;break;
   case 'duelist':if(distance<125){vx=-dir.y*.9;vy=dir.x*.9;}else{vx=dir.x;vy=dir.y;}break;
   case 'wraith':speed=actor.health<def.health*.5?1.55:1;vx=dir.x;vy=dir.y;break;
