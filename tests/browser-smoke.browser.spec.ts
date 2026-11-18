@@ -411,18 +411,15 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
     await expect.poll(async()=> (await readBrowserRunSnapshot(page)).queuedLevels,{message:'Selecting a level-up card should consume one queued level'}).toBeLessThan(pendingLevels);
     pendingLevels=(await readBrowserRunSnapshot(page)).queuedLevels;
   }
-  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).paused,{message:'Resolving the final level-up choice should resume the run'}).toBe(false);
-
-  const scheduled=await readBrowserRunSnapshot(page);
-  expect(scheduled.bossChestDiagnostics.sceneTime.active).toBe(true);
-  expect(scheduled.bossChestDiagnostics.sceneTime.paused).toBe(false);
-  expect(scheduled.bossChestDiagnostics.finishTimer).not.toBeNull();
-  expect(scheduled.bossChestDiagnostics.finishTimer?.paused).toBe(false);
-  await page.waitForTimeout(700);
-  const afterTimerWait=await readBrowserRunSnapshot(page);
-  expect(afterTimerWait.bossChestDiagnostics.sceneTime.now).toBeGreaterThan(scheduled.bossChestDiagnostics.sceneTime.now);
-  expect(afterTimerWait.bossChestDiagnostics.finishTimer?.elapsed).toBeGreaterThan(0);
-  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.finishCallbackAtMs,{timeout:3_000,message:'Scheduled victory completion callback should execute'}).not.toBeNull();
+  // The 500 ms timer may finish on the same frame that the last level-up choice
+  // resumes the clock. finishRun() then pauses the scene again, so an intermediate
+  // "paused === false" or live-clock assertion is inherently timing-dependent.
+  // The durable contract is that the scheduled callback fires after its full delay.
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.finishCallbackAtMs,{timeout:3_000,message:'Scheduled victory completion callback should execute after the timer delay'}).not.toBeNull();
+  const completedTimer=await readBrowserRunSnapshot(page);
+  expect(completedTimer.bossChestDiagnostics.finishTimer).not.toBeNull();
+  expect(completedTimer.bossChestDiagnostics.finishTimer?.hasDispatched).toBe(true);
+  expect(completedTimer.bossChestDiagnostics.finishCallbackAtMs!-completedTimer.bossChestDiagnostics.finishScheduledAtMs!).toBeGreaterThanOrEqual(500);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved,{timeout:3_000,message:'Victory completion should persist the run result'}).toBe(true);
   const victory=await readBrowserRunSnapshot(page);
   expect(victory.runFinished).toBe(true);
