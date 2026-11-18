@@ -212,6 +212,10 @@ export class RunScene extends Phaser.Scene {
       this.enemyStates.set(enemy,intent.state);
       if(intent.special)this.applyEnemySpecial(enemy,def,intent.special);
       if(def.behavior==='mimic'&&!intent.state.burrowed&&!enemy.getData('mimicRevealed')){enemy.setData('mimicRevealed',true);enemy.clearTint();enemy.setAlpha(1);this.cameras.main.shake(70,.001);}
+      if(def.behavior==='volatile-bomber'){
+        const primed=Phaser.Math.Distance.Between(enemy.x,enemy.y,this.player.x,this.player.y)<175;
+        if(Boolean(enemy.getData('primed'))!==primed){enemy.setData('primed',primed);enemy.setTint(primed?0xf2b34d:0xffffff);}
+      }
       if(def.behavior==='surge'&&(enemy.x<def.radius+36||enemy.x>WORLD_W-def.radius-36||enemy.y<def.radius+36||enemy.y>WORLD_H-def.radius-36)&&intent.speedMultiplier>1){enemy.setVelocity(0,0);this.enemyStates.set(enemy,{...intent.state,exposedUntil:time+1250});}
       const status=this.elementStates.get(enemy)??{};
       const effects=tickElementStatuses(status,time);this.elementStates.set(enemy,effects.state);
@@ -434,7 +438,7 @@ export class RunScene extends Phaser.Scene {
     const armorBroken=Number(enemy.getData('armorBrokenUntil')??0)>this.time.now;
     if((def.behavior==='shield-advance'||def.behavior==='rune-guardian')&&!armorBroken&&element!=='lightning'&&this.isEnemyFacingPlayer(enemy,actor))damage*=.35;
     if(def.behavior==='rune-guardian'&&element==='lightning')enemy.setData('armorBrokenUntil',this.time.now+5200);
-    if(def.id==='rootbound-husk'&&this.isEnemyFacingPlayer(enemy,actor)&&!element)damage*=.8;
+    if(def.behavior==='pursue'&&this.isEnemyFacingPlayer(enemy,actor)&&!element)damage*=.8;
     if(def.behavior==='duelist'&&Number(enemy.getData('parryUntil')??0)>this.time.now&&element!=='lightning')damage*=.35;
     if(def.behavior==='duelist'&&element==='lightning')enemy.setData('parryUntil',0);
     if(def.behavior==='burrow'&&actor?.burrowed)return;
@@ -616,7 +620,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private activeTargets():Phaser.Physics.Arcade.Sprite[] {
-    return this.enemies.getChildren().filter(child=>{const enemy=child as Phaser.Physics.Arcade.Sprite;return enemy.active&&Number(enemy.getData('untargetableUntil')??0)<=this.time.now&&(enemy.getData('mimicRevealed')!==false);}) as Phaser.Physics.Arcade.Sprite[];
+    return this.enemies.getChildren().filter(child=>{const enemy=child as Phaser.Physics.Arcade.Sprite;return enemy.active&&!this.enemyStates.get(enemy)?.burrowed&&Number(enemy.getData('untargetableUntil')??0)<=this.time.now&&(enemy.getData('mimicRevealed')!==false);}) as Phaser.Physics.Arcade.Sprite[];
   }
 
   private currentBuildStats(){return deriveBuildStats(this.build,PASSIVES);}
