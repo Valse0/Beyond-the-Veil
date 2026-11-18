@@ -50,3 +50,13 @@ test('region hazards cycle through authored hazards with telegraph then active w
  let result=stepRegionHazard(region,cycle,7000);cycle=result.cycle;assert.equal(result.event.phase,'telegraph');
  result=stepRegionHazard(region,cycle,8000);assert.equal(result.event.phase,'active');
 });
+
+test('lightning status produces short stun pulses instead of a permanent lock',()=>{
+ let state={};
+ const lightning=ELEMENTS.find(e=>e.id==='lightning');
+ for(let i=0;i<7;i++)state=applyElementHit(state,lightning,10,0,1000+i*10,ELEMENTS).state;
+ const first=tickElementStatuses(state,2100);
+ assert.equal(first.stunned,true);
+ const afterPulse=tickElementStatuses(first.state,2400);
+ assert.equal(afterPulse.stunned,false);
+});
