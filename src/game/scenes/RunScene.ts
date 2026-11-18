@@ -98,6 +98,40 @@ export class RunScene extends Phaser.Scene {
 
   constructor(){super('run');}
 
+  private assertBrowserTestMode():void {
+    if(this.registry.get('browserTestMode')!==true)throw new Error('Browser test controls are disabled.');
+  }
+
+  /** Development-only bridge used by Playwright; never callable in production builds. */
+  browserTestSnapshot():{
+    level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;
+    paused:boolean;bossSpawned:boolean;choices:{id:string;title:string}[];
+    controls:LevelUpControlState;
+  } {
+    this.assertBrowserTestMode();
+    return {
+      level:this.state.level,experience:this.state.experience,experienceToNext:this.state.experienceToNext,
+      queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,paused:this.paused,bossSpawned:this.bossSpawned,
+      choices:this.currentLevelChoices.map(({id,title})=>({id,title})),
+      controls:{...this.levelUpControls,bannedChoiceIds:[...this.levelUpControls.bannedChoiceIds]}
+    };
+  }
+
+  browserTestSpawnXpOrb(xp:number):void {
+    this.assertBrowserTestMode();
+    if(!Number.isFinite(xp)||xp<=0)throw new Error('Test XP must be a positive finite number.');
+    const orb=this.orbs.create(this.player.x,this.player.y,'orb') as Phaser.Physics.Arcade.Sprite;
+    orb.setCircle(6).setData('xp',xp);
+  }
+
+  browserTestAdvanceElapsed(milliseconds:number):void {
+    this.assertBrowserTestMode();
+    if(!Number.isFinite(milliseconds)||milliseconds<0)throw new Error('Test time must be a non-negative finite number.');
+    this.state={...this.state,elapsedMs:Math.min(RUN_MS,this.state.elapsedMs+milliseconds)};
+    if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
+    this.refreshHud();
+  }
+
   init(data:{characterId?:string;regionId?:RegionId}):void {
     this.character=CHARACTERS.find(c=>c.id===data?.characterId)??STARTING_CHARACTER;
     this.region=REGIONS.find(r=>r.id===data?.regionId)??REGIONS[0]!;
