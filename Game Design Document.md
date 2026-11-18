@@ -352,15 +352,19 @@ Zorluk yalnızca can ve hasar değerlerini artırmamalıdır. Yeni saldırı kom
 
 7.4 Koşu etkinlikleri
 
-Koşu sırasında kontrollü rastgele özel olaylar meydana gelebilir:
+Her standart koşuda beş etkinlik havuzundan üç farklı etkinlik, koşu seed'ine bağlı olarak tekrarsız seçilir. Etkinlik başlangıç pencereleri 03:30, 07:30 ve 11:30'dur. Aynı anda yalnızca bir etkinlik çalışır; açılışın ilk üç dakikası ve 14:00 final boss başlangıcı etkinliklerden etkilenmez. Etkinlikler tamamlanırsa Ruh Özü verir; süre dolarsa ödül verilmeden başarısız olur.
 
-* Elit istilası
-* Ruh fırtınası
-* Hazine avı
-* Avcı sınavı
-* Lanetli dalga
+İlk denge hedefleri:
 
-Etkinlikler oyuncuyu ödüllendirirken savaş temposunu bozmamalıdır.
+| Etkinlik | Amaç ve süre | Ödül |
+|---|---|---:|
+| Elit İstilası | Bölgeye özgü iki eliti 70 saniye içinde yen. | 100 Ruh Özü |
+| Ruh Fırtınası | Altı ruh parçasından en az dördünü 55 saniyede topla. | 70 Ruh Özü |
+| Hazine Avı | Haritada beliren sandığa 40 saniyede ulaş. | 90 Ruh Özü |
+| Avcı Sınavı | 50 saniyede altı düşman yen. | 110 Ruh Özü |
+| Lanetli Dalga | Her biri üç düşmandan oluşan üç dalgayı toplam 75 saniyede temizle. | 85 Ruh Özü |
+
+Etkinlik seçimi ve zamanlaması deterministiktir; aynı seed aynı üç etkinliği ve sırayı üretir. Etkinlik düşmanları normal aktif düşman sınırına uyar. Bu süre ve ödüller ilk uygulama değerleridir; oynanış ve denge testleriyle ayarlanabilir. Etkinlikler oyuncuyu ödüllendirirken savaş temposunu bozmamalıdır.
 
 ⸻
 
