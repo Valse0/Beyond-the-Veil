@@ -339,16 +339,16 @@ test('real level-up overlay supports XP, two rerolls, banish and one skip', asyn
 test('accelerated run clock reaches the 14-minute boss trigger without waiting 14 real minutes', async ({ page }) => {
   const canvas=await startBrowserTestRun(page);
   await page.evaluate(() => {
-    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number)=>void}}}}).__BEYOND_VEIL_GAME__;
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number,skipTimedSystems?:boolean)=>void}}}}).__BEYOND_VEIL_GAME__;
     if(!game)throw new Error('Development browser test bridge is not available.');
-    game.scene.getScene('run').browserTestAdvanceElapsed(839_000);
+    game.scene.getScene('run').browserTestAdvanceElapsed(839_000,true);
   });
   expect((await readBrowserRunSnapshot(page)).bossSpawned).toBe(false);
 
   await page.evaluate(() => {
-    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number)=>void}}}}).__BEYOND_VEIL_GAME__;
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number,skipTimedSystems?:boolean)=>void}}}}).__BEYOND_VEIL_GAME__;
     if(!game)throw new Error('Development browser test bridge is not available.');
-    game.scene.getScene('run').browserTestAdvanceElapsed(1_000);
+    game.scene.getScene('run').browserTestAdvanceElapsed(1_000,true);
   });
   const atBoss=await readBrowserRunSnapshot(page);
   expect(atBoss.elapsedMs).toBeGreaterThanOrEqual(840_000);
@@ -443,7 +443,7 @@ test('timed run event starts, resolves its objective and awards persistent-run e
   await startBrowserTestRun(page);
 
   await page.evaluate(() => {
-    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number)=>void}}}}).__BEYOND_VEIL_GAME__;
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number,skipTimedSystems?:boolean)=>void}}}}).__BEYOND_VEIL_GAME__;
     if(!game)throw new Error('Development browser test bridge is not available.');
     game.scene.getScene('run').browserTestAdvanceElapsed(210_000);
   });
