@@ -35,12 +35,15 @@ These rules apply to every AI agent and override conflicting instructions in any
 - Keep the version consistent across the application metadata and release documentation when those are introduced.
 - Do not assign or announce a new version until the corresponding update is ready to be recorded.
 
-## Skill routing
-- For game-development tasks, start with `.agents/skills/router/SKILL.md`, then load only the installed, relevant skills.
-- For module boundaries and architecture, use `.agents/skills/codebase-design/SKILL.md`.
+## Skill routing and mandatory topic/state policy
+- `docs/SKILL_ROUTING.md` is the shared source of truth for skill priority, topic triggers, availability states, work-state behavior, platform-specific routing, and session handoff.
+- Use the default orchestration order defined there: Superpowers (only if verified in this session) → GameDev Agent Skills → UI UX Pro Max → installed Matt Pocock/codebase-design guidance. This is a priority order, not a requirement to load every skill.
+- For every game-development task, start with `.agents/skills/router/SKILL.md`, detect the actual engine/version, and load only the smallest relevant installed skill set.
+- For architecture and module boundaries, use `.agents/skills/codebase-design/SKILL.md`.
 - For in-game HUD, menus, and game interface work, use `.agents/skills/game-ui-ux/SKILL.md`; use UI UX Pro Max as supporting guidance for visual quality, accessibility, typography, and color. Do not blindly apply web-framework advice to Phaser canvas UI.
-- Treat `GEMINI.md` as Gemini CLI-specific companion guidance.
-- Superpowers is a separate user-managed installation. Do not claim it is available unless its presence is verified.
+- If a requested skill is missing, state the gap and use the closest installed guidance; never fabricate availability or claim use without actually loading it.
+- Treat `GEMINI.md` as Gemini CLI-specific companion guidance. All agents must also follow this file and `docs/SKILL_ROUTING.md`.
+- Superpowers is a separate user-managed installation. Do not claim it is available unless its presence is verified in the active session.
 
 ## One-time bounded full-game execution authorization
 
