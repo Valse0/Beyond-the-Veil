@@ -126,7 +126,9 @@ test('player can select a hunter and an unlocked region before starting a run', 
   expect(runFrame.equals(lockedRegionFrame)).toBe(false);
 
   // Verify real movement by tracking the starting hunter's rendered sprite pixels.
-  // Let the camera finish its initial follow-in before recording the baseline.\n  await page.waitForTimeout(900);\n  const initialHunterX = await hunterScreenX(page, canvas);
+  // Let the camera finish its initial follow-in before recording the baseline.
+  await page.waitForTimeout(900);
+  const initialHunterX = await hunterScreenX(page, canvas);
   await page.keyboard.down('ArrowRight');
   let movedHunterX: number;
   try {
