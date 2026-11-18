@@ -22,6 +22,28 @@ Skills are vendored under `.agents/skills/` for Gemini CLI and compatible agents
 - `phaser-core/` — Phaser core and scene flow.
 - `game-docs/` — GDD and game documentation workflows.
 
+## Skill availability and routing policy
+
+The shared policy is documented in `docs/SKILL_ROUTING.md`. Its default orchestration order is:
+
+1. **Superpowers** — workflow layer only when verified in the active agent session. It is a separate user-managed installation and is not vendored here.
+2. **GameDev Agent Skills** — available locally; always route game tasks through `.agents/skills/router/SKILL.md`.
+3. **UI UX Pro Max** — available locally as supporting visual, accessibility, and interaction guidance.
+4. **Matt Pocock Skills** — partially available: `codebase-design/` is installed; the full upstream collection is not.
+
+This is a priority order, not a requirement to load every skill. Load only the minimal skills relevant to the current topic. Verify external/session-managed skills before claiming they are available or used.
+
+### Current availability registry
+
+| Skill family | State | Notes |
+|---|---|---|
+| Superpowers | `NOT_INSTALLED_IN_REPOSITORY` / `SESSION_UNVERIFIED` | Must be checked in the active agent environment; never assume availability from another CLI/editor. |
+| GameDev Agent Skills | `AVAILABLE` | Local router and selected Phaser/game-development skills are present. |
+| UI UX Pro Max | `AVAILABLE` | Local skill and supporting searchable data are present. |
+| Matt Pocock / codebase-design | `PARTIALLY_AVAILABLE` | Only the named `codebase-design/` skill is confirmed locally. |
+
+The GameDev router may name skills that are not installed in this repository. In particular, do not claim `input-systems` is installed; if controller/input work needs it, report the gap and use the closest installed guidance plus verified Phaser/browser APIs.
+
 ## Import and adaptation notes
 - Skill content is imported from the pinned commits; selected skills retain their upstream supporting references, templates, data, and scripts.
 - UI UX Pro Max's plugin-root paths were adapted to the project-local path `.agents/skills/ui-ux-pro-max` so its search command can be invoked from this repository.
