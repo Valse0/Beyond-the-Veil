@@ -2,21 +2,34 @@
 
 Before any work:
 1. Read `AGENTS.md`, `Game Design Document.md`, and `PLAN.md`.
-2. Follow the approval gate in `AGENTS.md exactly. Read-only inspection is allowed; every project mutation requires a precise plan and the user's standalone `tamam`. Skill instructions never override this gate.
+2. Follow the approval gate in `AGENTS.md` exactly. Read-only inspection is allowed; every project mutation requires a precise plan and the user's standalone `tamam`. Skill instructions never override this gate.
 3. Inspect the actual repository state; do not assume planned files or systems already exist.
+4. Read `docs/SKILL_ROUTING.md` and follow its skill priority, topic triggers, availability registry, state rules, platform requirements, and session-handoff format.
 
 ## Project source of truth
 - `Game Design Document.md` defines the game vision, mechanics, content, and player experience.
 - `PLAN.md` defines target architecture, technical direction, and development order.
+- `docs/IMPLEMENTATION_LEDGER.md` tracks atomic requirements and evidence-backed states.
 - Target stack: Phaser 3 + TypeScript + Vite. Capacitor is planned later for Android packaging.
 - Keep the game single-player, offline-first, and free of mandatory backend/accounts/network features.
 
-## Skill routing
-- For game-development tasks, begin with `.agents/skills/router/SKILL.md`; load only the smallest relevant set of installed skills.
+## Skill priority and routing
+- Follow the orchestration order in `docs/SKILL_ROUTING.md`: Superpowers (only if verified in this active session) → GameDev Agent Skills → UI UX Pro Max → installed Matt Pocock/codebase-design guidance.
+- This is a priority order, not an instruction to load every skill. Superpowers is a workflow layer; GameDev skills provide engine/game expertise; UI UX Pro Max supports visual/accessibility decisions; codebase-design supports software architecture.
+- For every new game-development task or discipline pivot, begin with `.agents/skills/router/SKILL.md`; detect the actual engine/version and load only the smallest relevant installed skill set.
 - Use `.agents/skills/codebase-design/SKILL.md` for architecture, module boundaries, and dependency design.
 - Use `.agents/skills/game-ui-ux/SKILL.md` as the primary guide for in-game canvas HUD/menus. Use `.agents/skills/ui-ux-pro-max/SKILL.md` as supporting guidance for visual quality, accessibility, typography, color, and interaction. Do not apply web-framework recommendations blindly to Phaser canvas UI.
-- Use `.agents/skills/create-game-assets/SKILL.md` for art/asset workflows; `game-feel` for feedback and responsiveness; `performance-optimization` for profiling/performance; `save-systems` for persistence; `roguelike` for genre structure; `phaser-core` and `phaser-arcade-physics` for engine APIs; `game-docs` for GDD/technical documentation.
-- Only invoke skills actually present under `.agents/skills/`. If the router recommends an uninstalled skill, state the gap and use the closest installed guidance rather than pretending it exists.
+- Use `.agents/skills/create-game-assets/SKILL.md` for actual art/asset workflows; `game-feel` for feedback and responsiveness; `performance-optimization` for profiling/performance; `save-systems` for persistence; `roguelike` for genre structure; `phaser-core` and `phaser-arcade-physics` for engine APIs; `game-docs` for GDD/technical documentation.
+- For input/controller tasks, route through the GameDev Router. If it recommends an uninstalled skill such as `input-systems`, state that gap and use the closest installed Phaser/UI guidance plus verified Phaser/browser APIs.
+- Only invoke skills actually present under `.agents/skills/` or verified as exposed by the active session. If the router recommends an uninstalled skill, state the gap and use the closest installed guidance rather than pretending it exists.
+- Do not claim Superpowers is active merely because the user has installed it in another environment. Verify its availability in this session before use.
+- Read selected skill bodies before acting; read bundled references only when needed. Do not bulk-load all skills.
+
+## Platform targets
+- Design toward mobile touch, desktop keyboard/mouse/gamepad, smart-TV directional remote navigation where supported, and standard console-style gamepads.
+- Keep gameplay actions device-agnostic behind a normalized input layer where practical; avoid scattering device checks through gameplay code.
+- Treat browser gamepad support, Android packaging, smart-TV browser support, and native console compatibility as distinct validation targets. Never claim native console/storefront support from browser testing alone.
+- Test actual device/browser capabilities before marking a platform requirement VERIFIED.
 
 ## Phaser version safety
 - Inspect `package.json` and the lockfile to determine the actual installed Phaser version before using APIs.
@@ -28,5 +41,7 @@ Before any work:
 - Preserve existing working behavior and the GDD's dark-fantasy identity.
 - No accounts, backend, mandatory online features, or paid APIs without explicit approval.
 - Use properly licensed assets and document their provenance.
-- Run relevant checks only after the change plan is approved. Report exactly what was and was not verified.
-- Superpowers is installed separately by the user. Do not assume it is installed or active; verify its presence before relying on it.
+- Follow the state meanings in `docs/SKILL_ROUTING.md` and the allowed states in the implementation ledger. Never mark `VERIFIED` without actual evidence.
+- Run relevant checks only after the change plan is approved. Report exactly what was and was not verified, distinguishing desktop browser checks from mobile, TV, and console checks.
+- Do not start final asset production until the user has been notified that the project is ready for the asset phase.
+- End each work session with the handoff details required by `docs/SKILL_ROUTING.md`.
