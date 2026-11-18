@@ -273,6 +273,15 @@ export class RunScene extends Phaser.Scene {
       g.generateTexture(key,(r+3)*2,(r+3)*2);g.destroy();
     };
     make('hunter',0xc2a36d,13);make('shot',0xe8c77a,5);make('orb',0x69b7a5,5);make('boss-'+this.region.bossId,0x8e4567,31);
+    if(!this.textures.exists('boss-chest')){
+      const chest=this.add.graphics();
+      chest.fillStyle(0x593b26,1);chest.fillRoundedRect(4,12,40,25,4);
+      chest.lineStyle(3,0xe5bd68,1);chest.strokeRoundedRect(4,12,40,25,4);
+      chest.fillStyle(0xb9863e,1);chest.fillRect(5,8,38,9);
+      chest.lineStyle(2,0xffe5a0,1);chest.strokeRect(5,8,38,9);
+      chest.fillStyle(0xd8ad55,1);chest.fillRoundedRect(20,17,8,13,2);
+      chest.fillCircle(24,20,2);chest.generateTexture('boss-chest',48,42);chest.destroy();
+    }
     for(const enemy of ENEMIES)make('enemy-'+enemy.id,enemy.color,enemy.radius);
   }
 
@@ -783,10 +792,11 @@ export class RunScene extends Phaser.Scene {
   private createRunEventObject(x:number,y:number,type:'spirit-fragment'|'treasure-chest'|'boss-chest'):void {
     const bossChest=type==='boss-chest';
     const chest=type==='treasure-chest'||bossChest;
-    const object=chest
-      ?this.add.rectangle(x,y,bossChest?38:28,bossChest?32:24,bossChest?0xc99a45:0x9a7041).setStrokeStyle(bossChest?4:3,bossChest?0xffe4a0:0xe6c77f).setDepth(5)
-      :this.add.circle(x,y,10,0x74d9cf).setStrokeStyle(3,0xd8fff1).setDepth(5);
-    this.physics.add.existing(object);
+    const object=bossChest
+      ?this.physics.add.sprite(x,y,'boss-chest').setDepth(5)
+      :chest
+        ?this.add.rectangle(x,y,28,24,0x9a7041).setStrokeStyle(3,0xe6c77f).setDepth(5)
+        :this.add.circle(x,y,10,0x74d9cf).setStrokeStyle(3,0xd8fff1).setDepth(5);
     this.eventObjects.add(object);
     const body=object.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);body.setImmovable(true);body.setSize(bossChest?40:chest?30:22,bossChest?34:chest?26:22);
