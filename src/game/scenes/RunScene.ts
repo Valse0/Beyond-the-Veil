@@ -321,7 +321,7 @@ export class RunScene extends Phaser.Scene {
         const health=Number(enemy.getData('health')),maximum=Number(enemy.getData('maxHealth'));
         if(!enemy.getData('eliteEnraged')&&health<=maximum*.5){enemy.setData('eliteEnraged',true).setTint(0xf2a85c);}
         if(time>=Number(enemy.getData('eliteAttackReady')??0)){
-          const shape:Record<RegionId,string>={'cursed-forest':'ring','forgotten-graveyard':'cross','deep-dungeon':'line','rotten-swamp':'zone','cursed-castle':'cone'};
+          const shape:Record<RegionId,string>={'cursed-forest':'circle','forgotten-graveyard':'cross','deep-dungeon':'line','rotten-swamp':'zone','cursed-castle':'cone'};
           const radius=this.region.id==='cursed-castle'?82:this.region.id==='deep-dungeon'?118:76;
           this.telegraphAttack(enemy,def,this.player.x,this.player.y,def.attack.damage*1.55,720,shape[this.region.id],radius);
           enemy.setData('eliteAttackReady',time+6200);
@@ -456,7 +456,7 @@ export class RunScene extends Phaser.Scene {
     enemy.setDepth(2).setCircle(def.radius).setData('enemyType',def.id).setData('health',maxHealth).setData('maxHealth',maxHealth).setData('experience',experience);
     if(isElite){
       const marker=this.add.circle(x,y,def.radius+8,0xd9ad5c,.12).setStrokeStyle(3,0xe8c77a,.95).setDepth(1);
-      enemy.setTint(0xd9ad5c).setData('isElite',true).setData('eliteId',this.region.elite.id) .setData('eliteName',this.region.elite.name).setData('eliteBehavior',this.region.elite.behavior).setData('eliteReward',this.region.elite.reward).setData('eliteMarker',marker).setData('eliteAttackReady',this.time.now+2400).setData('eliteEnraged',false);
+      enemy.setTint(0xd9ad5c).setData('isElite',true) .setData('eliteId',this.region.elite.id).setData('eliteName',this.region.elite.name).setData('eliteBehavior',this.region.elite.behavior).setData('eliteReward',this.region.elite.reward).setData('eliteMarker',marker).setData('eliteAttackReady',this.time.now+2400).setData('eliteEnraged',false);
     }
     if(def.behavior==='mimic'&&!isElite){enemy.setAlpha(.2).setTint(0xd5bd8b).setData('mimicRevealed',false);}
     this.enemyStates.set(enemy,{x,y,health:maxHealth,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false,nextSpecialAt:this.time.now+1800,attackCount:0});
@@ -464,7 +464,9 @@ export class RunScene extends Phaser.Scene {
   }
 
   private spawnBoss():void {
-    if(this.bossSpawned||this.enemies.countActive(true)>=42)return;
+    const active=this.enemies.getChildren() as Phaser.Physics.Arcade.Sprite[];
+    const eliteAlive=active.some(enemy=>enemy.active&&Boolean(enemy.getData('isElite')));
+    if(this.bossSpawned||this.enemies.countActive(true)>=42||eliteAlive)return;
     this.bossDefinition=BOSSES.find(b=>b.id===this.region.bossId);
     if(!this.bossDefinition)return;
     this.bossState=createBossEncounter(this.bossDefinition);
