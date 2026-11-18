@@ -23,3 +23,8 @@ Spawn pressure must be capped and readable. Difficulty must add behaviors and pa
 
 ## Current implementation status
 One hunter, one projectile weapon, three temporary enemy patterns, XP, four upgrades, dash, active pulse and a 15-minute timer are the initial foundation. Placeholder shapes are not final art. The ledger remains authoritative for all outstanding requirements.
+
+
+## Full content catalog status
+
+The complete first-release data catalog now defines all five hunters, five regions, 25 base enemies, five multi-phase bosses, twelve weapons, twelve passives and seven elements. Each definition has stable IDs and typed cross-references. This is designed data only: combat AI, attack execution, boss phase transitions, element buildup/reactions, upgrade application and region hazards still need runtime integration. See [CONTENT_CATALOG.md](CONTENT_CATALOG.md).
