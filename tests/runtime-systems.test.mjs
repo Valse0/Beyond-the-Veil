@@ -60,3 +60,9 @@ test('lightning status produces short stun pulses instead of a permanent lock',(
  const afterPulse=tickElementStatuses(first.state,2400);
  assert.equal(afterPulse.stunned,false);
 });
+
+test('blood buildup respects its four-stack cap',()=>{
+ let state={};const blood=ELEMENTS.find(e=>e.id==='blood');
+ for(let i=0;i<30;i++)state=applyElementHit(state,blood,10,0,1000+i*10,ELEMENTS).state;
+ assert.equal(state.blood.stacks,4);
+});
