@@ -106,6 +106,7 @@ export class RunScene extends Phaser.Scene {
   private bossChestOpenedAtMs:number|null=null;
   private bossChestFinishScheduledAtMs:number|null=null;
   private bossChestFinishCallbackAtMs:number|null=null;
+  private bossChestFinishTimer?:Phaser.Time.TimerEvent;
   private runFinished=false;
   private runSoulEssence=0;
   private lastRunSaved:boolean|null=null;
@@ -127,7 +128,7 @@ export class RunScene extends Phaser.Scene {
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string}[];
     runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
-    bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
+    bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;finishTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null;sceneTime:{paused:boolean;now:number;active:boolean};playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
     runEvents:{selected:RunEventKind[];active:{kind:RunEventKind;progress:number;stage:number;status:string}|null;completed:RunEventKind[];failed:RunEventKind[]};
     controls:LevelUpControlState;
   } {
@@ -150,6 +151,8 @@ export class RunScene extends Phaser.Scene {
           lastCollectObjectActive:this.bossChestLastCollectObjectActive,lastCollectPending:this.bossChestLastCollectPending,
           collectOutcome:this.bossChestCollectOutcome,openedAtMs:this.bossChestOpenedAtMs,
           finishScheduledAtMs:this.bossChestFinishScheduledAtMs,finishCallbackAtMs:this.bossChestFinishCallbackAtMs,
+          finishTimer:this.bossChestFinishTimer?{paused:this.bossChestFinishTimer.paused,hasDispatched:this.bossChestFinishTimer.hasDispatched,elapsed:this.bossChestFinishTimer.elapsed,delay:this.bossChestFinishTimer.delay,timeScale:this.bossChestFinishTimer.timeScale}:null,
+          sceneTime:{paused:this.time.paused,now:this.time.now,active:this.sys.isActive()},
           playerBody:{x:playerBody.x,y:playerBody.y,width:playerBody.width,height:playerBody.height,enabled:playerBody.enable},
           chestBody:chestBody?{x:chestBody.x,y:chestBody.y,width:chestBody.width,height:chestBody.height,enabled:chestBody.enable}:null
         };
@@ -258,7 +261,7 @@ export class RunScene extends Phaser.Scene {
     this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];
-    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.runFinished=false;this.runSoulEssence=0;this.lastRunSaved=null;
+    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.lastRunSaved=null;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
@@ -855,7 +858,7 @@ export class RunScene extends Phaser.Scene {
       this.eventHud?.setText(evolvedCount>0?'SANDIK AÇILDI  •  '+evolvedCount+' SİLAH EVRİLDİ':'SANDIK AÇILDI  •  EVRİM KOŞULU YOK').setVisible(true);
       this.cameras.main.flash(420,210,170,90);
       this.bossChestFinishScheduledAtMs=this.time.now;
-      this.time.delayedCall(500,()=>{this.bossChestFinishCallbackAtMs=this.time.now;this.finishRun(true);});
+      this.bossChestFinishTimer=this.time.delayedCall(500,()=>{this.bossChestFinishCallbackAtMs=this.time.now;this.finishRun(true);});
       return;
     }
     if(type==='boss-chest')this.bossChestCollectOutcome='not-pending';
