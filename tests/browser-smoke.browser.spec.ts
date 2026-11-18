@@ -14,9 +14,11 @@ test('Phaser boots, renders the main menu, and enters a new run without page err
   }));
   expect(dimensions).toEqual({ width: 1280, height: 720 });
 
-  // Capture the stable menu frame, then activate the known "YENİ KOŞU" hit area.
+  // Capture the stable menu frame, then activate the existing "YENİ KOŞU" hit area.
   const menuFrame = await canvas.screenshot();
   await page.mouse.click(160, 555);
+  // Move away so a hover-color change cannot satisfy the scene-transition assertion.
+  await page.mouse.move(1200, 680);
 
   // The run scene replaces the menu rendering. Compare canvas pixels rather than
   // depending on Phaser's private scene internals or adding production debug hooks.
