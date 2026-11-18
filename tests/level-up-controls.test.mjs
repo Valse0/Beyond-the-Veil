@@ -31,9 +31,11 @@ test('reroll spends exactly one charge and cannot go below zero', () => {
   const initial = createLevelUpControlState();
   const once = spendLevelUpReroll(initial);
   assert.equal(once?.rerollsRemaining, 1);
-  const twice = spendLevelUpReroll(once!);
+  assert.ok(once);
+  const twice = spendLevelUpReroll(once);
   assert.equal(twice?.rerollsRemaining, 0);
-  assert.equal(spendLevelUpReroll(twice!), null);
+  assert.ok(twice);
+  assert.equal(spendLevelUpReroll(twice), null);
   assert.equal(initial.rerollsRemaining, 2);
 });
 
@@ -51,8 +53,8 @@ test('banish records one stable id and removes it from future draws', () => {
   const next = spendLevelUpBanish(state, 'choice-3');
   assert.equal(next?.banishesRemaining, 0);
   assert.deepEqual(next?.bannedChoiceIds, ['choice-3']);
-  assert.equal(drawLevelUpChoices(choices, next!, () => 0.3).some(choice => choice.id === 'choice-3'), false);
-  assert.equal(spendLevelUpBanish(next!, 'choice-4'), null);
+  assert.equal(drawLevelUpChoices(choices, next, () => 0.3).some(choice => choice.id === 'choice-3'), false);
+  assert.equal(spendLevelUpBanish(next, 'choice-4'), null);
   assert.equal(spendLevelUpBanish(state, 'choice-3')?.bannedChoiceIds.length, 1);
 });
 
@@ -61,7 +63,7 @@ test('skip is limited to one use and does not modify the build-choice ban list',
   const skipped = spendLevelUpSkip(state);
   assert.equal(skipped?.skipsRemaining, 0);
   assert.deepEqual(skipped?.bannedChoiceIds, []);
-  assert.equal(spendLevelUpSkip(skipped!), null);
+  assert.equal(spendLevelUpSkip(skipped), null);
   assert.equal(state.skipsRemaining, 1);
 });
 
