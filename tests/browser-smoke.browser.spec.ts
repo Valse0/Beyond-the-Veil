@@ -69,6 +69,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
 
   // Keyboard arrows are also the fallback for TV remotes that emit arrow keys.
   await page.keyboard.press('ArrowRight');
+  const selectedHunterFrame = await canvas.screenshot();
   await page.keyboard.press('Enter');
   await page.waitForTimeout(120);
   const regionFrame = await canvas.screenshot();
@@ -81,6 +82,13 @@ test('player can select a hunter and an unlocked region before starting a run', 
   await page.keyboard.press('Enter');
   await page.waitForTimeout(180);
   expect((await canvas.screenshot()).equals(lockedRegionFrame)).toBe(true);
+
+  // Going back must retain the hunter selected on the previous screen.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(120);
+  expect((await canvas.screenshot()).equals(selectedHunterFrame)).toBe(true);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(120);
 
   // Return to the first, currently unlocked region and start.
   for (let index = 0; index < 4; index += 1) await page.keyboard.press('ArrowLeft');
