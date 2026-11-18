@@ -17,7 +17,7 @@ import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState
 import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent } from '../../gameplay/regions/region-runtime.js';
 
 const RUN_MS = 900000;
-const BOSS_START_MS = 720000;
+const BOSS_START_MS = 840000;
 const WORLD_W = 2400;
 const WORLD_H = 1800;
 const BASE_CHOICES: { id: UpgradeId; title: string; detail: string }[] = [
