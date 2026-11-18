@@ -42,7 +42,8 @@ test('reroll spends exactly one charge and cannot go below zero', () => {
 test('reroll can draw a fresh set without repeating the visible choices', () => {
   const state = createLevelUpControlState();
   const first = drawLevelUpChoices(choices, state, () => 0.1);
-  const rerolledState = spendLevelUpReroll(state)!;
+  const rerolledState = spendLevelUpReroll(state);
+  assert.ok(rerolledState);
   const next = drawLevelUpChoices(choices, rerolledState, () => 0.8, first.map(choice => choice.id));
   assert.equal(next.length, 4);
   assert.equal(next.some(choice => first.some(old => old.id === choice.id)), false);
