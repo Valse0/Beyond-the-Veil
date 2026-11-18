@@ -62,7 +62,8 @@ test('player can select a hunter and an unlocked region before starting a run', 
 
   const menuFrame = await canvas.screenshot();
   await page.mouse.click(160, 555);
-  await page.mouse.move(1200, 680);
+  // Keep the pointer off interactive controls so screenshot comparisons are deterministic.
+  await page.mouse.move(1240, 40);
   await expect.poll(async () => !(await canvas.screenshot()).equals(menuFrame), {
     message: 'new run should open hunter selection'
   }).toBe(true);
