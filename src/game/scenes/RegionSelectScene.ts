@@ -17,6 +17,8 @@ export class RegionSelectScene extends Phaser.Scene {
       ? data.characterId!
       : CHARACTERS[0]!.id;
     this.selectedIndex = 0;
+    this.frames = [];
+    this.previousPad = { left: false, right: false, confirm: false, back: false };
   }
 
   create(): void {
