@@ -194,7 +194,7 @@ export class RunScene extends Phaser.Scene {
     this.physics.add.overlap(this.shots,this.enemies,(a,b)=>this.hitEnemy(a as Phaser.Physics.Arcade.Sprite,b as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.enemies,(_p,e)=>this.contactDamage(e as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.orbs,(_p,o)=>this.collectOrb(o as Phaser.Physics.Arcade.Sprite));
-    this.createHud();this.createTouchControls();this.spawnEnemy();this.refreshBuildStats();
+    this.createHud();this.createTouchControls();this.spawnEnemy();this.waveDirector={...this.waveDirector,spawnIndex:1,nextSpawnAtMs:1500};this.refreshBuildStats();
   }
 
   private makeTextures():void {
@@ -415,8 +415,9 @@ export class RunScene extends Phaser.Scene {
     return distance<=radius+18;
   }
 
-  private spawnDirector(time:number):void {
-    const pool=this.region.enemyIds.map(id=>ENEMIES.find(enemy=>enemy.id===id)).filter((enemy):enemy is EnemyDefinition=>Boolean(enemy));
+  private spawnDirector(_time:number):void {
+    const regionPool=this.region.enemyIds.map(id=>ENEMIES.find(enemy=>enemy.id===id)).filter((enemy):enemy is EnemyDefinition=>Boolean(enemy));
+    const pool=this.state.elapsedMs<180000?regionPool.slice(0,3):regionPool;
     if(!pool.length)return;
     const children=this.enemies.getChildren() as Phaser.Physics.Arcade.Sprite[];
     const activeEliteCount=children.filter(enemy=>enemy.active&&Boolean(enemy.getData('isElite'))).length;
@@ -455,7 +456,7 @@ export class RunScene extends Phaser.Scene {
     enemy.setDepth(2).setCircle(def.radius).setData('enemyType',def.id).setData('health',maxHealth).setData('maxHealth',maxHealth).setData('experience',experience);
     if(isElite){
       const marker=this.add.circle(x,y,def.radius+8,0xd9ad5c,.12).setStrokeStyle(3,0xe8c77a,.95).setDepth(1);
-      enemy.setTint(0xd9ad5c).setData('isElite',true).setData('eliteId',this.region.elite.id).setData('eliteName',this.region.elite.name).setData('eliteMarker',marker).setData('eliteAttackReady',this.time.now+2400).setData('eliteEnraged',false);
+      enemy.setTint(0xd9ad5c).setData('isElite',true).setData('eliteId',this.region.elite.id) .setData('eliteName',this.region.elite.name).setData('eliteBehavior',this.region.elite.behavior).setData('eliteReward',this.region.elite.reward).setData('eliteMarker',marker).setData('eliteAttackReady',this.time.now+2400).setData('eliteEnraged',false);
     }
     if(def.behavior==='mimic'&&!isElite){enemy.setAlpha(.2).setTint(0xd5bd8b).setData('mimicRevealed',false);}
     this.enemyStates.set(enemy,{x,y,health:maxHealth,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false,nextSpecialAt:this.time.now+1800,attackCount:0});
