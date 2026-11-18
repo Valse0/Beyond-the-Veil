@@ -78,6 +78,7 @@ export class RunScene extends Phaser.Scene {
   private eventObjects!:Phaser.Physics.Arcade.Group;
   private eventHud?:Phaser.GameObjects.Text;
   private eventSetupPending=false;
+  private pendingCursedStage=1;
   private runSeed=1;
   private weaponReady:Record<string,number>={};
   private bossDefinition?:BossDefinition;
@@ -141,6 +142,7 @@ export class RunScene extends Phaser.Scene {
     this.assertBrowserTestMode();
     if(!Number.isFinite(milliseconds)||milliseconds<0)throw new Error('Test time must be a non-negative finite number.');
     this.state={...this.state,elapsedMs:Math.min(RUN_MS,this.state.elapsedMs+milliseconds)};
+    this.updateRunEvent(this.time.now);
     if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
     this.refreshHud();
   }
@@ -206,7 +208,7 @@ export class RunScene extends Phaser.Scene {
     const requestedSeed=this.registry.get('runSeed');
     this.runSeed=typeof requestedSeed==='number'&&Number.isFinite(requestedSeed)?requestedSeed>>>0:((Date.now()^Math.floor(Math.random()*0xffffffff))>>>0);
     if(this.runSeed===0)this.runSeed=1;
-    this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
+    this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];
     this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.runFinished=false;this.runSoulEssence=0;this.lastRunSaved=null;
@@ -736,7 +738,7 @@ export class RunScene extends Phaser.Scene {
       this.createRunEventObject(this.player.x+Math.cos(angle)*285,this.player.y+Math.sin(angle)*285,'treasure-chest');
     }else if(active.kind==='cursed-wave'){
       if(available<3)return;
-      this.spawnCursedWaveStage(1);
+      this.spawnCursedWaveStage(this.pendingCursedStage);
     }
     this.eventSetupPending=false;
     this.eventHud?.setText(getRunEventName(active.kind)+' başladı').setVisible(true);
@@ -768,6 +770,7 @@ export class RunScene extends Phaser.Scene {
     const active=this.runEventState.activeEvent;
     if(!active||active.kind!=='cursed-wave'||active.status!=='active')return;
     const pool=this.region.enemyIds.map(id=>ENEMIES.find(enemy=>enemy.id===id)).filter((enemy):enemy is EnemyDefinition=>Boolean(enemy));
+    this.pendingCursedStage=stage;
     const available=42-this.enemies.countActive(true);
     if(available<3){this.eventSetupPending=true;return;}
     for(let i=0;i<3;i++){
