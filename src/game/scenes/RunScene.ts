@@ -435,7 +435,7 @@ export class RunScene extends Phaser.Scene {
     const existing=this.elementStates.get(enemy)??{};
     const curse=existing.dark&&existing.dark.expiresAt>this.time.now?existing.dark.stacks:0;
     let damage=baseDamage*(1+curse*.06);
-    if(actor&&actor.exposedUntil>this.time.now)damage*=1.25;
+    if(actor&&def.behavior!=='mimic'&&actor.exposedUntil>this.time.now)damage*=1.25;
     const armorBroken=Number(enemy.getData('armorBrokenUntil')??0)>this.time.now;
     if((def.behavior==='shield-advance'||def.behavior==='rune-guardian')&&!armorBroken&&element!=='lightning'&&this.isEnemyFacingPlayer(enemy,actor))damage*=.35;
     if(def.behavior==='rune-guardian'&&element==='lightning')enemy.setData('armorBrokenUntil',this.time.now+5200);
