@@ -34,5 +34,40 @@ The Phaser run scene now consumes these modules for its selected character and r
 
 This is an integrated gameplay foundation, not completion of all GDD requirements. Region-specific maps and bespoke hazard mechanics, full character selection UI, all-region/boss playthroughs, weapon branches and special passive upgrades, final boss-chest interaction, persistent profile rewards, balance tuning, and browser/device playtesting remain outstanding. All in-scene visuals are temporary procedural shapes; no final art is claimed.
 
+
+### Enemy behavior implementation pass
+
+The run scene now applies authored enemy-specific combat rules rather than relying only on movement archetypes:
+
+| Enemy | Live behavior added |
+|---|---|
+| Kök Tutsağı | Frontal physical resistance and readable forward cone attack |
+| Diken Sıçrayıcısı | Timed pounce with a locked line telegraph |
+| Spor Tüküren | Telegraph then persistent damaging spore field |
+| Mezar Çiçeği Yuvası | Summons up to four linked root minions |
+| Diken Sırtlı Koç | Direction-locked surge; a boundary crash briefly exposes it |
+| Mezar Muhafızı | 65% frontal damage reduction |
+| Feryat Eden Ruh | Aimed shot followed by a short untargetable fade |
+| Kemik Kaydıran | Gains movement speed when grouped with other skitterers |
+| Yas Akoliti | Periodically heals nearby enemies |
+| Mahzen Sıçrayıcısı | Charge/leap movement with a landing telegraph |
+| Pirinç Nöbetçi | Frontal armor can be broken by lightning or a rear attack |
+| Kor Havanı | Mortar warning predicts the player's near-future position |
+| Zincir Düellocusu | Timed parry stance; lightning interrupts it |
+| Tünel Kazıcısı | Untargetable while burrowed, exposed after emerging |
+| Rün Sabotajcısı | Delayed rune trap with an active damage window |
+| Bataklık Pusu Avcısı | First ambush strike deals increased damage |
+| Bataklık Sülüğü | Recovers health when its drain attack connects |
+| Çürük Gaz Kesesi | Death explosion; radius/damage depend on whether it was primed |
+| Çamur Cadısı | Hex field buffs nearby enemy attack damage |
+| Sis Ağ Örücüsü | Telegraph then deploys a player-slowing web field |
+| Perde Avcısı | Periodic short vanish windows |
+| Mühür Tazısı | Leaves temporary frost patches that slow the player |
+| Ayna Taklitçisi | Conceals itself at range and reveals when approached |
+| Ruh Çapası | Reduces nearby allies' incoming damage |
+| Alacakaranlık Hortlağı | Three-hit telegraphed combo, then a brief vulnerability window |
+
+These mechanics are initial implementation values. The scene still uses procedural placeholder graphics; collision feel, spawn frequency, readability and balance need browser/device playtesting. Enemy-specific animation, audio, elite mutations and the complete map/arena interactions remain separate production work.
+
 ## Full content catalog status
 The first-release data catalog defines all five hunters, five regions, 25 base enemies, five multi-phase bosses, twelve weapons, twelve passives and seven elements. The current run scene can be started with a chosen character and region, but the shipped menu currently selects only the defaults. Only the first region/boss is reachable through the current menu flow. See [CONTENT_CATALOG.md](CONTENT_CATALOG.md).
