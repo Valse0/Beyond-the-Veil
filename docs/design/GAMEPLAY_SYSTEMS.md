@@ -3,7 +3,7 @@
 This specification preserves the GDD. Values not fixed by it are initial tuning defaults, not final balance.
 
 ## Run
-A standard Survival run targets 15 minutes: 0–3 minutes onboarding; 3–7 new enemy patterns and density; 7–11 elites, events and hazards; 11–14 advanced pressure; 14–15 final boss. The current Phaser scene still uses its initial timer and spawn loop; full region rotation, event director and boss run flow remain integration work.
+A standard Survival run targets 15 minutes: 0–3 minutes onboarding; 3–7 new enemy patterns and density; 7–11 elites, events and hazards; 11–14 advanced pressure; 14–15 final boss arrival. The Phaser scene now runs the selected region's spawn pool and starts its boss at 14:00; the timer can continue beyond 15:00 until the boss is defeated so the encounter is not cut short. Region selection UI, elite/event director and pacing playtests remain outstanding.
 
 Temporary run state includes health, level, XP, weapon/passive upgrades, kills and elapsed time. Profile state includes Ruh Özü, unlocks, mastery and collections; death must not erase profile state.
 
