@@ -17,8 +17,6 @@ async function hunterScreenX(
     if (!context) throw new Error('Could not decode the Phaser canvas screenshot.');
 
     context.drawImage(image, 0, 0);
-    // The starting hunter uses the stable #c2a36d fill. Sample only the central
-    // gameplay area so HUD text and the touch controls cannot affect the centroid.
     const sample = context.getImageData(560, 280, 160, 160).data;
     let count = 0;
     let totalX = 0;
@@ -49,30 +47,47 @@ async function hunterScreenX(
   }, screenshot.toString('base64'));
 }
 
-test('Phaser boots, supports movement, pause/resume, and updates the HUD without page errors', async ({ page }) => {
+test('player can select a hunter and an unlocked region before starting a run', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
 
   await page.goto('/');
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
-
   const dimensions = await canvas.evaluate((element: HTMLCanvasElement) => ({
     width: element.width,
     height: element.height
   }));
   expect(dimensions).toEqual({ width: 1280, height: 720 });
 
-  // Capture the stable menu frame, then activate the existing "YENİ KOŞU" hit area.
   const menuFrame = await canvas.screenshot();
   await page.mouse.click(160, 555);
-  // Move away so a hover-color change cannot satisfy the scene-transition assertion.
   await page.mouse.move(1200, 680);
+  await expect.poll(async () => !(await canvas.screenshot()).equals(menuFrame), {
+    message: 'new run should open hunter selection'
+  }).toBe(true);
 
-  await expect.poll(async () => {
-    const runFrame = await canvas.screenshot();
-    return !runFrame.equals(menuFrame);
-  }, { message: 'canvas should change from the main menu to the run scene', timeout: 10_000 }).toBe(true);
+  // Keyboard arrows are also the fallback for TV remotes that emit arrow keys.
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(120);
+  const regionFrame = await canvas.screenshot();
+  expect(regionFrame.equals(menuFrame)).toBe(false);
+
+  // The fifth region is visible as a locked preview and must not start a run.
+  await page.mouse.click(1106, 320);
+  await page.waitForTimeout(80);
+  const lockedRegionFrame = await canvas.screenshot();
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(180);
+  expect((await canvas.screenshot()).equals(lockedRegionFrame)).toBe(true);
+
+  // Return to the first, currently unlocked region and start.
+  for (let index = 0; index < 4; index += 1) await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(150);
+  const runFrame = await canvas.screenshot();
+  expect(runFrame.equals(lockedRegionFrame)).toBe(false);
 
   // Verify real movement by tracking the starting hunter's rendered sprite pixels.
   const initialHunterX = await hunterScreenX(page, canvas);
@@ -86,7 +101,7 @@ test('Phaser boots, supports movement, pause/resume, and updates the HUD without
   }
   expect(movedHunterX!).toBeGreaterThan(initialHunterX + 4);
 
-  // ESC must open the pause overlay and freeze the rendered world.
+  // ESC opens pause and freezes the rendered world.
   const activeFrame = await canvas.screenshot();
   await page.keyboard.press('Escape');
   await page.waitForTimeout(100);
@@ -97,7 +112,6 @@ test('Phaser boots, supports movement, pause/resume, and updates the HUD without
   const stablePausedFrame = await canvas.screenshot();
   expect(stablePausedFrame.equals(pausedFrame)).toBe(true);
 
-  // Resume through the actual in-game control, then verify the HUD clock advances.
   const clockClip = { x: 580, y: 8, width: 120, height: 48 };
   const resumedClockStart = await page.screenshot({ clip: clockClip });
   await page.mouse.click(640, 374);
