@@ -12,6 +12,7 @@
     "src/core/**/*.ts",
     "src/gameplay/**/*.ts",
     "src/data/**/*.ts",
-    "src/game/input/**/*.ts"
+    "src/game/input/**/*.ts",
+    "src/systems/save/**/*.ts"
   ]
 }

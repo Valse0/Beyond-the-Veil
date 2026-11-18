@@ -1,0 +1,118 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { SaveManager, createInitialSaveData } from '../.test-dist/src/systems/save/save-manager.js';
+import { SAVE_BACKUP_KEY, SAVE_STORAGE_KEY } from '../.test-dist/src/systems/save/save-storage.js';
+
+class MemoryStorage {
+  values = new Map();
+  getItem(key) { return this.values.get(key) ?? null; }
+  setItem(key, value) { this.values.set(key, value); }
+  removeItem(key) { this.values.delete(key); }
+}
+
+const fixedNow = () => '2026-11-18T12:00:00.000Z';
+
+test('creates a new profile with the first hunter and region unlocked', () => {
+  const manager = new SaveManager(new MemoryStorage(), fixedNow);
+  const result = manager.load();
+  assert.equal(result.status, 'created');
+  assert.deepEqual(result.data.progression.unlockedCharacterIds, ['cursed-hunter']);
+  assert.deepEqual(result.data.progression.unlockedRegionIds, ['cursed-forest']);
+});
+
+test('save and load round-trip preserves progression and collections', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  const data = createInitialSaveData(fixedNow());
+  data.progression.soulEssence = 125;
+  data.progression.completedRuns = 3;
+  data.collections.characterMastery['cursed-hunter'] = 4;
+  manager.save(data);
+  const loaded = new SaveManager(storage, fixedNow).load();
+  assert.equal(loaded.status, 'loaded');
+  assert.equal(loaded.data.progression.soulEssence, 125);
+  assert.equal(loaded.data.progression.completedRuns, 3);
+  assert.equal(loaded.data.collections.characterMastery['cursed-hunter'], 4);
+});
+
+test('keeps the previous valid save as backup before overwriting', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  const first = createInitialSaveData(fixedNow());
+  manager.save(first);
+  const second = { ...first, progression: { ...first.progression, soulEssence: 50 } };
+  manager.save(second);
+  const backup = JSON.parse(storage.getItem(SAVE_BACKUP_KEY));
+  assert.equal(backup.progression.soulEssence, 0);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).progression.soulEssence, 50);
+});
+
+test('recovers a corrupted primary from the last known-good backup', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  manager.save(createInitialSaveData(fixedNow()));
+  manager.save({ ...createInitialSaveData(fixedNow()), progression: { ...createInitialSaveData(fixedNow()).progression, soulEssence: 75 } });
+  storage.setItem(SAVE_STORAGE_KEY, '{broken json');
+  const result = manager.load();
+  assert.equal(result.status, 'recovered');
+  assert.equal(result.data.progression.soulEssence, 0);
+  assert.doesNotThrow(() => JSON.parse(storage.getItem(SAVE_STORAGE_KEY)));
+});
+
+test('migrates a version-zero save and preserves known fields', () => {
+  const storage = new MemoryStorage();
+  storage.setItem(SAVE_STORAGE_KEY, JSON.stringify({
+    schemaVersion: 0,
+    profile: { createdAt: '2026-01-01T00:00:00.000Z' },
+    progression: { soulEssence: 30, completedRuns: 2, unlockedCharacterIds: ['cursed-hunter'], unlockedRegionIds: ['cursed-forest'] },
+    settings: { musicVolume: 0.5 }
+  }));
+  const result = new SaveManager(storage, fixedNow).load();
+  assert.equal(result.status, 'migrated');
+  assert.equal(result.data.progression.soulEssence, 30);
+  assert.equal(result.data.progression.completedRuns, 2);
+  assert.equal(result.data.settings.musicVolume, 0.5);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 1);
+});
+
+test('refuses to overwrite a save from a newer schema version', () => {
+  const storage = new MemoryStorage();
+  storage.setItem(SAVE_STORAGE_KEY, JSON.stringify({ schemaVersion: 99 }));
+  const manager = new SaveManager(storage, fixedNow);
+  assert.throws(() => manager.save(createInitialSaveData(fixedNow())), /newer save/i);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 99);
+  assert.equal(manager.load().status, 'unsupported');
+});
+
+test('import validates data and export produces portable JSON', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  const data = createInitialSaveData(fixedNow());
+  data.progression.soulEssence = 42;
+  const imported = manager.import(JSON.stringify(data));
+  assert.equal(imported.progression.soulEssence, 42);
+  const exported = JSON.parse(manager.export());
+  assert.equal(exported.progression.soulEssence, 42);
+  assert.throws(() => manager.import('{not json'));
+});
+
+test('rejects invalid values without damaging the current save', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  manager.save(createInitialSaveData(fixedNow()));
+  const before = storage.getItem(SAVE_STORAGE_KEY);
+  const initial = createInitialSaveData(fixedNow());
+  const invalid = { ...initial, progression: { ...initial.progression, soulEssence: -1 } };
+  assert.throws(() => manager.save(invalid), /invalid save/i);
+  assert.equal(storage.getItem(SAVE_STORAGE_KEY), before);
+});
+
+test('reset removes primary and backup save keys', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  manager.save(createInitialSaveData(fixedNow()));
+  manager.save(createInitialSaveData(fixedNow()));
+  manager.reset();
+  assert.equal(storage.getItem(SAVE_STORAGE_KEY), null);
+  assert.equal(storage.getItem(SAVE_BACKUP_KEY), null);
+});
