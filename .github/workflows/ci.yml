@@ -21,4 +21,3 @@ jobs:
       - run: npm run build
       - name: Audit dependency advisories
         run: npm audit --audit-level=moderate
-        continue-on-error: true
