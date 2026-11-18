@@ -63,7 +63,7 @@ export class RunScene extends Phaser.Scene {
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.keys = this.input.keyboard!.addKeys('W,A,S,D,SPACE,E,ESC') as Record<string, Phaser.Input.Keyboard.Key>;
     this.physics.add.overlap(this.shots, this.enemies, (a, b) => this.hitEnemy(a as Phaser.Physics.Arcade.Sprite, b as Phaser.Physics.Arcade.Sprite));
-    this.physics.add.overlap(this.player, this.enemies, () => this.contactDamage());
+    this.physics.add.overlap(this.player, this.enemies, (_p, enemy) => this.contactDamage(enemy as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player, this.orbs, (_p, orb) => this.collectOrb(orb as Phaser.Physics.Arcade.Sprite));
     this.createHud(); this.createTouchControls(); this.spawnEnemy();
   }
@@ -217,9 +217,10 @@ export class RunScene extends Phaser.Scene {
     this.state = recordKill(this.state); enemy.destroy();
   }
 
-  private contactDamage(): void {
+  private contactDamage(enemy: Phaser.Physics.Arcade.Sprite): void {
     if (this.time.now < this.nextDamage || this.time.now < this.dashUntil) return;
-    this.nextDamage = this.time.now + 650; this.state = receiveDamage(this.state, 9);
+    const definition = STARTING_ENEMIES.find(item => item.id === enemy.getData('enemyType'));
+    this.nextDamage = this.time.now + 650; this.state = receiveDamage(this.state, definition?.contactDamage ?? 9);
     this.cameras.main.shake(90, 0.002); this.refreshHud();
     if (this.state.health <= 0) this.finishRun(false);
   }
@@ -278,7 +279,7 @@ export class RunScene extends Phaser.Scene {
     if(this.paused && this.overlay.length>0)return; this.paused=true; this.clearOverlay();
     const w=this.scale.width,h=this.scale.height;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,0.9).setScrollFactor(0).setDepth(200);
-    const title=this.add.text(w/2,h*0.32,won?'AV TAMAMLANDI':'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(0.5).setScrollFactor(0).setDepth(201);
+    const title=this.add.text(w/2,h*0.32,won?'KOŞU TAMAMLANDI':'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(0.5).setScrollFactor(0).setDepth(201);
     const summary=this.add.text(w/2,h*0.45,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman',{fontSize:'18px',color:'#c0b5a8'}).setOrigin(0.5).setScrollFactor(0).setDepth(201);
     const retry=this.add.text(w/2,h*0.59,'YENİ KOŞU',{fontSize:'20px',color:'#fff',backgroundColor:'#5b3d32',padding:{x:24,y:12}}).setOrigin(0.5).setScrollFactor(0).setDepth(201).setInteractive();
     const menu=this.add.text(w/2,h*0.7,'ANA MENÜ',{fontSize:'16px',color:'#c9bda9'}).setOrigin(0.5).setScrollFactor(0).setDepth(201).setInteractive();

@@ -7,7 +7,7 @@ test('new run has a valid baseline', () => {
   const s = createRunState(); assert.equal(s.level, 1); assert.equal(s.health, 100); assert.equal(s.experience, 0);
 });
 test('XP overflow is preserved across multiple level-ups', () => {
-  const r = gainExperience(createRunState(), 40); assert.equal(r.levelsGained, 3); assert.equal(r.state.level, 4); assert.ok(r.state.experience >= 0);
+  const r = gainExperience(createRunState(), 65); assert.equal(r.levelsGained, 3); assert.equal(r.state.level, 4); assert.ok(r.state.experience >= 0);
 });
 test('each upgrade changes its intended stat', () => {
   const s = createRunState(); assert.equal(applyUpgrade(s, 'power').damage, 24);
