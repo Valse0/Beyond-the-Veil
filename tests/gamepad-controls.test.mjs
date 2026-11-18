@@ -48,3 +48,9 @@ test('non-finite axes are treated as neutral input', () => {
   const result = resolveGamepadInput({ ...EMPTY_GAMEPAD_FRAME, axisX: Number.NaN, axisY: Number.POSITIVE_INFINITY });
   assert.deepEqual([result.moveX, result.moveY], [0, 0]);
 });
+
+test('left-stick directions navigate once when crossing the menu threshold', () => {
+  const tilted = { ...EMPTY_GAMEPAD_FRAME, axisX: -0.8 };
+  assert.equal(resolveGamepadInput(tilted).leftPressed, true);
+  assert.equal(resolveGamepadInput(tilted, tilted).leftPressed, false);
+});
