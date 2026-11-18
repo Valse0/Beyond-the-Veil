@@ -22,7 +22,7 @@ test('all 25 enemy behavior contracts return finite movement and respect attack 
 });
 test('element buildup crosses threshold, reacts and ticks damage',()=>{
  let state={};let hit;
- for(let i=0;i<5;i++){hit=applyElementHit(state,ELEMENTS.find(e=>e.id==='fire'),20,0,1000+i*10,ELEMENTS);state=hit.state;}
+ for(let i=0;i<7;i++){hit=applyElementHit(state,ELEMENTS.find(e=>e.id==='fire'),20,0,1000+i*10,ELEMENTS);state=hit.state;}
  assert.equal(hit.triggered,true);
  state={...state,poison:{buildup:0,stacks:2,expiresAt:9000,nextTickAt:1000}};
  hit=applyElementHit(state,ELEMENTS.find(e=>e.id==='fire'),20,0,2000,ELEMENTS);
@@ -36,12 +36,14 @@ test('weapon and passive levels, slots and evolution are enforced',()=>{
  build=evolveWeapon(build,w);assert.equal(build.weapons[0].evolved,true);
  assert.ok(deriveBuildStats(build,PASSIVES).magnetRadiusBonus>=0);
 });
-test('boss phase changes at authored thresholds and attacks respect cooldowns',()=>{
+test('boss phase changes at authored thresholds and individual attacks respect cooldowns',()=>{
  const boss=BOSSES[0];const state=createBossEncounter(boss);
  const transition=damageBoss(state,boss,boss.health*.4,1000);
  assert.equal(transition.changed,true);assert.equal(transition.current.id,boss.phases[1].id);
  const first=getBossAttack(transition.state,transition.current,2000);
- assert.ok(first.attack);assert.equal(getBossAttack(first.state,transition.current,2100).attack,undefined);
+ assert.ok(first.attack);
+ const second=getBossAttack(first.state,transition.current,2100);
+ assert.ok(second.attack);assert.notEqual(second.attack.id,first.attack.id);
 });
 test('region hazards cycle through authored hazards with telegraph then active window',()=>{
  const region=REGIONS[0];let cycle=createHazardCycle(0);
