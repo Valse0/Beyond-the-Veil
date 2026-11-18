@@ -202,7 +202,7 @@ test('region selection reads unlocked regions from the persisted profile', async
 
 type BrowserRunSnapshot = {
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
-  paused:boolean;bossSpawned:boolean;choices:{id:string;title:string}[];
+  paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string}[];
   runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
   controls:{rerollsRemaining:number;banishesRemaining:number;skipsRemaining:number;bannedChoiceIds:string[]};
   runEvents:{selected:string[];active:{kind:string;progress:number;stage:number;status:string}|null;completed:string[];failed:string[]};
@@ -254,11 +254,27 @@ async function defeatBrowserTestEnemy(page: import('@playwright/test').Page,enem
   },enemyId);
 }
 
+async function prepareBrowserTestBossChestEvolution(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestPrepareBossChestEvolution:()=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestPrepareBossChestEvolution();
+  });
+}
+
 async function defeatBrowserTestBoss(page: import('@playwright/test').Page): Promise<void> {
   await page.evaluate(() => {
     const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestDefeatBoss:()=>void}}}}).__BEYOND_VEIL_GAME__;
     if(!game)throw new Error('Development browser test bridge is not available.');
     game.scene.getScene('run').browserTestDefeatBoss();
+  });
+}
+
+async function moveToBrowserTestBossChest(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestMoveToBossChest:()=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestMoveToBossChest();
   });
 }
 
@@ -394,17 +410,30 @@ test('enemy defeat rewards survive death and a full page reload', async ({ page 
   expect(pageErrors).toEqual([]);
 });
 
-test('boss defeat persists authored boss essence and unlocks the next region', async ({ page }) => {
+test('boss victory requires opening its chest and evolves an eligible weapon before saving', async ({ page }) => {
   const pageErrors:string[]=[];
   page.on('pageerror',error=>pageErrors.push(error.message));
   await startBrowserTestRun(page);
+  await prepareBrowserTestBossChestEvolution(page);
 
-  // The helper invokes the real boss spawn, damage transition and defeat/result path.
+  // Defeating the boss creates a physical chest; it must not finish the run by itself.
   await defeatBrowserTestBoss(page);
+  const afterBoss=await readBrowserRunSnapshot(page);
+  expect(afterBoss.bossChestAvailable).toBe(true);
+  expect(afterBoss.bossVictoryPending).toBe(true);
+  expect(afterBoss.runFinished).toBe(false);
+  expect(afterBoss.lastRunSaved).toBeNull();
+  expect(afterBoss.evolvedWeaponIds).toEqual([]);
+
+  // Move the hunter onto the chest. The existing Phaser Arcade overlap opens it.
+  await moveToBrowserTestBossChest(page);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved).toBe(true);
   const victory=await readBrowserRunSnapshot(page);
   expect(victory.runFinished).toBe(true);
+  expect(victory.bossChestAvailable).toBe(false);
+  expect(victory.bossVictoryPending).toBe(false);
   expect(victory.runSoulEssence).toBe(180);
+  expect(victory.evolvedWeaponIds).toContain('veil-bolt');
   expect(victory.lastRunSaved).toBe(true);
 
   const savedVictory=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
