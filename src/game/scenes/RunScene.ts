@@ -23,6 +23,7 @@ import { advanceRunEvent, createRunEventState, getRunEventName, getRunEventObjec
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
 import { createLevelUpControlState, drawLevelUpChoices as drawChoicesFromPool, spendLevelUpBanish, spendLevelUpReroll, spendLevelUpSkip, type LevelUpControlState } from '../../gameplay/level-up/level-up-controls.js';
+import { derivePermanentUpgradeEffects, type PermanentUpgradeEffects } from '../../gameplay/progression/permanent-upgrades.js';
 
 const RUN_MS = 900000;
 const BOSS_START_MS = 840000;
@@ -124,6 +125,7 @@ export class RunScene extends Phaser.Scene {
   private weaponSynergyGuardUntil=0;
   private weaponSynergyGuardReduction=.28;
   private weaponSynergyTriggers:string[]=[];
+  private permanentUpgradeEffects:PermanentUpgradeEffects=derivePermanentUpgradeEffects(undefined);
 
   constructor(){super('run');}
 
@@ -346,7 +348,7 @@ export class RunScene extends Phaser.Scene {
     const startingWeapon=WEAPONS.find(w=>w.id===this.character.startingWeaponId)??WEAPONS[0]!;
     const startingPassive=PASSIVES.find(p=>p.id===this.character.startingPassiveId)??PASSIVES[0]!;
     this.build=addWeapon(this.build,startingWeapon);this.build=addPassive(this.build,startingPassive);
-    this.paused=false;this.queuedLevels=0;this.levelUpControls=createLevelUpControlState();this.currentLevelChoices=[];this.banishMode=false;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;
+    this.paused=false;this.queuedLevels=0;this.levelUpControls=createLevelUpControlState(this.permanentUpgradeEffects.extraRerolls);this.currentLevelChoices=[];this.banishMode=false;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;
     this.previousGamepadFrame=EMPTY_GAMEPAD_FRAME;this.gamepadMoveX=0;this.gamepadMoveY=0;this.clearOverlay();
     const requestedSeed=this.registry.get('runSeed');
     this.runSeed=typeof requestedSeed==='number'&&Number.isFinite(requestedSeed)?requestedSeed>>>0:((Date.now()^Math.floor(Math.random()*0xffffffff))>>>0);
@@ -459,7 +461,7 @@ export class RunScene extends Phaser.Scene {
     if(Phaser.Input.Keyboard.JustDown(this.keys.SPACE))this.tryDash();
     if(Phaser.Input.Keyboard.JustDown(this.keys.E))this.useAbility();
     if(Phaser.Input.Keyboard.JustDown(this.keys.ESC))this.openPause();
-    const stats=this.currentBuildStats();const speed=this.character.moveSpeed*stats.moveSpeedMultiplier*(time<this.playerSlowUntil?this.playerSlowMultiplier:1);
+    const stats=this.currentBuildStats();const speed=this.character.moveSpeed*stats.moveSpeedMultiplier*this.permanentUpgradeEffects.moveSpeedMultiplier*(time<this.playerSlowUntil?this.playerSlowMultiplier:1);
     if(time>=this.dashUntil)this.player.setVelocity(dir.x*speed,dir.y*speed);
     else if(dir.length()>0)this.player.setVelocity(dir.x*speed*2.6,dir.y*speed*2.6);
   }
@@ -677,7 +679,7 @@ export class RunScene extends Phaser.Scene {
       const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,target.x,target.y);
       if(distance>stats.range)continue;
       this.weaponReady[weapon.id]=time+stats.intervalMs/(this.currentBuildStats().attackSpeedMultiplier*this.baseHasteMultiplier);
-      const damage=stats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier;
+      const damage=stats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier*this.permanentUpgradeEffects.damageMultiplier;
       let behavior=progress.evolved?this.evolvedWeaponBehavior(weapon):weapon.behavior;
       if(weapon.id==='oath-pike'&&getActiveWeaponSynergies(weapon.id,this.build.passives.map(passive=>passive.passiveId)).some(item=>item.kind==='storm-lance'))behavior='chain-lightning';
       this.executeWeapon(weapon,behavior,damage,stats.projectiles,stats.range,target,stats);
@@ -1135,7 +1137,7 @@ export class RunScene extends Phaser.Scene {
       if(result.blocked){this.showPassiveSpecialFeedback('MÜHÜRLÜ PLAKA  •  HASAR ENGELLENDİ');return;}
     }
     if(this.time.now<this.weaponSynergyGuardUntil)amount*=1-this.weaponSynergyGuardReduction;
-    const armor=this.currentBuildStats().armor+this.character.stats.armor;
+    const armor=this.currentBuildStats().armor+this.character.stats.armor+this.permanentUpgradeEffects.armorBonus;
     const reduced=Math.max(1,amount*(1-armor/(armor+100)));
     const ward=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='last-ward')?.specialUpgrade.mechanic;
     const protectedHit=resolveLastWard(this.state.health,reduced,this.passiveSpecialState.used.includes('last-ward'),isPassiveSpecialActive(this.build,'wardens-knot'),ward?.kind==='last-ward'?ward.healthRemaining:1);
@@ -1303,7 +1305,7 @@ export class RunScene extends Phaser.Scene {
   private currentBuildStats(){return deriveBuildStats(this.build,PASSIVES);}
 
   private refreshBuildStats():void {
-    const stats=this.currentBuildStats();this.state={...this.state,moveSpeed:this.character.moveSpeed*stats.moveSpeedMultiplier,
+    const stats=this.currentBuildStats();this.state={...this.state,moveSpeed:this.character.moveSpeed*stats.moveSpeedMultiplier*this.permanentUpgradeEffects.moveSpeedMultiplier,
       damage:18+this.basePowerBonus,magnetRadius:112+this.baseMagnetBonus+stats.magnetRadiusBonus};
   }
 
@@ -1324,7 +1326,7 @@ export class RunScene extends Phaser.Scene {
 
   private collectOrb(orb:Phaser.Physics.Arcade.Sprite):void {
     if(!orb.active||this.paused)return;
-    const gain=Number(orb.getData('xp'))*this.currentBuildStats().xpGainMultiplier;
+    const gain=Number(orb.getData('xp'))*this.currentBuildStats().xpGainMultiplier*this.permanentUpgradeEffects.xpGainMultiplier;
     const result=gainExperience(this.state,gain);this.state=result.state;this.queuedLevels+=result.levelsGained;orb.destroy();
     if(this.queuedLevels>0)this.showLevelUp();
   }
