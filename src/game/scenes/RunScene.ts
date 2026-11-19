@@ -241,7 +241,7 @@ export class RunScene extends Phaser.Scene {
 
   browserTestSynergyDiagnostics():{
     targetDamageCount:number;targetHealth:number[];secondaryDamage:number;playerHealthBefore:number;playerHealthAfter:number;
-    passiveZoneCount:number;guardActive:boolean;curseStacks:number;
+    passiveZoneCount:number;guardActive:boolean;curseStacks:number;runFinished:boolean;scenePaused:boolean;clockPaused:boolean;sceneActive:boolean;sceneTimeNow:number;activeEnemyCount:number;playerHealth:number;
   } {
     this.assertBrowserTestMode();
     const health=this.browserSynergyTestTargets.map(enemy=>Number(enemy.getData('health')??0));
@@ -254,7 +254,9 @@ export class RunScene extends Phaser.Scene {
       playerHealthAfter:this.state.health,
       passiveZoneCount:this.passiveZones.length,
       guardActive:this.time.now<this.weaponSynergyGuardUntil,
-      curseStacks:state.dark?.stacks??0
+      curseStacks:state.dark?.stacks??0,
+      runFinished:this.runFinished,scenePaused:this.paused,clockPaused:this.time.paused,sceneActive:this.sys.isActive(),sceneTimeNow:this.time.now,
+      activeEnemyCount:this.enemies.countActive(true),playerHealth:this.state.health
     };
   }
 
