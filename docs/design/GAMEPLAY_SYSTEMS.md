@@ -177,3 +177,6 @@ A weapon can still reach its existing default evolution without choosing a level
 | Tutulma Mührü | Tutulma Havanı | Gecikmeli havan | Kara Güneş Çiçeği | Gecikmeli mühür patlaması |
 
 The evolution catalog stores stable IDs, branch IDs, player-facing names/descriptions, and the actual attack behavior key. The same Phaser attack executor handles these routes; no parallel combat implementation is introduced. Existing passive synergies are retained across the alternate attack paths: projectile-linked effects run on impact, direct-attack effects remain attached to their matching attack families, and delayed area effects are shared by the evolved area variants. Existing crafted Yayılım variants continue to add their modifiers to the selected branch before its evolution. A weapon with no chosen branch retains its pre-existing default evolution behavior and name.
+
+
+CI #347 (44605954212) verifies all 24 alternate evolution paths: TypeScript, 175 unit tests, production build, Chromium Playwright 26/26 and npm audit (zero vulnerabilities) pass. The existing 14 weapon/passive synergies also pass their live Phaser browser test after the alternate-path integration.
