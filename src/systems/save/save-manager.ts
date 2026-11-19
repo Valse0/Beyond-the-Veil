@@ -46,6 +46,7 @@ function isSaveData(value: unknown): value is SaveData {
     && isStringArray(progression.unlockedRegionIds)
     && progression.unlockedRegionIds.length > 0
     && isStringArrayRecord(progression.completedDifficulties)
+    && isNumberRecord(progression.permanentUpgrades)
     && isObject(collections)
     && isNumberRecord(collections.characterMastery)
     && isStringArray(collections.unlockedCosmeticIds)
@@ -65,7 +66,8 @@ export function createInitialSaveData(now = new Date().toISOString()): SaveData 
       completedRuns: 0,
       unlockedCharacterIds: [CHARACTERS[0]!.id],
       unlockedRegionIds: [REGIONS[0]!.id],
-      completedDifficulties: {}
+      completedDifficulties: {},
+      permanentUpgrades: {}
     },
     collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [] },
     settings: {}
@@ -91,7 +93,9 @@ function migrateV0(value: Record<string, unknown>, now: string): SaveData {
       unlockedRegionIds: isStringArray(progression.unlockedRegionIds) && progression.unlockedRegionIds.length
         ? progression.unlockedRegionIds : defaults.progression.unlockedRegionIds,
       completedDifficulties: isStringArrayRecord(progression.completedDifficulties)
-        ? progression.completedDifficulties : defaults.progression.completedDifficulties
+        ? progression.completedDifficulties : defaults.progression.completedDifficulties,
+      permanentUpgrades: isNumberRecord(progression.permanentUpgrades)
+        ? progression.permanentUpgrades : defaults.progression.permanentUpgrades
     },
     collections: {
       characterMastery: isNumberRecord(collections.characterMastery) ? collections.characterMastery : defaults.collections.characterMastery,
@@ -172,6 +176,24 @@ export class SaveManager {
   reset(): void {
     this.storage.removeItem(SAVE_STORAGE_KEY);
     this.storage.removeItem(SAVE_BACKUP_KEY);
+  }
+
+  getPermanentUpgradeLevel(upgradeId: string): number {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return 0;
+    return result.data.progression.permanentUpgrades[upgradeId] ?? 0;
+  }
+
+  purchasePermanentUpgrade(upgradeId: string, cost: number, maxLevel = 5): boolean {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return false;
+    const data = result.data;
+    const currentLevel = data.progression.permanentUpgrades[upgradeId] ?? 0;
+    if (currentLevel >= maxLevel || data.progression.soulEssence < cost) return false;
+    data.progression.soulEssence -= cost;
+    data.progression.permanentUpgrades[upgradeId] = currentLevel + 1;
+    this.save(data);
+    return true;
   }
 
   private decode(raw: string): SaveLoadResult {

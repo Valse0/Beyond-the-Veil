@@ -35,6 +35,14 @@ export class MainMenuScene extends Phaser.Scene {
     play.on('pointerout', () => play.setStyle({ backgroundColor: '#5b3d32', color: '#f2e8d4' }));
     play.on('pointerup', () => this.startNewRun());
 
+    const hub = this.add.text(320, h - 185, '⚒  AVCI KARARGAHI', {
+      fontFamily: 'Arial, sans-serif', fontSize: '22px', color: '#f2e8d4',
+      backgroundColor: '#2b2528', padding: { x: 25, y: 16 }
+    }).setInteractive({ useHandCursor: true });
+    hub.on('pointerover', () => hub.setStyle({ backgroundColor: '#3d3439', color: '#ffffff' }));
+    hub.on('pointerout', () => hub.setStyle({ backgroundColor: '#2b2528', color: '#f2e8d4' }));
+    hub.on('pointerup', () => this.scene.start('hunter-hub'));
+
     this.add.text(84, h - 82, 'WASD / OKLAR: HAREKET     SPACE: DASH     E: RUH DARBESİ     ESC: DURAKLAT', {
       fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#77727a'
     });

@@ -116,3 +116,36 @@ test('reset removes primary and backup save keys', () => {
   assert.equal(storage.getItem(SAVE_STORAGE_KEY), null);
   assert.equal(storage.getItem(SAVE_BACKUP_KEY), null);
 });
+
+test('permanent upgrades purchasing deducts soul essence and persists level', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  const data = createInitialSaveData(fixedNow());
+  data.progression.soulEssence = 200;
+  manager.save(data);
+
+  assert.equal(manager.getPermanentUpgradeLevel('maxHealth'), 0);
+  const success = manager.purchasePermanentUpgrade('maxHealth', 100, 5);
+  assert.equal(success, true);
+  assert.equal(manager.getPermanentUpgradeLevel('maxHealth'), 1);
+
+  const reloaded = new SaveManager(storage, fixedNow);
+  assert.equal(reloaded.load().data.progression.soulEssence, 100);
+  assert.equal(reloaded.getPermanentUpgradeLevel('maxHealth'), 1);
+});
+
+test('permanent upgrade purchase fails if insufficient funds or max level reached', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  const data = createInitialSaveData(fixedNow());
+  data.progression.soulEssence = 50;
+  manager.save(data);
+
+  assert.equal(manager.purchasePermanentUpgrade('attackPower', 100, 5), false);
+  assert.equal(manager.getPermanentUpgradeLevel('attackPower'), 0);
+
+  assert.equal(manager.purchasePermanentUpgrade('attackPower', 40, 5), true);
+  assert.equal(manager.getPermanentUpgradeLevel('attackPower'), 1);
+
+  assert.equal(manager.purchasePermanentUpgrade('attackPower', 10, 1), false);
+});

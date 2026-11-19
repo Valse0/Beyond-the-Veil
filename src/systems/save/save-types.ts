@@ -10,6 +10,7 @@ export interface SaveData {
     unlockedCharacterIds: string[];
     unlockedRegionIds: string[];
     completedDifficulties: Record<string, string[]>;
+    permanentUpgrades: Record<string, number>;
   };
   collections: {
     characterMastery: Record<string, number>;
