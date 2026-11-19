@@ -15,6 +15,22 @@ export const PERMANENT_UPGRADES: readonly PermanentUpgradeDefinition[] = [
   { id: 'rerolls', name: 'Kutsal Yenileme', description: 'Seviye atlamada ekstra yenileme hakkı verir (+1 / seviye).', baseCost: 100, maxLevel: 3 }
 ] as const;
 
+export interface PermanentUpgradeRespecQuote {
+  totalInvested: number;
+  fee: number;
+  refund: number;
+}
+
+export function calculatePermanentUpgradeRespec(levels: Record<string, unknown> | undefined): PermanentUpgradeRespecQuote {
+  const source = levels ?? {};
+  const totalInvested = PERMANENT_UPGRADES.reduce((total, upgrade) => {
+    const level = safeLevel(source, upgrade.id);
+    return total + upgrade.baseCost * (level * (level + 1) / 2);
+  }, 0);
+  const fee = Math.ceil(totalInvested * 0.1);
+  return { totalInvested, fee, refund: totalInvested - fee };
+}
+
 export interface PermanentUpgradeEffects {
   maxHealthBonus: number;
   damageMultiplier: number;
