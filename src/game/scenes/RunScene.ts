@@ -7,6 +7,7 @@ import { BOSSES } from '../../data/bosses.js';
 import { WEAPONS } from '../../data/weapons.js';
 import { PASSIVES } from '../../data/passives.js';
 import { RELICS } from '../../data/relics.js';
+import { CRAFTING_MATERIALS } from '../../data/crafting.js';
 import { ELEMENTS } from '../../data/elements.js';
 import { REGIONS } from '../../data/regions.js';
 import { findNearestTarget } from '../../gameplay/combat/combat-rules.js';
@@ -131,6 +132,8 @@ export class RunScene extends Phaser.Scene {
   private equippedRelicIds:string[]=[];
   private relicStats:RelicStats=deriveRelicStats([],'cursed-hunter');
   private runRelicIds:string[]=[];
+  private unlockedWeaponVariantIds:string[]=[];
+  private runCraftingMaterials:Record<string,number>={};
   private browserSynergyTestTargets:Phaser.Physics.Arcade.Sprite[]=[];
   private browserSynergyInitialHealth:number[]=[];
   private browserSynergyPlayerHealthBefore=0;
@@ -145,7 +148,7 @@ export class RunScene extends Phaser.Scene {
   browserTestSnapshot():{
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
-    runSoulEssence:number;runRelicIds:string[];kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
+    runSoulEssence:number;runRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
     passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
     weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
     shotDiagnostics:{weaponId:string;damage:number}[];
@@ -162,9 +165,9 @@ export class RunScene extends Phaser.Scene {
       choices:this.currentLevelChoices.map(({id,title,kind,contentId,branchId})=>({id,title,kind,contentId,branchId})),
       passives:this.build.passives.map(item=>({...item})),activePassiveSpecialIds:this.build.passives.filter(item=>item.special).map(item=>item.passiveId),
       activeWeaponSynergyIds:this.build.weapons.flatMap(weapon=>getActiveWeaponSynergies(weapon.weaponId,this.build.passives.map(passive=>passive.passiveId)).map(synergy=>synergy.id)),weaponSynergyTriggers:[...this.weaponSynergyTriggers],
-      weapons:this.build.weapons.map(progress=>{const definition=WEAPONS.find(item=>item.id===progress.weaponId);const stats=definition?weaponLevelStats(progress,definition):undefined;return {weaponId:progress.weaponId,level:progress.level,branchId:progress.branchId??null,evolved:progress.evolved,stats:stats?{damage:stats.damage,intervalMs:stats.intervalMs,range:stats.range,projectiles:stats.projectiles,pierce:stats.pierce,areaMultiplier:stats.areaMultiplier,chainTargetBonus:stats.chainTargetBonus,branchName:stats.branchName??null}:null};}),
+      weapons:this.build.weapons.map(progress=>{const definition=WEAPONS.find(item=>item.id===progress.weaponId);const stats=definition?weaponLevelStats(progress,definition,this.unlockedWeaponVariantIds):undefined;return {weaponId:progress.weaponId,level:progress.level,branchId:progress.branchId??null,evolved:progress.evolved,stats:stats?{damage:stats.damage,intervalMs:stats.intervalMs,range:stats.range,projectiles:stats.projectiles,pierce:stats.pierce,areaMultiplier:stats.areaMultiplier,chainTargetBonus:stats.chainTargetBonus,branchName:stats.branchName??null}:null};}),
       shotDiagnostics:this.shots.getChildren().filter(child=>child.active&&child.getData('weaponId')).map(child=>({weaponId:String(child.getData('weaponId')),damage:Number(child.getData('damage'))})), 
-      runSoulEssence:this.runSoulEssence,runRelicIds:[...this.runRelicIds],kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
+      runSoulEssence:this.runSoulEssence,runRelicIds:[...this.runRelicIds],runCraftingMaterials:{...this.runCraftingMaterials},kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
       bossHealth:this.bossState?.health??null,health:this.state.health,maxHealth:this.state.maxHealth,damage:this.state.damage,moveSpeed:this.state.moveSpeed,
       bossChestDiagnostics:(()=>{
         const playerBody=this.player.body as Phaser.Physics.Arcade.Body;
@@ -246,7 +249,7 @@ export class RunScene extends Phaser.Scene {
         'magma-rift':'delayed-mortar','curse-sigil':'delayed-sigil','crown-sigil':'delayed-sigil',
         'spirit-splinter':'spirit-seeker'
       };
-      this.executeWeapon(weapon,behaviorByKind[synergy.kind]??weapon.behavior,12,2,Math.max(weapon.range,180),primary,weaponLevelStats(this.build.weapons[0]!,weapon));
+      this.executeWeapon(weapon,behaviorByKind[synergy.kind]??weapon.behavior,12,2,Math.max(weapon.range,180),primary,weaponLevelStats(this.build.weapons[0]!,weapon,this.unlockedWeaponVariantIds));
       const shot=this.shots.getChildren().find(child=>child.active&&child.getData('weaponId')===weaponId) as Phaser.Physics.Arcade.Sprite|undefined;
       if(shot)this.hitEnemy(shot,primary);
     }
@@ -407,6 +410,12 @@ export class RunScene extends Phaser.Scene {
     if(this.runEventState.activeEvent?.status==='active')throw new Error('Browser test could not complete the active run event within its safety limit.');
   }
 
+  browserTestCompleteTreasureHunt():void {
+    this.assertBrowserTestMode();
+    this.runEventState={...this.runEventState,activeEvent:{kind:'treasure-hunt',startedAtMs:0,deadlineAtMs:40_000,progress:0,stage:1,status:'active'}};
+    this.applyRunEventAction('treasure');
+  }
+
   browserTestFinishRun():void {
     this.assertBrowserTestMode();
     this.finishRun(false);
@@ -423,6 +432,7 @@ export class RunScene extends Phaser.Scene {
     const loadedSave=saveManager?.load();
     this.permanentUpgradeEffects=derivePermanentUpgradeEffects(loadedSave&&'data' in loadedSave?loadedSave.data.progression.permanentUpgrades:undefined);
     this.equippedRelicIds=loadedSave&&'data' in loadedSave?[...loadedSave.data.progression.equippedRelicIds]:[];
+    this.unlockedWeaponVariantIds=loadedSave&&'data' in loadedSave?[...loadedSave.data.collections.unlockedWeaponVariantIds]:[];
     this.relicStats=deriveRelicStats(this.equippedRelicIds,this.character.id);
     const maxHealth=this.character.health+this.permanentUpgradeEffects.maxHealthBonus+this.relicStats.maxHealthBonus;
     this.state={...createRunState(),health:maxHealth,maxHealth,moveSpeed:this.character.moveSpeed*this.permanentUpgradeEffects.moveSpeedMultiplier*this.relicStats.moveSpeedMultiplier,damage:18*this.character.stats.damageMultiplier*this.permanentUpgradeEffects.damageMultiplier,attackIntervalMs:720};
@@ -438,7 +448,7 @@ export class RunScene extends Phaser.Scene {
     this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;this.weaponSynergyGuardUntil=0;this.weaponSynergyGuardReduction=.28;this.weaponSynergyTriggers=[];
-    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.lastRunSaved=null;
+    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.runCraftingMaterials={};this.lastRunSaved=null;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
@@ -753,7 +763,7 @@ export class RunScene extends Phaser.Scene {
     const targets=this.activeTargets();if(!targets.length)return;
     for(const progress of this.build.weapons){
       const weapon=WEAPONS.find(w=>w.id===progress.weaponId);if(!weapon)continue;
-      const stats=weaponLevelStats(progress,weapon),ready=this.weaponReady[weapon.id]??0;
+      const stats=weaponLevelStats(progress,weapon,this.unlockedWeaponVariantIds),ready=this.weaponReady[weapon.id]??0;
       if(time<ready)continue;
       const guided=getActiveWeaponSynergies(weapon.id,this.build.passives.map(passive=>passive.passiveId)).some(item=>item.kind==='crown-guidance');
       const weakened=guided?targets.filter(enemy=>Number(enemy.getData('weakenedUntil')??0)>time):[];
@@ -1187,7 +1197,9 @@ export class RunScene extends Phaser.Scene {
     const reward=getRunEventReward(kind);this.runSoulEssence+=reward;this.clearRunEventObjects();this.eventSetupPending=false;
     const relic=kind==='treasure-hunt'?RELICS.find(item=>item.regionId===this.region.id&&item.source==='exploration'):undefined;
     if(relic&&!this.runRelicIds.includes(relic.id))this.runRelicIds.push(relic.id);
-    this.eventHud?.setText(getRunEventName(kind)+' tamamlandı  •  +'+reward+' Ruh Özü'+(relic?'  •  '+relic.name:'')).setVisible(true);
+    const material=kind==='treasure-hunt'?CRAFTING_MATERIALS.find(item=>item.regionId===this.region.id):undefined;
+    if(material)this.runCraftingMaterials[material.id]=(this.runCraftingMaterials[material.id]??0)+1;
+    this.eventHud?.setText(getRunEventName(kind)+' tamamlandı  •  +'+reward+' Ruh Özü'+(relic?'  •  '+relic.name:'')+(material?'  •  +1 '+material.name:'')).setVisible(true);
   }
 
   private failRunEvent(kind:RunEventKind):void {
@@ -1612,7 +1624,7 @@ export class RunScene extends Phaser.Scene {
     try {
       const loaded=manager.load();
       if(!('data' in loaded))return false;
-      manager.save(applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds}));
+      manager.save(applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,craftingMaterialsEarned:this.runCraftingMaterials}));
       return true;
     } catch {
       return false;

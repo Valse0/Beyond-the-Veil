@@ -79,4 +79,13 @@ The first executable relic set contains ten stable content IDs: five boss relics
 
 A profile can own any number of relics and equip at most three unique owned relics. Equipment is stored as stable IDs in the save profile. Boss relics enter the run reward queue only when the matching boss chest is opened; exploration relics are awarded by successfully completing that region's treasure-hunt event. Both are persisted with the run result, including a later run defeat, and duplicate acquisitions are idempotent.
 
-Save schema v3 adds `collections.relicIds` and `progression.equippedRelicIds`. Existing schema 0, 1 and 2 profiles migrate with an empty relic collection/loadout while preserving Ruh Özü, upgrades, unlocks, mastery and settings. Relic modifiers are applied to live run damage, attack cadence, maximum health, armor, movement, elemental buildup, critical chance, lifesteal, ability cooldown and magnet radius. The catalog and runtime are implemented; balance, future crafting integration, and a player-facing Relic Master/equipment interface remain separate work.
+Save schema v3 added `collections.relicIds` and `progression.equippedRelicIds`; schema v4 adds crafting material counts and permanent weapon-variant unlocks. Existing schema 0, 1, 2 and 3 profiles migrate while preserving all previously supported progress. Relic modifiers are applied to live run damage, attack cadence, maximum health, armor, movement, elemental buildup, critical chance, lifesteal, ability cooldown and magnet radius. The catalog and runtime are implemented; balance and a player-facing Relic Master/equipment interface remain separate work.
+
+
+## Crafting v1
+
+Five region-bound materials are awarded only when the run's treasure-hunt event is completed: Canlı Kök, Kemik Tozu, Ocak Külçesi, Bataklık Kristali and Perde İpliği. One material is granted per completed event and is persisted with run rewards even if the hunter later falls. Material stacks are capped at 99.
+
+Five recipes each consume two matching regional materials and a region-tuned amount of Ruh Özü. A successful craft is a single validated save transaction: costs are deducted and one permanent weapon-variant ID is unlocked together; insufficient resources, unknown recipes and repeat crafts do not spend anything.
+
+Crafted variants enhance the corresponding weapon's Yayılım branch when that branch is selected during a run. The ordinary two-branch choice remains intact; a crafted variant adds its authored modifiers to the selected branch. Variant ownership and material counts are stored in save schema v4. The crafting runtime is independent of Phaser; the player-facing Blacksmith/Relic Master service and crafting UI remain a later UI task.

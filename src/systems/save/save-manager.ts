@@ -1,5 +1,8 @@
 import { CHARACTERS } from '../../data/characters.js';
 import { RELICS } from '../../data/relics.js';
+import { CRAFTING_MATERIALS, CRAFTING_RECIPES } from '../../data/crafting.js';
+import { WEAPONS } from '../../data/weapons.js';
+import { craftRecipe as craftInventoryRecipe } from '../../gameplay/crafting/crafting-runtime.js';
 import { equipRelic as equipRelicIds, unequipRelic as unequipRelicIds } from '../../gameplay/relics/relic-runtime.js';
 import { REGIONS } from '../../data/regions.js';
 import { SAVE_BACKUP_KEY, SAVE_STORAGE_KEY } from './save-storage.js';
@@ -7,8 +10,10 @@ import type { JsonObject, JsonValue, SaveData, SaveLoadResult, SaveStorage } fro
 import { calculatePermanentUpgradeRespec, getPermanentUpgradeCost, getPermanentUpgradeDefinition, isValidPermanentUpgradeRecord } from '../../gameplay/progression/permanent-upgrades.js';
 import type { PermanentUpgradeRespecQuote } from '../../gameplay/progression/permanent-upgrades.js';
 
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 const RELIC_IDS = new Set(RELICS.map(relic => relic.id));
+const MATERIAL_IDS = new Set(CRAFTING_MATERIALS.map(material => material.id));
+const WEAPON_VARIANT_IDS = new Set(WEAPONS.flatMap(weapon => weapon.branches.flatMap(branch => branch.variant ? [branch.variant.id] : [])));
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -18,6 +23,12 @@ function isStringArray(value: unknown): value is string[] {
 }
 function isRelicIdArray(value: unknown): value is string[] {
   return isStringArray(value) && value.every(id => RELIC_IDS.has(id)) && new Set(value).size === value.length;
+}
+function isMaterialCountRecord(value: unknown): value is Record<string, number> {
+  return isObject(value) && Object.entries(value).every(([id, count]) => MATERIAL_IDS.has(id) && typeof count === 'number' && Number.isInteger(count) && count >= 0 && count <= 99);
+}
+function isWeaponVariantIdArray(value: unknown): value is string[] {
+  return isStringArray(value) && value.every(id => WEAPON_VARIANT_IDS.has(id)) && new Set(value).size === value.length;
 }
 function isNumberRecord(value: unknown): value is Record<string, number> {
   return isObject(value) && Object.values(value).every((item) => typeof item === 'number' && Number.isFinite(item) && item >= 0);
@@ -41,6 +52,8 @@ function isSaveData(value: unknown): value is SaveData {
   const collections = value.collections;
   const equippedRelicIds = isObject(progression) ? progression.equippedRelicIds : undefined;
   const ownedRelicIds = isObject(collections) ? collections.relicIds : undefined;
+  const craftingMaterials = isObject(collections) ? collections.craftingMaterials : undefined;
+  const unlockedWeaponVariantIds = isObject(collections) ? collections.unlockedWeaponVariantIds : undefined;
   return isObject(profile)
     && typeof profile.createdAt === 'string'
     && typeof profile.updatedAt === 'string'
@@ -64,6 +77,8 @@ function isSaveData(value: unknown): value is SaveData {
     && isStringArray(collections.unlockedCosmeticIds)
     && isStringArray(collections.discoveredLoreIds)
     && isRelicIdArray(ownedRelicIds)
+    && isMaterialCountRecord(craftingMaterials)
+    && isWeaponVariantIdArray(unlockedWeaponVariantIds)
     && equippedRelicIds.every(id => ownedRelicIds.includes(id))
     && isJsonObject(value.settings);
 }
@@ -84,7 +99,7 @@ export function createInitialSaveData(now = new Date().toISOString()): SaveData 
       permanentUpgrades: {},
       equippedRelicIds: []
     },
-    collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: [] },
+    collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [] },
     settings: {}
   };
 }
@@ -117,7 +132,9 @@ function migrateV0(value: Record<string, unknown>, now: string): SaveData {
       characterMastery: isNumberRecord(collections.characterMastery) ? collections.characterMastery : defaults.collections.characterMastery,
       unlockedCosmeticIds: isStringArray(collections.unlockedCosmeticIds) ? collections.unlockedCosmeticIds : defaults.collections.unlockedCosmeticIds,
       discoveredLoreIds: isStringArray(collections.discoveredLoreIds) ? collections.discoveredLoreIds : defaults.collections.discoveredLoreIds,
-      relicIds: []
+      relicIds: [],
+      craftingMaterials: {},
+      unlockedWeaponVariantIds: []
     },
     settings: isJsonObject(value.settings) ? value.settings : defaults.settings
   };
@@ -134,7 +151,7 @@ function migrateV1(value: Record<string, unknown>): SaveData {
     ...value,
     schemaVersion: CURRENT_SCHEMA_VERSION,
     progression: { ...progression, permanentUpgrades: upgrades, equippedRelicIds: [] },
-    collections: { ...collections, relicIds: [] }
+    collections: { ...collections, relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [] }
   };
   if (!isSaveData(candidate)) throw new Error('Legacy version-one save contains invalid values.');
   return candidate;
@@ -147,9 +164,20 @@ function migrateV2(value: Record<string, unknown>): SaveData {
     ...value,
     schemaVersion: CURRENT_SCHEMA_VERSION,
     progression: { ...progression, equippedRelicIds: [] },
-    collections: { ...collections, relicIds: [] }
+    collections: { ...collections, relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [] }
   };
   if (!isSaveData(candidate)) throw new Error('Legacy version-two save contains invalid values.');
+  return candidate;
+}
+
+function migrateV3(value: Record<string, unknown>): SaveData {
+  const collections = isObject(value.collections) ? value.collections : {};
+  const candidate: unknown = {
+    ...value,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    collections: { ...collections, craftingMaterials: {}, unlockedWeaponVariantIds: [] }
+  };
+  if (!isSaveData(candidate)) throw new Error('Legacy version-three save contains invalid values.');
   return candidate;
 }
 
@@ -298,6 +326,24 @@ export class SaveManager {
     try { this.save(result.data); return true; } catch { return false; }
   }
 
+  craftRecipe(recipeId: string): boolean {
+    const recipe = CRAFTING_RECIPES.find(item => item.id === recipeId);
+    if (!recipe) return false;
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return false;
+    const data = result.data;
+    const crafted = craftInventoryRecipe({
+      soulEssence: data.progression.soulEssence,
+      materials: data.collections.craftingMaterials,
+      unlockedWeaponVariantIds: data.collections.unlockedWeaponVariantIds
+    }, recipeId);
+    if (!crafted) return false;
+    data.progression.soulEssence = crafted.soulEssence;
+    data.collections.craftingMaterials = crafted.materials;
+    data.collections.unlockedWeaponVariantIds = crafted.unlockedWeaponVariantIds;
+    try { this.save(data); return true; } catch { return false; }
+  }
+
   private decode(raw: string): SaveLoadResult {
     try {
       const value = parseSave(raw);
@@ -310,6 +356,7 @@ export class SaveManager {
       if (version === 0) return { status: 'migrated', data: migrateV0(value, this.now()) };
       if (version === 1) return { status: 'migrated', data: migrateV1(value) };
       if (version === 2) return { status: 'migrated', data: migrateV2(value) };
+      if (version === 3) return { status: 'migrated', data: migrateV3(value) };
       if (!isSaveData(value)) return { status: 'corrupt', message: 'Save data failed validation.' };
       return { status: 'loaded', data: value };
     } catch (error) {

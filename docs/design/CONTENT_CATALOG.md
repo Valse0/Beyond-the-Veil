@@ -78,3 +78,18 @@ The initial relic catalog contains ten items: five boss drops and five explorati
 | Lanetli Kale | `unwritten-crown` | `castle-shard` | Perde Alameti |
 
 Boss relics are claimed by opening the boss chest. Exploration relics are claimed by completing the region's treasure-hunt event. The save stores an unlimited owned collection and a three-slot unique equipped loadout. These are gameplay/data systems only; the collection screen and Relic Master NPC interface remain pending.
+
+
+## Crafting materials and recipes
+
+The initial crafting catalog contains five regional materials and five one-time recipes. Materials are earned by completing the region's treasure-hunt event; each successful event grants one material and each inventory stack is capped at 99.
+
+| Region | Material | Recipe | Permanent weapon variant |
+|---|---|---|---|
+| Lanetli Orman | `living-root` — Canlı Kök | Yeşil Veba | Diken Tohumu — strengthened Yayılım |
+| Unutulmuş Mezarlık | `ossuary-dust` — Kemik Tozu | Kemik Kasırgası | Mezar Yarıcı — strengthened Yayılım |
+| Derin Zindan | `furnace-ingot` — Ocak Külçesi | Ocak Felaketi | Rün Havanı — strengthened Yayılım |
+| Çürümüş Bataklık | `bog-crystal` — Bataklık Kristali | Bataklık Ağı | Kan Tezgâhı — strengthened Yayılım |
+| Lanetli Kale | `veil-thread` — Perde İpliği | Perde Yarığı | Tutulma Mührü — strengthened Yayılım |
+
+Each recipe costs two matching regional materials and 140–180 Ruh Özü. Crafting is a one-time, validated transaction; the permanent variant unlock strengthens its weapon's Yayılım branch when selected. Stable definitions live in `src/data/crafting.ts`; pure inventory and recipe rules live in `src/gameplay/crafting/crafting-runtime.ts`. Material counts and unlocked variant IDs persist in save schema v4. The Blacksmith service and player-facing crafting screen are not part of this data/runtime package.

@@ -72,7 +72,7 @@ test('migrates a version-zero save and preserves known fields', () => {
   assert.equal(result.data.progression.soulEssence, 30);
   assert.equal(result.data.progression.completedRuns, 2);
   assert.equal(result.data.settings.musicVolume, 0.5);
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 3);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 4);
 });
 
 test('refuses to overwrite a save from a newer schema version', () => {
@@ -167,14 +167,14 @@ test('migrates an existing schema-v1 save without losing progression or settings
 
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'migrated');
-  assert.equal(result.data.schemaVersion, 3);
+  assert.equal(result.data.schemaVersion, 4);
   assert.equal(result.data.progression.soulEssence, 275);
   assert.equal(result.data.progression.completedRuns, 8);
   assert.deepEqual(result.data.progression.unlockedRegionIds, ['cursed-forest', 'forgotten-graveyard']);
   assert.equal(result.data.collections.characterMastery['cursed-hunter'], 3);
   assert.equal(result.data.settings.musicVolume, 0.35);
   assert.deepEqual(result.data.progression.permanentUpgrades, {});
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 3);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 4);
 });
 
 test('migrates a schema-v1 backup when the primary save is corrupt', () => {
@@ -188,10 +188,10 @@ test('migrates a schema-v1 backup when the primary save is corrupt', () => {
 
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'recovered');
-  assert.equal(result.data.schemaVersion, 3);
+  assert.equal(result.data.schemaVersion, 4);
   assert.equal(result.data.progression.soulEssence, 91);
   assert.deepEqual(result.data.progression.permanentUpgrades, {});
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 3);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 4);
 });
 
 test('rejects negative, non-finite, fractional, mismatched and unknown permanent upgrade purchases', () => {
@@ -282,12 +282,14 @@ test('respec does not alter the current save if storage rejects the write', () =
 });
 
 
-test('migrates schema-v2 primary and backup saves to schema v3 without losing progress', () => {
+test('migrates schema-v2 primary and backup saves to schema v4 without losing progress', () => {
   const storage = new MemoryStorage();
   const legacy = createInitialSaveData(fixedNow());
   const v2 = { ...legacy, schemaVersion: 2 };
   delete v2.collections.relicIds;
   delete v2.progression.equippedRelicIds;
+  delete v2.collections.craftingMaterials;
+  delete v2.collections.unlockedWeaponVariantIds;
   v2.progression.soulEssence = 314;
   v2.progression.permanentUpgrades = { maxHealth: 2, attackPower: 1 };
   v2.collections.characterMastery['cursed-hunter'] = 7;
@@ -295,13 +297,13 @@ test('migrates schema-v2 primary and backup saves to schema v3 without losing pr
 
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'migrated');
-  assert.equal(result.data.schemaVersion, 3);
+  assert.equal(result.data.schemaVersion, 4);
   assert.equal(result.data.progression.soulEssence, 314);
   assert.deepEqual(result.data.progression.permanentUpgrades, { maxHealth: 2, attackPower: 1 });
   assert.deepEqual(result.data.progression.equippedRelicIds, []);
   assert.deepEqual(result.data.collections.relicIds, []);
   assert.equal(result.data.collections.characterMastery['cursed-hunter'], 7);
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 3);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 4);
 });
 
 test('equips only owned relics, rejects duplicates and enforces three slots', () => {
@@ -347,6 +349,8 @@ test('recovers and migrates a schema-v2 backup when the primary save is corrupt'
   const v2 = { ...legacy, schemaVersion: 2 };
   delete v2.collections.relicIds;
   delete v2.progression.equippedRelicIds;
+  delete v2.collections.craftingMaterials;
+  delete v2.collections.unlockedWeaponVariantIds;
   v2.progression.soulEssence = 188;
   v2.progression.permanentUpgrades = { attackPower: 2 };
   storage.setItem(SAVE_STORAGE_KEY, '{bad');
@@ -354,16 +358,16 @@ test('recovers and migrates a schema-v2 backup when the primary save is corrupt'
 
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'recovered');
-  assert.equal(result.data.schemaVersion, 3);
+  assert.equal(result.data.schemaVersion, 4);
   assert.equal(result.data.progression.soulEssence, 188);
   assert.deepEqual(result.data.progression.permanentUpgrades, { attackPower: 2 });
   assert.deepEqual(result.data.progression.equippedRelicIds, []);
   assert.deepEqual(result.data.collections.relicIds, []);
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 3);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 4);
 });
 
 
-test('loads a valid schema-v3 profile with relic fields and all permanent upgrades', () => {
+test('loads a valid schema-v4 profile with relic fields and all permanent upgrades', () => {
   const storage = new MemoryStorage();
   const data = createInitialSaveData(fixedNow());
   data.progression.permanentUpgrades = { maxHealth: 2, attackPower: 2, moveSpeed: 1, armor: 3, xpBonus: 2, rerolls: 2 };
@@ -374,4 +378,58 @@ test('loads a valid schema-v3 profile with relic fields and all permanent upgrad
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'loaded');
   assert.deepEqual(result.data.progression.permanentUpgrades, data.progression.permanentUpgrades);
+});
+
+
+test('migrates schema-v3 saves while preserving relic ownership and equipped relics', () => {
+  const storage = new MemoryStorage();
+  const legacy = createInitialSaveData(fixedNow());
+  legacy.collections.relicIds = ['matriarch-seed', 'forest-heart'];
+  legacy.progression.equippedRelicIds = ['matriarch-seed'];
+  const v3 = { ...legacy, schemaVersion: 3 };
+  delete v3.collections.craftingMaterials;
+  delete v3.collections.unlockedWeaponVariantIds;
+  storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(v3));
+
+  const result = new SaveManager(storage, fixedNow).load();
+  assert.equal(result.status, 'migrated');
+  assert.equal(result.data.schemaVersion, 4);
+  assert.deepEqual(result.data.collections.relicIds, ['matriarch-seed', 'forest-heart']);
+  assert.deepEqual(result.data.progression.equippedRelicIds, ['matriarch-seed']);
+  assert.deepEqual(result.data.collections.craftingMaterials, {});
+  assert.deepEqual(result.data.collections.unlockedWeaponVariantIds, []);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 4);
+});
+
+test('crafts a weapon variant atomically, consumes exact costs and persists its unlock', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  const data = createInitialSaveData(fixedNow());
+  data.progression.soulEssence = 500;
+  data.collections.craftingMaterials['living-root'] = 3;
+  manager.save(data);
+
+  assert.equal(manager.craftRecipe('recipe-verdant-spread'), true);
+  const crafted = manager.load().data;
+  assert.equal(crafted.progression.soulEssence, 360);
+  assert.equal(crafted.collections.craftingMaterials['living-root'], 1);
+  assert.deepEqual(crafted.collections.unlockedWeaponVariantIds, ['briar-seed-verdant-variant']);
+  assert.equal(manager.craftRecipe('recipe-verdant-spread'), false);
+  assert.equal(manager.load().data.progression.soulEssence, 360);
+});
+
+test('crafting refuses unknown recipes, insufficient materials and insufficient essence without spending anything', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  const data = createInitialSaveData(fixedNow());
+  data.progression.soulEssence = 100;
+  data.collections.craftingMaterials['living-root'] = 1;
+  manager.save(data);
+
+  assert.equal(manager.craftRecipe('missing-recipe'), false);
+  assert.equal(manager.craftRecipe('recipe-verdant-spread'), false);
+  const unchanged = manager.load().data;
+  assert.equal(unchanged.progression.soulEssence, 100);
+  assert.deepEqual(unchanged.collections.craftingMaterials, { 'living-root': 1 });
+  assert.deepEqual(unchanged.collections.unlockedWeaponVariantIds, []);
 });

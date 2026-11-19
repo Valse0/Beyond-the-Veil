@@ -13,7 +13,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
     const raw = window.localStorage.getItem('beyond-the-veil.save');
     return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string }; progression: { unlockedCharacterIds: string[]; unlockedRegionIds: string[] } } : null;
   });
-  expect(firstSave?.schemaVersion).toBe(3);
+  expect(firstSave?.schemaVersion).toBe(4);
   expect(firstSave?.progression.unlockedCharacterIds).toContain('cursed-hunter');
   expect(firstSave?.progression.unlockedRegionIds).toContain('cursed-forest');
 
@@ -24,7 +24,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
     const raw = window.localStorage.getItem('beyond-the-veil.save');
     return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string } } : null;
   });
-  expect(reloadedSave?.schemaVersion).toBe(3);
+  expect(reloadedSave?.schemaVersion).toBe(4);
   expect(reloadedSave?.profile.createdAt).toBe(firstSave?.profile.createdAt);
   const dimensions = await canvas.evaluate((element: HTMLCanvasElement) => ({
     width: element.width,
@@ -204,7 +204,7 @@ test('region selection reads unlocked regions from the persisted profile', async
 type BrowserRunSnapshot = {
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
-  runSoulEssence:number;runRelicIds:string[];kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
+  runSoulEssence:number;runRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
   health:number;maxHealth:number;damage:number;moveSpeed:number;permanentUpgradeEffects:{maxHealthBonus:number;damageMultiplier:number;moveSpeedMultiplier:number;armorBonus:number;xpGainMultiplier:number;extraRerolls:number};passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
   weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
   shotDiagnostics:{weaponId:string;damage:number}[];
@@ -809,7 +809,7 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   expect(victory.lastRunSaved).toBe(true);
 
   const savedVictory=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(savedVictory.schemaVersion).toBe(3);
+  expect(savedVictory.schemaVersion).toBe(4);
   expect(savedVictory.collections.relicIds).toContain('matriarch-seed');
   expect(savedVictory.progression.soulEssence).toBe(victory.runSoulEssence);
   expect(savedVictory.progression.completedRuns).toBe(1);
@@ -867,5 +867,31 @@ test('timed run event starts, resolves its objective and awards persistent-run e
   expect(completed.runEvents.active?.status).toBe('completed');
   expect(completed.runEvents.completed).toContain(started.runEvents.active?.kind);
   expect(completed.runSoulEssence).toBeGreaterThan(0);
+  expect(pageErrors).toEqual([]);
+});
+
+
+test('completed treasure hunt grants and persists its regional crafting material', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestCompleteTreasureHunt:()=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestCompleteTreasureHunt();
+  });
+
+  const completed=await readBrowserRunSnapshot(page);
+  expect(completed.runCraftingMaterials).toEqual({ 'living-root': 1 });
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestFinishRun:()=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestFinishRun();
+  });
+  await expect.poll(async()=>page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!).collections.craftingMaterials['living-root'])).toBe(1);
+  const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(saved.schemaVersion).toBe(4);
+  expect(saved.collections.craftingMaterials).toEqual({ 'living-root': 1 });
   expect(pageErrors).toEqual([]);
 });

@@ -48,3 +48,16 @@ test('boss chest relic rewards are added to the permanent relic collection on vi
   assert.deepEqual(result.progression.equippedRelicIds, []);
   assert.deepEqual(save.collections.relicIds, []);
 });
+
+
+test('treasure-hunt materials persist after the run and ignore unknown or invalid material counts', () => {
+  const save = createInitialSaveData('2026-11-18T12:00:00.000Z');
+  const result = applyRunResult(save, {
+    regionId: 'cursed-forest',
+    won: false,
+    soulEssenceEarned: 0,
+    craftingMaterialsEarned: { 'living-root': 1, 'unknown-material': 4, 'ossuary-dust': -2, 'furnace-ingot': 1.5 }
+  });
+  assert.deepEqual(result.collections.craftingMaterials, { 'living-root': 1 });
+  assert.deepEqual(save.collections.craftingMaterials, {});
+});

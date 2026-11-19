@@ -52,22 +52,25 @@ export function deriveBuildStats(build:BuildState,passives:readonly PassiveDefin
   }
   return stats;
 }
-export function weaponLevelStats(progress:WeaponProgress,definition:WeaponDefinition) {
+export function weaponLevelStats(progress:WeaponProgress,definition:WeaponDefinition,unlockedVariantIds:readonly string[] = []) {
   const row=definition.levels[Math.max(0,Math.min(definition.levels.length-1,progress.level-1))]!;
   const branch=definition.branches.find(item=>item.id===progress.branchId);
+  const variant=branch?.variant&&unlockedVariantIds.includes(branch.variant.id)?branch.variant:undefined;
   const modifiers=branch?.modifiers;
+  const extra=variant?.modifiers;
   return {
     ...row,
-    damage:Math.round(row.damage*(modifiers?.damageMultiplier??1)),
-    intervalMs:Math.max(120,Math.round(row.intervalMs*(modifiers?.intervalMultiplier??1))),
-    range:Math.round(row.range*(modifiers?.rangeMultiplier??1)),
-    projectiles:Math.max(1,row.projectiles+(modifiers?.projectileBonus??0)),
+    damage:Math.round(row.damage*(modifiers?.damageMultiplier??1)*(extra?.damageMultiplier??1)),
+    intervalMs:Math.max(120,Math.round(row.intervalMs*(modifiers?.intervalMultiplier??1)*(extra?.intervalMultiplier??1))),
+    range:Math.round(row.range*(modifiers?.rangeMultiplier??1)*(extra?.rangeMultiplier??1)),
+    projectiles:Math.max(1,row.projectiles+(modifiers?.projectileBonus??0)+(extra?.projectileBonus??0)),
     baseProjectiles:row.projectiles,
-    projectileBonus:modifiers?.projectileBonus??0,
-    pierce:(definition.behavior==='piercing-thrust'?2:1)+(modifiers?.pierceBonus??0),
-    areaMultiplier:modifiers?.areaMultiplier??1,
-    chainTargetBonus:modifiers?.chainTargetBonus??0,
+    projectileBonus:(modifiers?.projectileBonus??0)+(extra?.projectileBonus??0),
+    pierce:(definition.behavior==='piercing-thrust'?2:1)+(modifiers?.pierceBonus??0)+(extra?.pierceBonus??0),
+    areaMultiplier:(modifiers?.areaMultiplier??1)*(extra?.areaMultiplier??1),
+    chainTargetBonus:(modifiers?.chainTargetBonus??0)+(extra?.chainTargetBonus??0),
     branchName:branch?.name,
+    variantName:variant?.name,
     behavior:progress.evolved?definition.evolution.behaviorChange:definition.behavior,
     evolutionName:progress.evolved?definition.evolution.name:undefined
   };
