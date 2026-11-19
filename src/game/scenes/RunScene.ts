@@ -258,6 +258,25 @@ export class RunScene extends Phaser.Scene {
     };
   }
 
+
+  browserTestPermanentUpgradeProbe():{weaponDamage:number;healthBefore:number;healthAfter:number;moveSpeed:number} {
+    this.assertBrowserTestMode();
+    for(const child of [...this.enemies.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
+    const weaponProgress=this.build.weapons[0];
+    const weapon=weaponProgress?WEAPONS.find(item=>item.id===weaponProgress.weaponId):undefined;
+    const definition=ENEMIES.find(item=>item.id===this.region.enemyIds[0]);
+    if(!weapon||!weaponProgress||!definition)throw new Error('Permanent upgrade combat probe needs a starting weapon and enemy.');
+    const target=this.createEnemy(this.player.x+60,this.player.y,definition,1);
+    (target.body as Phaser.Physics.Arcade.Body).enable=false;
+    this.weaponReady[weapon.id]=0;
+    this.fireWeapons(this.time.now+10_000);
+    const shot=this.shots.getChildren().find(child=>child.active&&child.getData('weaponId')===weapon.id) as Phaser.Physics.Arcade.Sprite|undefined;
+    const weaponDamage=Number(shot?.getData('damage')??0);
+    const healthBefore=this.state.health;
+    this.receiveCombatDamage(100);
+    return {weaponDamage,healthBefore,healthAfter:this.state.health,moveSpeed:this.state.moveSpeed};
+  }
+
   browserTestSpawnXpOrb(xp:number):void {
     this.assertBrowserTestMode();
     if(!Number.isFinite(xp)||xp<=0)throw new Error('Test XP must be a positive finite number.');
