@@ -122,6 +122,56 @@ test('player can select a hunter and an unlocked region before starting a run', 
 });
 
 
+test('main menu supports keyboard focus, Hunter Hub access, return and New Run', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+
+  await page.goto('/?bv-test=1');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('main-menu'));
+  });
+
+  const initialMenu = await canvas.screenshot();
+  await page.keyboard.press('ArrowRight');
+  const hubFocusedMenu = await canvas.screenshot();
+  expect(hubFocusedMenu.equals(initialMenu)).toBe(false);
+
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('hunter-hub'));
+  });
+
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('main-menu'));
+  });
+
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('character-select'));
+  });
+
+  expect(pageErrors).toEqual([]);
+});
+
+test('main menu keeps pointer access to Hunter Hub', async ({ page }) => {
+  await page.goto('/?bv-test=1');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  await page.mouse.click(460, 555);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('hunter-hub'));
+  });
+});
+
 test('region selection reads unlocked regions from the persisted profile', async ({ page }) => {
   await page.goto('/');
   await page.locator('#game-container canvas').waitFor();
