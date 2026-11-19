@@ -1,4 +1,5 @@
 import { CHARACTERS } from '../../data/characters.js';
+import { isAchievementCharacterIdArray, isAchievementIdArray, isAchievementProgressRecord, isAchievementRegionIdArray } from '../../data/achievements.js';
 import { RELICS } from '../../data/relics.js';
 import { CRAFTING_MATERIALS, CRAFTING_RECIPES } from '../../data/crafting.js';
 import { WEAPONS } from '../../data/weapons.js';
@@ -11,7 +12,7 @@ import { calculatePermanentUpgradeRespec, getPermanentUpgradeCost, getPermanentU
 import type { PermanentUpgradeRespecQuote } from '../../gameplay/progression/permanent-upgrades.js';
 import { buildEquipmentProfile, getActiveEquipmentProfile, isActiveEquipmentProfileRecord, isEquipmentProfilesRecord, MAX_EQUIPMENT_PROFILES_PER_CHARACTER, type EquipmentProfile, type EquipmentProfileDraft } from '../../gameplay/progression/equipment-profiles.js';
 
-const CURRENT_SCHEMA_VERSION = 6;
+const CURRENT_SCHEMA_VERSION = 7;
 const RELIC_IDS = new Set(RELICS.map(relic => relic.id));
 const MATERIAL_IDS = new Set(CRAFTING_MATERIALS.map(material => material.id));
 const WEAPON_VARIANT_IDS = new Set(WEAPONS.flatMap(weapon => weapon.branches.flatMap(branch => branch.variant ? [branch.variant.id] : [])));
@@ -58,6 +59,10 @@ function isSaveData(value: unknown): value is SaveData {
   const unlockedMasteryRewardIds = isObject(collections) ? collections.unlockedMasteryRewardIds : undefined;
   const equipmentProfiles = isObject(progression) ? progression.equipmentProfiles : undefined;
   const activeEquipmentProfileIds = isObject(progression) ? progression.activeEquipmentProfileIds : undefined;
+  const achievementProgress = isObject(collections) ? collections.achievementProgress : undefined;
+  const completedAchievementIds = isObject(collections) ? collections.completedAchievementIds : undefined;
+  const achievementPlayedCharacterIds = isObject(collections) ? collections.achievementPlayedCharacterIds : undefined;
+  const achievementExploredRegionIds = isObject(collections) ? collections.achievementExploredRegionIds : undefined;
   return isObject(profile)
     && typeof profile.createdAt === 'string'
     && typeof profile.updatedAt === 'string'
@@ -85,6 +90,10 @@ function isSaveData(value: unknown): value is SaveData {
     && isWeaponVariantIdArray(unlockedWeaponVariantIds)
     && isStringArray(unlockedMasteryRewardIds)
     && new Set(unlockedMasteryRewardIds).size === unlockedMasteryRewardIds.length
+    && isAchievementProgressRecord(achievementProgress)
+    && isAchievementIdArray(completedAchievementIds)
+    && isAchievementCharacterIdArray(achievementPlayedCharacterIds)
+    && isAchievementRegionIdArray(achievementExploredRegionIds)
     && equippedRelicIds.every(id => ownedRelicIds.includes(id))
     && isEquipmentProfilesRecord(equipmentProfiles, ownedRelicIds)
     && isActiveEquipmentProfileRecord(activeEquipmentProfileIds, equipmentProfiles)
@@ -109,7 +118,7 @@ export function createInitialSaveData(now = new Date().toISOString()): SaveData 
       equipmentProfiles: {},
       activeEquipmentProfileIds: {}
     },
-    collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [] },
+    collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [], achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [] },
     settings: {}
   };
 }
@@ -147,7 +156,11 @@ function migrateV0(value: Record<string, unknown>, now: string): SaveData {
       relicIds: [],
       craftingMaterials: {},
       unlockedWeaponVariantIds: [],
-      unlockedMasteryRewardIds: []
+      unlockedMasteryRewardIds: [],
+      achievementProgress: {},
+      completedAchievementIds: [],
+      achievementPlayedCharacterIds: [],
+      achievementExploredRegionIds: []
     },
     settings: isJsonObject(value.settings) ? value.settings : defaults.settings
   };
@@ -164,7 +177,7 @@ function migrateV1(value: Record<string, unknown>): SaveData {
     ...value,
     schemaVersion: CURRENT_SCHEMA_VERSION,
     progression: { ...progression, permanentUpgrades: upgrades, equippedRelicIds: [], equipmentProfiles: {}, activeEquipmentProfileIds: {} },
-    collections: { ...collections, relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [] }
+    collections: { ...collections, relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [], achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [] }
   };
   if (!isSaveData(candidate)) throw new Error('Legacy version-one save contains invalid values.');
   return candidate;
@@ -190,7 +203,7 @@ function migrateV3(value: Record<string, unknown>): SaveData {
     ...value,
     schemaVersion: CURRENT_SCHEMA_VERSION,
     progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} },
-    collections: { ...collections, craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [] }
+    collections: { ...collections, craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [], achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [] }
   };
   if (!isSaveData(candidate)) throw new Error('Legacy version-three save contains invalid values.');
   return candidate;
@@ -199,15 +212,23 @@ function migrateV3(value: Record<string, unknown>): SaveData {
 function migrateV4(value: Record<string, unknown>): SaveData {
   const collections = isObject(value.collections) ? value.collections : {};
   const progression = isObject(value.progression) ? value.progression : {};
-  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION, collections: { ...collections, unlockedMasteryRewardIds: [] }, progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} } };
+  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION, collections: { ...collections, unlockedMasteryRewardIds: [], achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [] }, progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} } };
   if (!isSaveData(candidate)) throw new Error('Legacy version-four save contains invalid values.');
   return candidate;
 }
 
 function migrateV5(value: Record<string, unknown>): SaveData {
   const progression = isObject(value.progression) ? value.progression : {};
-  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION, progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} } };
+  const collections = isObject(value.collections) ? value.collections : {};
+  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION, progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} }, collections: { ...collections, achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [] } };
   if (!isSaveData(candidate)) throw new Error('Legacy version-five save contains invalid values.');
+  return candidate;
+}
+
+function migrateV6(value: Record<string, unknown>): SaveData {
+  const collections = isObject(value.collections) ? value.collections : {};
+  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION, collections: { ...collections, achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [] } };
+  if (!isSaveData(candidate)) throw new Error('Legacy version-six save contains invalid values.');
   return candidate;
 }
 
@@ -466,6 +487,7 @@ export class SaveManager {
       if (version === 3) return { status: 'migrated', data: migrateV3(value) };
       if (version === 4) return { status: 'migrated', data: migrateV4(value) };
       if (version === 5) return { status: 'migrated', data: migrateV5(value) };
+      if (version === 6) return { status: 'migrated', data: migrateV6(value) };
       if (!isSaveData(value)) return { status: 'corrupt', message: 'Save data failed validation.' };
       return { status: 'loaded', data: value };
     } catch (error) {

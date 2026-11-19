@@ -113,3 +113,8 @@ The reward IDs are sourced from each hunter's `mastery` data. Earned reward IDs 
 ## Equipment profile rules
 
 Equipment profiles are character-specific save data, not catalog content. Each unlocked hunter may save up to five named profiles. A profile selects any catalog weapon and passive as its starting build and up to three unique relics from the owned relic collection. The active profile is stored per hunter. Without an active profile, the hunter's authored starting weapon/passive and the existing globally equipped relics remain the run defaults. Profile management and build comparison are reserved for the Run Preparation / Loadout UI.
+
+
+## Achievement catalog
+
+The data-driven achievement catalog currently contains 13 milestones. Each entry has a stable ID, localized name/description, metric, threshold and one reward routed into the existing cosmetic, relic or weapon-variant collection. Save validation checks achievement IDs and metric data; progression tests verify reward routing against the authored content IDs.

@@ -89,3 +89,13 @@ test('mastery grants the boss victory bonus and unlocks level-five and level-ten
   assert.deepEqual(final.collections.unlockedMasteryRewardIds, ['knight-title', 'aegis-alt', 'iron-oath-skin']);
   assert.deepEqual(final.collections.unlockedCosmeticIds, ['iron-oath-skin']);
 });
+
+test('run results grant achievements and keep rewards after defeat', () => {
+  const save = createInitialSaveData('2026-11-19T12:00:00.000Z');
+  const result = applyRunResult(save, { regionId: 'cursed-forest', won: false, soulEssenceEarned: 0, characterId: 'cursed-hunter', kills: 100, explorationEventsCompleted: 3 });
+  assert.ok(result.collections.completedAchievementIds.includes('first-descent'));
+  assert.ok(result.collections.completedAchievementIds.includes('first-blood'));
+  assert.ok(result.collections.completedAchievementIds.includes('curious-soul'));
+  assert.ok(result.collections.unlockedCosmeticIds.includes('ashen-hunter'));
+  assert.ok(result.collections.relicIds.includes('forest-heart'));
+});

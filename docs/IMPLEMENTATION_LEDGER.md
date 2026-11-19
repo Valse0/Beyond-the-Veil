@@ -369,3 +369,17 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - The first thresholds map 25/100/250 cumulative points to mastery levels 2/5/10. Each milestone reward is granted idempotently; level-ten cosmetic rewards also enter the cosmetic collection.
 - Schema v5 adds the permanent mastery reward ID collection. Existing numeric `characterMastery` values are retained as points; schema 0–4 migration initializes the new reward collection without dropping previous collections or progress.
 - No UI, final assets, dependencies, backend, ads or paid services are introduced. Achievements, archive completion rewards, mastery presentation and alternate-ability selection remain outside this package.
+
+
+## Achievement System v1 implementation pass (2026-11-19)
+
+| Requirement | Scope | Status | Evidence | Remaining work |
+|---|---|---|---|---|
+| ACH-01 | Persistent run, kill, boss, character and exploration achievements | IMPLEMENTED_UNVERIFIED | `src/data/achievements.ts`; `src/gameplay/progression/achievements.ts`; `src/gameplay/run/run-results.ts`; `tests/achievements.test.mjs` | Automated verification pending. Achievement presentation, balance and physical-device playtesting remain. |
+| ACH-02 | Idempotent achievement rewards integrated with cosmetics, relics and weapon variants | IMPLEMENTED_UNVERIFIED | `src/gameplay/progression/achievements.ts`; `tests/achievements.test.mjs` | Automated verification pending. |
+| SAVE-ACH-01 | Save schema v7 migrates schema 0–6 and preserves existing profile collections | IMPLEMENTED_UNVERIFIED | `src/systems/save/save-types.ts`; `src/systems/save/save-manager.ts`; `tests/save-system.test.mjs` | Automated verification pending. |
+
+- Achievements update at the completed-run boundary and persist through the existing local profile save. Metrics include completed runs, cumulative kills, boss victories, completed run events, distinct hunters and distinct regions.
+- Rewards are catalogued and granted idempotently into the existing cosmetic, relic and weapon-variant collections. Duplicate completion cannot grant a reward twice.
+- Schema v7 adds achievement counters, completed IDs and unique hunter/region history. Migration from schema 0–6 initializes only the new fields and preserves existing progression and collections.
+- No achievement UI, final assets, dependency, backend, ads or paid service were added.

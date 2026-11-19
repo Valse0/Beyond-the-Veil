@@ -1626,7 +1626,7 @@ export class RunScene extends Phaser.Scene {
     try {
       const loaded=manager.load();
       if(!('data' in loaded))return false;
-      manager.save(applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills}));
+      manager.save(applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length}));
       return true;
     } catch {
       return false;
