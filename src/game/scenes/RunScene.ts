@@ -377,6 +377,28 @@ export class RunScene extends Phaser.Scene {
     if(this.currentLevelChoices.filter(choice=>choice.kind==='weapon-branch'&&choice.contentId===weapon.id).length!==2)throw new Error('Expected exactly two branch choices for '+weapon.id+'.');
   }
 
+  browserTestRelicDamageProbe():{baseDamage:number;shotDamage:number;relicMultiplier:number} {
+    this.assertBrowserTestMode();
+    const weapon=WEAPONS.find(item=>item.id==='veil-bolt');
+    if(!weapon)throw new Error('The relic damage probe weapon is missing.');
+    for(const child of [...this.shots.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
+    this.build={weapons:[{weaponId:weapon.id,level:1,evolved:false}],passives:[]};
+    this.refreshBuildStats();
+    const definition=ENEMIES.find(item=>item.id===this.region.enemyIds[0]);
+    if(!definition)throw new Error('The active region has no test enemy.');
+    this.createEnemy(this.player.x+60,this.player.y,definition,100);
+    this.weaponReady[weapon.id]=0;
+    const weaponStats=weaponLevelStats(this.build.weapons[0]!,weapon);
+    const baseDamage=weaponStats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier*this.permanentUpgradeEffects.damageMultiplier;
+    this.fireWeapons(this.time.now+10_000);
+    const shot=this.shots.getChildren().find(child=>child.active&&child.getData('weaponId')===weapon.id) as Phaser.Physics.Arcade.Sprite|undefined;
+    return {
+      baseDamage,
+      shotDamage:Number(shot?.getData('damage')??0),
+      relicMultiplier:this.relicStats.damageMultiplier*getRelicDamageMultiplier(this.equippedRelicIds,this.character.id,weapon.element)
+    };
+  }
+
   browserTestFireSelectedWeapon():{shotCount:number;damages:number[]} {
     this.assertBrowserTestMode();
     const progress=this.build.weapons[0];

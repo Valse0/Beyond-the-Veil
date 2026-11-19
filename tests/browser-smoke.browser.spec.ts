@@ -958,6 +958,13 @@ test('active equipment profile overrides the selected hunter loadout when a run 
   expect(snapshot.weapons[0]?.weaponId).toBe('gravecleaver');
   expect(snapshot.passives[0]?.passiveId).toBe('graveplate');
   expect(snapshot.equippedRelicIds).toEqual(['matriarch-seed']);
+  const relicProbe=await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestRelicDamageProbe:()=>{baseDamage:number;shotDamage:number;relicMultiplier:number}}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run').browserTestRelicDamageProbe();
+  });
+  expect(relicProbe.relicMultiplier).toBeCloseTo(1.06,5);
+  expect(relicProbe.shotDamage).toBeCloseTo(relicProbe.baseDamage*1.06,4);
   expect(pageErrors).toEqual([]);
 });
 
