@@ -25,7 +25,7 @@ export function isQuestStoryState(value:unknown): value is QuestStoryState {
     if(Object.entries(progress).some(([objectiveId,count])=>{const objective=q.objectives.find(x=>x.id===objectiveId);return !objective||typeof count!=='number'||!Number.isInteger(count)||count<0||count>objective.target;}))return false;
     if(p.chosenChoiceId!==null&&(typeof p.chosenChoiceId!=='string'||!q.choices.some(x=>x.id===p.chosenChoiceId)))return false;
     if(p.outcomeId!==null&&(typeof p.outcomeId!=='string'||!q.choices.some(x=>x.outcome.id===p.outcomeId)))return false;
-    if(p.status==='completed'&&(!p.chosenChoiceId||!p.outcomeId))return false;
+    if(p.status==='completed'&&(!p.chosenChoiceId||!p.outcomeId||q.choices.find(x=>x.id===p.chosenChoiceId)?.outcome.id!==p.outcomeId))return false;
     if(p.status==='active'&&(p.chosenChoiceId!==null||p.outcomeId!==null))return false;
   }
   return true;

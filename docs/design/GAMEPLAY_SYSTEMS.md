@@ -180,3 +180,15 @@ The evolution catalog stores stable IDs, branch IDs, player-facing names/descrip
 
 
 CI #347 (44605954212) verifies all 24 alternate evolution paths: TypeScript, 175 unit tests, production build, Chromium Playwright 26/26 and npm audit (zero vulnerabilities) pass. The existing 14 weapon/passive synergies also pass their live Phaser browser test after the alternate-path integration.
+
+
+## Quest & Branching Choice Runtime v1
+
+- Ten authored quests span all five regions: five main quests and five story-unlocked side, exploration or character quests.
+- Main quests follow the authored regional story prerequisites. Story-gated quests become available only when a chosen parent outcome explicitly unlocks them.
+- Objectives advance through stable IDs, clamp at their authored targets and cannot progress after completion.
+- Each quest has two permanent choices. A choice is accepted only after all objectives are complete.
+- Outcomes persist NPC fates, regional atmosphere variants, hidden-path IDs, boss-encounter variants, reward IDs, alternate quest unlocks and, in the final quest, one of two endings.
+- Authored Ruh Özü and valid story-archive lore rewards are applied once. Quest progress belongs to the persistent profile, not a run.
+- Save schema v9 migrates v8 saves without discarding existing profile progression, collections or settings.
+- Quest journal, dialogue presentation, live world-event dispatch, path geometry changes, boss-variant consumption and ending scenes remain later integration work; this package is the rules/data/persistence foundation.

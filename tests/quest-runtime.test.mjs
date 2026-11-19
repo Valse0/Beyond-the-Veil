@@ -69,8 +69,12 @@ test('story-gated side quest unlocks only through its authored parent outcome',(
   assert.equal(startQuest(save,'forest-hidden-spring').story.quests['forest-hidden-spring'].status,'active');
 });
 test('final story choice stores one of the authored endings and boss encounter variants',()=>{
-  let save=unlocked('castle-veil-heir');
-  save.progression.unlockedRegionIds.push('forgotten-graveyard','deep-dungeon','rotten-swamp','cursed-castle');
+  let save=createInitialSaveData(now);
+  save.progression.unlockedRegionIds=['cursed-forest','forgotten-graveyard','deep-dungeon','rotten-swamp','cursed-castle'];
+  for(const id of ['forest-root-oath','grave-names-unforgotten','dungeon-forge-truth','swamp-drowned-vow']){
+    save=startQuest(save,id);
+    save=chooseQuestBranch(finishObjectives(save,id),id,QUESTS.find(q=>q.id===id).choices[0].id);
+  }
   save=startQuest(save,'castle-veil-heir');
   save=chooseQuestBranch(finishObjectives(save,'castle-veil-heir'),'castle-veil-heir','tear-the-veil');
   assert.equal(save.story.endingId,'ending-beyond-veil');

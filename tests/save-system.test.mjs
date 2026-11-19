@@ -282,7 +282,7 @@ test('respec does not alter the current save if storage rejects the write', () =
 });
 
 
-test('migrates schema-v2 primary and backup saves to schema v4 without losing progress', () => {
+test('migrates schema-v2 primary and backup saves to schema v9 without losing progress', () => {
   const storage = new MemoryStorage();
   const legacy = createInitialSaveData(fixedNow());
   const v2 = { ...legacy, schemaVersion: 2 };

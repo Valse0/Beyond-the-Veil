@@ -13,7 +13,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
     const raw = window.localStorage.getItem('beyond-the-veil.save');
     return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string }; progression: { unlockedCharacterIds: string[]; unlockedRegionIds: string[] } } : null;
   });
-  expect(firstSave?.schemaVersion).toBe(8);
+  expect(firstSave?.schemaVersion).toBe(9);
   expect(firstSave?.progression.unlockedCharacterIds).toContain('cursed-hunter');
   expect(firstSave?.progression.unlockedRegionIds).toContain('cursed-forest');
 
@@ -24,7 +24,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
     const raw = window.localStorage.getItem('beyond-the-veil.save');
     return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string } } : null;
   });
-  expect(reloadedSave?.schemaVersion).toBe(8);
+  expect(reloadedSave?.schemaVersion).toBe(9);
   expect(reloadedSave?.profile.createdAt).toBe(firstSave?.profile.createdAt);
   const dimensions = await canvas.evaluate((element: HTMLCanvasElement) => ({
     width: element.width,
@@ -819,7 +819,7 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   expect(victory.runRelicIds).toContain('matriarch-seed');
 
   const savedVictory=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(savedVictory.schemaVersion).toBe(8);
+  expect(savedVictory.schemaVersion).toBe(9);
   expect(savedVictory.collections.relicIds).toContain('matriarch-seed');
   expect(savedVictory.collections.discoveredLoreIds).toContain('cursed-forest-lore');
   expect(savedVictory.progression.soulEssence).toBe(victory.runSoulEssence);
@@ -904,7 +904,7 @@ test('completed treasure hunt grants and persists its regional crafting material
   });
   await expect.poll(async()=>page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!).collections.craftingMaterials['living-root'])).toBe(1);
   const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(saved.schemaVersion).toBe(8);
+  expect(saved.schemaVersion).toBe(9);
   expect(saved.collections.craftingMaterials).toEqual({ 'living-root': 1 });
   expect(saved.collections.relicIds).toContain('forest-heart');
   expect(pageErrors).toEqual([]);
@@ -917,7 +917,7 @@ test('defeat preserves the selected hunter mastery baseline in the profile save'
   await startBrowserTestRun(page);
   await finishBrowserTestRun(page);
   const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(saved.schemaVersion).toBe(8);
+  expect(saved.schemaVersion).toBe(9);
   expect(saved.progression.completedRuns).toBe(1);
   expect(saved.collections.characterMastery['cursed-hunter']).toBe(3);
   expect(saved.collections.unlockedMasteryRewardIds).toEqual([]);
@@ -975,7 +975,7 @@ test('first completed run grants and persists the first achievement after reload
   await finishBrowserTestRun(page);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved).toBe(true);
   const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(saved.schemaVersion).toBe(8);
+  expect(saved.schemaVersion).toBe(9);
   expect(saved.collections.completedAchievementIds).toContain('first-descent');
   expect(saved.collections.unlockedCosmeticIds).toContain('ashen-hunter');
   expect(saved.collections.discoveredWeaponIds).toContain('veil-bolt');
