@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { derivePermanentUpgradeEffects, getPermanentUpgradeCost } from '../.test-dist/src/gameplay/progression/permanent-upgrades.js';
+import { calculatePermanentUpgradeRespec, derivePermanentUpgradeEffects, getPermanentUpgradeCost } from '../.test-dist/src/gameplay/progression/permanent-upgrades.js';
 
 test('derives capped permanent stat effects from saved levels', () => {
   const effects = derivePermanentUpgradeEffects({
@@ -33,4 +33,26 @@ test('permanent upgrade prices increase linearly and unknown ids have no price',
   assert.equal(getPermanentUpgradeCost('maxHealth', 2), 150);
   assert.equal(getPermanentUpgradeCost('rerolls', 1), 200);
   assert.equal(getPermanentUpgradeCost('unknown', 0), null);
+});
+
+
+test('respec quote refunds 90 percent of the exact historical investment', () => {
+  const quote = calculatePermanentUpgradeRespec({
+    maxHealth: 2, attackPower: 1, moveSpeed: 0, armor: 3, xpBonus: 0, rerolls: 2
+  });
+  // 50*(1+2) + 75 + 70*(1+2+3) + 100*(1+2) = 945
+  assert.deepEqual(quote, { totalInvested: 945, fee: 95, refund: 850 });
+});
+
+test('respec quote is zero for a fresh profile and safely ignores unknown/malformed levels', () => {
+  assert.deepEqual(calculatePermanentUpgradeRespec({}), { totalInvested: 0, fee: 0, refund: 0 });
+  assert.deepEqual(calculatePermanentUpgradeRespec({ maxHealth: 1.5, invalid: 99 }), {
+    totalInvested: 0, fee: 0, refund: 0
+  });
+});
+
+test('respec fee rounds up to a whole essence point', () => {
+  assert.deepEqual(calculatePermanentUpgradeRespec({ maxHealth: 1 }), {
+    totalInvested: 50, fee: 5, refund: 45
+  });
 });
