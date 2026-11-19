@@ -182,7 +182,7 @@ export class RunScene extends Phaser.Scene {
     };
   }
 
-  browserTestFireWeaponSynergy(weaponId:string,passiveId:string):{activeSynergyIds:string[];synergyKind:string} {
+  browserTestFireWeaponSynergy(weaponId:string,passiveId:string):{activeSynergyIds:string[];primaryHealth:number;secondaryHealth:number;secondaryDamage:number;synergyKind:string} {
     this.assertBrowserTestMode();
     const weapon=WEAPONS.find(item=>item.id===weaponId),passive=PASSIVES.find(item=>item.id===passiveId);
     if(!weapon||!passive)throw new Error('Unknown browser test weapon/passive pair.');
@@ -235,7 +235,8 @@ export class RunScene extends Phaser.Scene {
       const shot=this.shots.getChildren().find(child=>child.active&&child.getData('weaponId')===weaponId) as Phaser.Physics.Arcade.Sprite|undefined;
       if(shot)this.hitEnemy(shot,primary);
     }
-    return {activeSynergyIds:active.map(item=>item.id),synergyKind:synergy.kind};
+    const targetHealth=targets.map(enemy=>Number(enemy.getData('health')??0));
+    return {activeSynergyIds:active.map(item=>item.id),primaryHealth:targetHealth[0]??0,secondaryHealth:targetHealth[1]??0,secondaryDamage:(this.browserSynergyInitialHealth[1]??0)-(targetHealth[1]??0),synergyKind:synergy.kind};
   }
 
   browserTestSynergyDiagnostics():{
