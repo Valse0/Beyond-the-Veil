@@ -206,6 +206,7 @@ export class RunScene extends Phaser.Scene {
     this.queuedLevels=0;this.currentLevelChoices=[];
     this.state={...this.state,health:this.state.maxHealth,experience:0,experienceToNext:10,level:1};
     this.build={weapons:[{weaponId,level:1,evolved:false}],passives:[{passiveId,level:1,special:false}]};
+    this.weaponReady[weaponId]=Number.POSITIVE_INFINITY;
     this.weaponSynergyTriggers=[];
 
     const definition=ENEMIES.find(item=>item.id===this.region.enemyIds[0]);
