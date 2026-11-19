@@ -36,3 +36,17 @@ export interface ElementReactionDefinition { id:string;with:ElementId;name:strin
 export interface ElementDefinition { id:ElementId;name:string;statusName:string;buildupPerHit:number;threshold:number;durationMs:number;resistanceCap:number;statusEffect:string;reactions:ElementReactionDefinition[];assetId:string }
 export interface RegionDefinition { id:RegionId;name:string;subtitle:string;atmosphere:string;palette:string[];enemyIds:string[];bossId:string;hazards:{id:string;name:string;trigger:string;telegraphMs:number;effect:string;counter:string}[];explorationPoints:{id:string;name:string;discovery:string;reward:string}[];elite:{id:string;name:string;behavior:string;reward:string};musicId:string;rewardId:string;storyFragment:string;map:{width:number;height:number;landmarks:number;proceduralSites:number;secretPassages:number};assetId:string }
 export interface AssetRecord { id:string;role:AssetRole;contentId:string;path:null;status:'placeholder'|'final'|'blocked';width:number;height:number;anchor:string;filtering:'nearest';requiredStates:string[];source:{kind:string;creator:string;license:string;attribution:string};nativeScaleReviewed:boolean;inEngineReviewed:boolean;technicalChecksPassed:boolean }
+
+export type QuestCategory = 'main' | 'side' | 'exploration' | 'character';
+export interface QuestObjectiveDefinition { id: string; description: string; target: number }
+export interface QuestOutcomeDefinition {
+  id: string; summary: string; npcFates?: Record<string,string>; regionAtmospheres?: Record<string,string>;
+  unlockedPathIds?: string[]; bossEncounterIds?: string[]; rewardIds?: string[];
+  alternateQuestIds?: string[]; endingId?: string; soulEssence?: number; loreIds?: string[];
+}
+export interface QuestChoiceDefinition { id: string; label: string; description: string; outcome: QuestOutcomeDefinition }
+export interface QuestDefinition {
+  id: string; regionId: RegionId; category: QuestCategory; availability: 'region' | 'story';
+  title: string; description: string; prerequisites: string[];
+  objectives: QuestObjectiveDefinition[]; choices: QuestChoiceDefinition[];
+}

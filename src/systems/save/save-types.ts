@@ -4,8 +4,25 @@ import type { CollectionId } from '../../data/collections.js';
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
 
+export interface QuestProgress {
+  status: 'active' | 'completed';
+  objectiveProgress: Record<string, number>;
+  chosenChoiceId: string | null;
+  outcomeId: string | null;
+}
+export interface QuestStoryState {
+  quests: Record<string, QuestProgress>;
+  npcFates: Record<string, string>;
+  regionAtmospheres: Record<string, string>;
+  unlockedPathIds: string[];
+  bossEncounterIds: string[];
+  unlockedRewardIds: string[];
+  unlockedAlternateQuestIds: string[];
+  endingId: string | null;
+  appliedOutcomeIds: string[];
+}
 export interface SaveData {
-  schemaVersion: 8;
+  schemaVersion: 9;
   profile: { createdAt: string; updatedAt: string };
   progression: {
     soulEssence: number;
@@ -36,6 +53,7 @@ export interface SaveData {
     completedCollectionIds: CollectionId[];
     unlockedCollectionRewardIds: string[];
   };
+  story: QuestStoryState;
   settings: JsonObject;
 }
 
