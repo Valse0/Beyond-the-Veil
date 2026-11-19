@@ -6,6 +6,7 @@ import { ENEMIES } from '../../data/enemies.js';
 import { BOSSES } from '../../data/bosses.js';
 import { WEAPONS } from '../../data/weapons.js';
 import { PASSIVES } from '../../data/passives.js';
+import { RELICS } from '../../data/relics.js';
 import { ELEMENTS } from '../../data/elements.js';
 import { REGIONS } from '../../data/regions.js';
 import { findNearestTarget } from '../../gameplay/combat/combat-rules.js';
@@ -24,6 +25,7 @@ import type { SaveManager } from '../../systems/save/save-manager.js';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
 import { createLevelUpControlState, drawLevelUpChoices as drawChoicesFromPool, spendLevelUpBanish, spendLevelUpReroll, spendLevelUpSkip, type LevelUpControlState } from '../../gameplay/level-up/level-up-controls.js';
 import { derivePermanentUpgradeEffects, type PermanentUpgradeEffects } from '../../gameplay/progression/permanent-upgrades.js';
+import { deriveRelicStats, getRelicDamageMultiplier, type RelicStats } from '../../gameplay/relics/relic-runtime.js';
 
 const RUN_MS = 900000;
 const BOSS_START_MS = 840000;
@@ -126,6 +128,9 @@ export class RunScene extends Phaser.Scene {
   private weaponSynergyGuardReduction=.28;
   private weaponSynergyTriggers:string[]=[];
   private permanentUpgradeEffects:PermanentUpgradeEffects=derivePermanentUpgradeEffects(undefined);
+  private equippedRelicIds:string[]=[];
+  private relicStats:RelicStats=deriveRelicStats([],'cursed-hunter');
+  private runRelicIds:string[]=[];
   private browserSynergyTestTargets:Phaser.Physics.Arcade.Sprite[]=[];
   private browserSynergyInitialHealth:number[]=[];
   private browserSynergyPlayerHealthBefore=0;
@@ -140,7 +145,7 @@ export class RunScene extends Phaser.Scene {
   browserTestSnapshot():{
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
-    runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
+    runSoulEssence:number;runRelicIds:string[];kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
     passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
     weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
     shotDiagnostics:{weaponId:string;damage:number}[];
@@ -159,7 +164,7 @@ export class RunScene extends Phaser.Scene {
       activeWeaponSynergyIds:this.build.weapons.flatMap(weapon=>getActiveWeaponSynergies(weapon.weaponId,this.build.passives.map(passive=>passive.passiveId)).map(synergy=>synergy.id)),weaponSynergyTriggers:[...this.weaponSynergyTriggers],
       weapons:this.build.weapons.map(progress=>{const definition=WEAPONS.find(item=>item.id===progress.weaponId);const stats=definition?weaponLevelStats(progress,definition):undefined;return {weaponId:progress.weaponId,level:progress.level,branchId:progress.branchId??null,evolved:progress.evolved,stats:stats?{damage:stats.damage,intervalMs:stats.intervalMs,range:stats.range,projectiles:stats.projectiles,pierce:stats.pierce,areaMultiplier:stats.areaMultiplier,chainTargetBonus:stats.chainTargetBonus,branchName:stats.branchName??null}:null};}),
       shotDiagnostics:this.shots.getChildren().filter(child=>child.active&&child.getData('weaponId')).map(child=>({weaponId:String(child.getData('weaponId')),damage:Number(child.getData('damage'))})), 
-      runSoulEssence:this.runSoulEssence,kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
+      runSoulEssence:this.runSoulEssence,runRelicIds:[...this.runRelicIds],kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
       bossHealth:this.bossState?.health??null,health:this.state.health,maxHealth:this.state.maxHealth,damage:this.state.damage,moveSpeed:this.state.moveSpeed,
       bossChestDiagnostics:(()=>{
         const playerBody=this.player.body as Phaser.Physics.Arcade.Body;
@@ -417,8 +422,10 @@ export class RunScene extends Phaser.Scene {
     const saveManager=this.registry.get('saveManager') as SaveManager|undefined;
     const loadedSave=saveManager?.load();
     this.permanentUpgradeEffects=derivePermanentUpgradeEffects(loadedSave&&'data' in loadedSave?loadedSave.data.progression.permanentUpgrades:undefined);
-    const maxHealth=this.character.health+this.permanentUpgradeEffects.maxHealthBonus;
-    this.state={...createRunState(),health:maxHealth,maxHealth,moveSpeed:this.character.moveSpeed*this.permanentUpgradeEffects.moveSpeedMultiplier,damage:18*this.character.stats.damageMultiplier*this.permanentUpgradeEffects.damageMultiplier,attackIntervalMs:720};
+    this.equippedRelicIds=loadedSave&&'data' in loadedSave?[...loadedSave.data.progression.equippedRelicIds]:[];
+    this.relicStats=deriveRelicStats(this.equippedRelicIds,this.character.id);
+    const maxHealth=this.character.health+this.permanentUpgradeEffects.maxHealthBonus+this.relicStats.maxHealthBonus;
+    this.state={...createRunState(),health:maxHealth,maxHealth,moveSpeed:this.character.moveSpeed*this.permanentUpgradeEffects.moveSpeedMultiplier*this.relicStats.moveSpeedMultiplier,damage:18*this.character.stats.damageMultiplier*this.permanentUpgradeEffects.damageMultiplier,attackIntervalMs:720};
     this.build=EMPTY_BUILD;
     const startingWeapon=WEAPONS.find(w=>w.id===this.character.startingWeaponId)??WEAPONS[0]!;
     const startingPassive=PASSIVES.find(p=>p.id===this.character.startingPassiveId)??PASSIVES[0]!;
@@ -431,7 +438,7 @@ export class RunScene extends Phaser.Scene {
     this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;this.weaponSynergyGuardUntil=0;this.weaponSynergyGuardReduction=.28;this.weaponSynergyTriggers=[];
-    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.lastRunSaved=null;
+    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.lastRunSaved=null;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
@@ -536,7 +543,7 @@ export class RunScene extends Phaser.Scene {
     if(Phaser.Input.Keyboard.JustDown(this.keys.SPACE))this.tryDash();
     if(Phaser.Input.Keyboard.JustDown(this.keys.E))this.useAbility();
     if(Phaser.Input.Keyboard.JustDown(this.keys.ESC))this.openPause();
-    const stats=this.currentBuildStats();const speed=this.character.moveSpeed*stats.moveSpeedMultiplier*this.permanentUpgradeEffects.moveSpeedMultiplier*(time<this.playerSlowUntil?this.playerSlowMultiplier:1);
+    const stats=this.currentBuildStats();const speed=this.character.moveSpeed*stats.moveSpeedMultiplier*this.permanentUpgradeEffects.moveSpeedMultiplier*this.relicStats.moveSpeedMultiplier*(time<this.playerSlowUntil?this.playerSlowMultiplier:1);
     if(time>=this.dashUntil)this.player.setVelocity(dir.x*speed,dir.y*speed);
     else if(dir.length()>0)this.player.setVelocity(dir.x*speed*2.6,dir.y*speed*2.6);
   }
@@ -552,12 +559,12 @@ export class RunScene extends Phaser.Scene {
 
   private useAbility():void {
     if(this.time.now<this.abilityReady||this.paused)return;
-    const stats=this.currentBuildStats();this.abilityReady=this.time.now+this.character.ability.cooldownMs*stats.abilityCooldownMultiplier;
+    const stats=this.currentBuildStats();this.abilityReady=this.time.now+this.character.ability.cooldownMs*stats.abilityCooldownMultiplier*this.relicStats.abilityCooldownMultiplier;
     const element=this.character.elementSynergies[0];
     const targets=this.activeTargets();
     for(const enemy of targets){
       if(Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)>this.character.ability.range)continue;
-      this.damageEnemy(enemy,this.state.damage*this.character.ability.damageMultiplier*stats.damageMultiplier*this.character.stats.damageMultiplier,element);
+      this.damageEnemy(enemy,this.state.damage*this.character.ability.damageMultiplier*stats.damageMultiplier*this.character.stats.damageMultiplier*this.relicStats.damageMultiplier*getRelicDamageMultiplier(this.equippedRelicIds,this.character.id,element),element);
       const a=Phaser.Math.Angle.Between(this.player.x,this.player.y,enemy.x,enemy.y);
       enemy.setVelocity(Math.cos(a)*150,Math.sin(a)*150);
     }
@@ -753,8 +760,8 @@ export class RunScene extends Phaser.Scene {
       const target=findNearestTarget(this.player,weakened.length?weakened:targets);if(!target)continue;
       const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,target.x,target.y);
       if(distance>stats.range)continue;
-      this.weaponReady[weapon.id]=time+stats.intervalMs/(this.currentBuildStats().attackSpeedMultiplier*this.baseHasteMultiplier);
-      const damage=stats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier*this.permanentUpgradeEffects.damageMultiplier;
+      this.weaponReady[weapon.id]=time+stats.intervalMs/(this.currentBuildStats().attackSpeedMultiplier*this.relicStats.attackSpeedMultiplier*this.baseHasteMultiplier);
+      const damage=stats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier*this.permanentUpgradeEffects.damageMultiplier*this.relicStats.damageMultiplier*getRelicDamageMultiplier(this.equippedRelicIds,this.character.id,weapon.element);
       let behavior=progress.evolved?this.evolvedWeaponBehavior(weapon):weapon.behavior;
       if(weapon.id==='oath-pike'&&getActiveWeaponSynergies(weapon.id,this.build.passives.map(passive=>passive.passiveId)).some(item=>item.kind==='storm-lance'))behavior='chain-lightning';
       this.executeWeapon(weapon,behavior,damage,stats.projectiles,stats.range,target,stats);
@@ -941,7 +948,7 @@ export class RunScene extends Phaser.Scene {
     }
     const nightThread=PASSIVES.find(item=>item.id==='veil-thread')!.specialUpgrade.mechanic;
     const criticalMultiplier=nightThread.kind==='critical-curse'&&isPassiveSpecialActive(this.build,'veil-thread')?nightThread.criticalMultiplier:1.5;
-    const crit=resolveCriticalHit(damage,this.currentBuildStats().criticalChance,Math.random(),criticalMultiplier);damage=crit.damage;
+    const crit=resolveCriticalHit(damage,this.currentBuildStats().criticalChance+this.relicStats.criticalChanceBonus,Math.random(),criticalMultiplier);damage=crit.damage;
     if(crit.critical&&nightThread.kind==='critical-curse'&&isPassiveSpecialActive(this.build,'veil-thread')){const curseStatus=this.elementStates.get(enemy)??{};const current=curseStatus.dark;const darkDef=ELEMENTS.find(item=>item.id==='dark')!;this.elementStates.set(enemy,{...curseStatus,dark:{buildup:0,stacks:addCurseStack(current&&current.expiresAt>this.time.now?current.stacks:0,nightThread.bonusStacks),expiresAt:this.time.now+darkDef.durationMs,nextTickAt:this.time.now+1000}});}
     if(element==='fire'&&isPassiveSpecialActive(this.build,'ashen-heart')){const fire=PASSIVES.find(item=>item.id==='ashen-heart')!.specialUpgrade.mechanic;if(fire.kind==='fire-explosion'){const ready=tryPassiveCooldown(this.passiveSpecialState,'ember-core',this.time.now,fire.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)for(const nearby of this.activeTargets()){if(nearby!==enemy&&Phaser.Math.Distance.Between(enemy.x,enemy.y,nearby.x,nearby.y)<=fire.radius)this.damageEnemy(nearby,damage*fire.damageMultiplier);}}}
     const ice=PASSIVES.find(item=>item.id==='frostbound-sigil')!.specialUpgrade.mechanic;
@@ -1128,6 +1135,8 @@ export class RunScene extends Phaser.Scene {
     if(type==='boss-chest'&&this.bossVictoryPending){
       this.bossChestCollectOutcome='opened';
       this.bossChestOpenedAtMs=this.time.now;
+      const bossRelic=this.bossDefinition?RELICS.find(relic=>relic.id===this.bossDefinition!.reward.relicId):undefined;
+      if(bossRelic&&!this.runRelicIds.includes(bossRelic.id))this.runRelicIds.push(bossRelic.id);
       const label=object.getData('eventObjectLabel') as Phaser.GameObjects.GameObject|undefined;
       label?.destroy();object.destroy();this.bossVictoryPending=false;
       let evolvedCount=0;
@@ -1176,7 +1185,9 @@ export class RunScene extends Phaser.Scene {
 
   private completeRunEvent(kind:RunEventKind):void {
     const reward=getRunEventReward(kind);this.runSoulEssence+=reward;this.clearRunEventObjects();this.eventSetupPending=false;
-    this.eventHud?.setText(getRunEventName(kind)+' tamamlandı  •  +'+reward+' Ruh Özü').setVisible(true);
+    const relic=kind==='treasure-hunt'?RELICS.find(item=>item.regionId===this.region.id&&item.source==='exploration'):undefined;
+    if(relic&&!this.runRelicIds.includes(relic.id))this.runRelicIds.push(relic.id);
+    this.eventHud?.setText(getRunEventName(kind)+' tamamlandı  •  +'+reward+' Ruh Özü'+(relic?'  •  '+relic.name:'')).setVisible(true);
   }
 
   private failRunEvent(kind:RunEventKind):void {
@@ -1212,7 +1223,7 @@ export class RunScene extends Phaser.Scene {
       if(result.blocked){this.showPassiveSpecialFeedback('MÜHÜRLÜ PLAKA  •  HASAR ENGELLENDİ');return;}
     }
     if(this.time.now<this.weaponSynergyGuardUntil)amount*=1-this.weaponSynergyGuardReduction;
-    const armor=this.currentBuildStats().armor+this.character.stats.armor+this.permanentUpgradeEffects.armorBonus;
+    const armor=this.currentBuildStats().armor+this.character.stats.armor+this.permanentUpgradeEffects.armorBonus+this.relicStats.armorBonus;
     const reduced=Math.max(1,amount*(1-armor/(armor+100)));
     const ward=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='last-ward')?.specialUpgrade.mechanic;
     const protectedHit=resolveLastWard(this.state.health,reduced,this.passiveSpecialState.used.includes('last-ward'),isPassiveSpecialActive(this.build,'wardens-knot'),ward?.kind==='last-ward'?ward.healthRemaining:1);
@@ -1385,8 +1396,8 @@ export class RunScene extends Phaser.Scene {
   private currentBuildStats(){return deriveBuildStats(this.build,PASSIVES);}
 
   private refreshBuildStats():void {
-    const stats=this.currentBuildStats();this.state={...this.state,moveSpeed:this.character.moveSpeed*stats.moveSpeedMultiplier*this.permanentUpgradeEffects.moveSpeedMultiplier,
-      damage:18+this.basePowerBonus,magnetRadius:112+this.baseMagnetBonus+stats.magnetRadiusBonus};
+    const stats=this.currentBuildStats();this.state={...this.state,moveSpeed:this.character.moveSpeed*stats.moveSpeedMultiplier*this.permanentUpgradeEffects.moveSpeedMultiplier*this.relicStats.moveSpeedMultiplier,
+      damage:18+this.basePowerBonus,magnetRadius:112+this.baseMagnetBonus+stats.magnetRadiusBonus+this.relicStats.magnetRadiusBonus};
   }
 
   private magnetize():void {
@@ -1601,7 +1612,7 @@ export class RunScene extends Phaser.Scene {
     try {
       const loaded=manager.load();
       if(!('data' in loaded))return false;
-      manager.save(applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence}));
+      manager.save(applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds}));
       return true;
     } catch {
       return false;

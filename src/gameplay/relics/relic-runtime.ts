@@ -5,12 +5,12 @@ export interface RelicStats {damageMultiplier:number;attackSpeedMultiplier:numbe
 const EMPTY:RelicStats={damageMultiplier:1,attackSpeedMultiplier:1,maxHealthBonus:0,armorBonus:0,moveSpeedMultiplier:1,elementalBuildupMultiplier:1,criticalChanceBonus:0,lifestealBonus:0,abilityCooldownMultiplier:1,magnetRadiusBonus:0};
 const BY_ID=new Map(RELICS.map(relic=>[relic.id,relic]));
 function uniqueKnown(ids:readonly string[]):RelicDefinition[]{const seen=new Set<string>();const out:RelicDefinition[]=[];for(const id of ids){const relic=BY_ID.get(id);if(relic&&!seen.has(id)){seen.add(id);out.push(relic);}}return out;}
-function apply(stats:RelicStats,effect:RelicEffect):void{if(effect.element)return;const key=effect.stat as keyof RelicStats;(stats[key] as number)+=effect.value;}
+function apply(stats:RelicStats,effect:RelicEffect):void{if(effect.element)return;const values=stats as unknown as Record<RelicStat,number>;values[effect.stat]+=effect.value;}
 export function deriveRelicStats(ids:readonly string[],characterId:string):RelicStats{
  const relics=uniqueKnown(ids),stats={...EMPTY};
  for(const relic of relics){apply(stats,relic.effect);if(relic.characterSynergy.characterId===characterId)apply(stats,relic.characterSynergy.effect);}
  const sets=new Map<string,RelicDefinition[]>();for(const relic of relics){const group=sets.get(relic.setId)??[];group.push(relic);sets.set(relic.setId,group);}
- for(const group of sets.values()){const bonus=group[0]!.setBonus;if(group.length>=bonus.requiredCount)(stats[bonus.stat] as number)+=bonus.value;}
+ for(const group of sets.values()){const bonus=group[0]!.setBonus;if(group.length>=bonus.requiredCount)(stats as unknown as Record<RelicStat,number>)[bonus.stat]+=bonus.value;}
  stats.damageMultiplier=Math.max(.5,stats.damageMultiplier);stats.attackSpeedMultiplier=Math.max(.5,stats.attackSpeedMultiplier);stats.moveSpeedMultiplier=Math.max(.5,stats.moveSpeedMultiplier);stats.elementalBuildupMultiplier=Math.max(.5,stats.elementalBuildupMultiplier);stats.abilityCooldownMultiplier=Math.max(.5,Math.min(1.5,stats.abilityCooldownMultiplier));
  return stats;
 }

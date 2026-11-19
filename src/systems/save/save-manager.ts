@@ -1,17 +1,23 @@
 import { CHARACTERS } from '../../data/characters.js';
+import { RELICS } from '../../data/relics.js';
+import { equipRelic as equipRelicIds, unequipRelic as unequipRelicIds } from '../../gameplay/relics/relic-runtime.js';
 import { REGIONS } from '../../data/regions.js';
 import { SAVE_BACKUP_KEY, SAVE_STORAGE_KEY } from './save-storage.js';
 import type { JsonObject, JsonValue, SaveData, SaveLoadResult, SaveStorage } from './save-types.js';
 import { calculatePermanentUpgradeRespec, getPermanentUpgradeCost, getPermanentUpgradeDefinition, isValidPermanentUpgradeRecord } from '../../gameplay/progression/permanent-upgrades.js';
 import type { PermanentUpgradeRespecQuote } from '../../gameplay/progression/permanent-upgrades.js';
 
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
+const RELIC_IDS = new Set(RELICS.map(relic => relic.id));
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+function isRelicIdArray(value: unknown): value is string[] {
+  return isStringArray(value) && value.every(id => RELIC_IDS.has(id)) && new Set(value).size === value.length;
 }
 function isNumberRecord(value: unknown): value is Record<string, number> {
   return isObject(value) && Object.values(value).every((item) => typeof item === 'number' && Number.isFinite(item) && item >= 0);
@@ -51,10 +57,14 @@ function isSaveData(value: unknown): value is SaveData {
     && progression.unlockedRegionIds.length > 0
     && isStringArrayRecord(progression.completedDifficulties)
     && isValidPermanentUpgradeRecord(progression.permanentUpgrades)
+    && isRelicIdArray(equippedRelicIds)
+    && equippedRelicIds.length <= 3
     && isObject(collections)
     && isNumberRecord(collections.characterMastery)
     && isStringArray(collections.unlockedCosmeticIds)
     && isStringArray(collections.discoveredLoreIds)
+    && isRelicIdArray(ownedRelicIds)
+    && equippedRelicIds.every(id => ownedRelicIds.includes(id))
     && isJsonObject(value.settings);
 }
 function parseSave(raw: string): unknown {
@@ -71,9 +81,10 @@ export function createInitialSaveData(now = new Date().toISOString()): SaveData 
       unlockedCharacterIds: [CHARACTERS[0]!.id],
       unlockedRegionIds: [REGIONS[0]!.id],
       completedDifficulties: {},
-      permanentUpgrades: {}
+      permanentUpgrades: {},
+      equippedRelicIds: []
     },
-    collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [] },
+    collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: [] },
     settings: {}
   };
 }
@@ -99,12 +110,14 @@ function migrateV0(value: Record<string, unknown>, now: string): SaveData {
       completedDifficulties: isStringArrayRecord(progression.completedDifficulties)
         ? progression.completedDifficulties : defaults.progression.completedDifficulties,
       permanentUpgrades: isValidPermanentUpgradeRecord(progression.permanentUpgrades)
-        ? progression.permanentUpgrades : defaults.progression.permanentUpgrades
+        ? progression.permanentUpgrades : defaults.progression.permanentUpgrades,
+      equippedRelicIds: []
     },
     collections: {
       characterMastery: isNumberRecord(collections.characterMastery) ? collections.characterMastery : defaults.collections.characterMastery,
       unlockedCosmeticIds: isStringArray(collections.unlockedCosmeticIds) ? collections.unlockedCosmeticIds : defaults.collections.unlockedCosmeticIds,
-      discoveredLoreIds: isStringArray(collections.discoveredLoreIds) ? collections.discoveredLoreIds : defaults.collections.discoveredLoreIds
+      discoveredLoreIds: isStringArray(collections.discoveredLoreIds) ? collections.discoveredLoreIds : defaults.collections.discoveredLoreIds,
+      relicIds: []
     },
     settings: isJsonObject(value.settings) ? value.settings : defaults.settings
   };
@@ -116,12 +129,27 @@ function migrateV1(value: Record<string, unknown>): SaveData {
   const progression = value.progression;
   if (!isObject(progression)) throw new Error('Legacy version-one progression is invalid.');
   const upgrades = progression.permanentUpgrades === undefined ? {} : progression.permanentUpgrades;
+  const collections = isObject(value.collections) ? value.collections : {};
   const candidate: unknown = {
     ...value,
     schemaVersion: CURRENT_SCHEMA_VERSION,
-    progression: { ...progression, permanentUpgrades: upgrades }
+    progression: { ...progression, permanentUpgrades: upgrades, equippedRelicIds: [] },
+    collections: { ...collections, relicIds: [] }
   };
   if (!isSaveData(candidate)) throw new Error('Legacy version-one save contains invalid values.');
+  return candidate;
+}
+
+function migrateV2(value: Record<string, unknown>): SaveData {
+  const progression = isObject(value.progression) ? value.progression : {};
+  const collections = isObject(value.collections) ? value.collections : {};
+  const candidate: unknown = {
+    ...value,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    progression: { ...progression, equippedRelicIds: [] },
+    collections: { ...collections, relicIds: [] }
+  };
+  if (!isSaveData(candidate)) throw new Error('Legacy version-two save contains invalid values.');
   return candidate;
 }
 
@@ -242,6 +270,34 @@ export class SaveManager {
     }
   }
 
+  acquireRelics(relicIds: readonly string[]): boolean {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return false;
+    const owned = new Set(result.data.collections.relicIds);
+    for (const id of relicIds) if (RELIC_IDS.has(id)) owned.add(id);
+    const next = [...owned];
+    if (next.length === result.data.collections.relicIds.length) return true;
+    result.data.collections.relicIds = next;
+    try { this.save(result.data); return true; } catch { return false; }
+  }
+
+  equipRelic(relicId: string, slot?: number): boolean {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return false;
+    const next = equipRelicIds(result.data.collections.relicIds, result.data.progression.equippedRelicIds, relicId, slot);
+    if (!next) return false;
+    result.data.progression.equippedRelicIds = next;
+    try { this.save(result.data); return true; } catch { return false; }
+  }
+
+  unequipRelic(relicId: string): boolean {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return false;
+    if (!result.data.progression.equippedRelicIds.includes(relicId)) return false;
+    result.data.progression.equippedRelicIds = unequipRelicIds(result.data.progression.equippedRelicIds, relicId);
+    try { this.save(result.data); return true; } catch { return false; }
+  }
+
   private decode(raw: string): SaveLoadResult {
     try {
       const value = parseSave(raw);
@@ -253,6 +309,7 @@ export class SaveManager {
       if (version > CURRENT_SCHEMA_VERSION) return { status: 'unsupported', version };
       if (version === 0) return { status: 'migrated', data: migrateV0(value, this.now()) };
       if (version === 1) return { status: 'migrated', data: migrateV1(value) };
+      if (version === 2) return { status: 'migrated', data: migrateV2(value) };
       if (!isSaveData(value)) return { status: 'corrupt', message: 'Save data failed validation.' };
       return { status: 'loaded', data: value };
     } catch (error) {
