@@ -15,6 +15,11 @@ export function addPassive(build:BuildState,passive:PassiveDefinition):BuildStat
 export function upgradeWeapon(build:BuildState,weapon:WeaponDefinition):BuildState {
   return {...build,weapons:build.weapons.map(w=>w.weaponId===weapon.id?{...w,level:Math.min(weapon.maxLevel,w.level+1)}:w)};
 }
+export function chooseWeaponBranch(build:BuildState,weapon:WeaponDefinition,branchId:string):BuildState {
+  const owned=build.weapons.find(item=>item.weaponId===weapon.id);
+  if(!owned||owned.level<3||owned.branchId||!weapon.branches.some(branch=>branch.id===branchId))return build;
+  return {...build,weapons:build.weapons.map(item=>item.weaponId===weapon.id?{...item,branchId}:item)};
+}
 export function upgradePassive(build:BuildState,passive:PassiveDefinition):BuildState {
   return {...build,passives:build.passives.map(p=>p.passiveId===passive.id?{...p,level:Math.min(passive.maxLevel,p.level+1)}:p)};
 }
@@ -44,5 +49,19 @@ export function deriveBuildStats(build:BuildState,passives:readonly PassiveDefin
 }
 export function weaponLevelStats(progress:WeaponProgress,definition:WeaponDefinition) {
   const row=definition.levels[Math.max(0,Math.min(definition.levels.length-1,progress.level-1))]!;
-  return {...row,behavior:progress.evolved?definition.evolution.behaviorChange:definition.behavior,evolutionName:progress.evolved?definition.evolution.name:undefined};
+  const branch=definition.branches.find(item=>item.id===progress.branchId);
+  const modifiers=branch?.modifiers;
+  return {
+    ...row,
+    damage:Math.round(row.damage*(modifiers?.damageMultiplier??1)),
+    intervalMs:Math.max(120,Math.round(row.intervalMs*(modifiers?.intervalMultiplier??1))),
+    range:Math.round(row.range*(modifiers?.rangeMultiplier??1)),
+    projectiles:Math.max(1,row.projectiles+(modifiers?.projectileBonus??0)),
+    pierce:(definition.behavior==='piercing-thrust'?2:1)+(modifiers?.pierceBonus??0),
+    areaMultiplier:modifiers?.areaMultiplier??1,
+    chainTargetBonus:modifiers?.chainTargetBonus??0,
+    branchName:branch?.name,
+    behavior:progress.evolved?definition.evolution.behaviorChange:definition.behavior,
+    evolutionName:progress.evolved?definition.evolution.name:undefined
+  };
 }
