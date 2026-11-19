@@ -277,6 +277,9 @@ export class HunterHubScene extends Phaser.Scene {
         }
       }
     });
+    this.respecButton?.setStyle(this.selectedIndex === UPGRADES.length
+      ? { color: '#ffffff', backgroundColor: '#5b3d32' }
+      : { color: '#d9c9aa', backgroundColor: '#2b2528' });
   }
 
   private purchaseUpgrade(upgradeId: string, cost: number, maxLevel: number): void {
