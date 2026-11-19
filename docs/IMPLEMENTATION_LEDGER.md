@@ -127,18 +127,18 @@ Allowed states: NOT_STARTED · IN_PROGRESS · IMPLEMENTED_UNVERIFIED · VERIFIED
 | GDD section | Requirement IDs | Assessment |
 |---|---|---|
 | §1 Vision | CORE-01..03 | Identity/platform documented; runtime pending. |
-| §2 Core loop | RUN-01..05, PROG-01 | Run/profile separation and persistent Ruh Özü accrual are integrated; permanent upgrade spending and full progression loop remain. |
+| §2 Core loop | RUN-01..05, PROG-01 | Run/profile separation, persistent Ruh Özü and six permanent upgrades applied to live run stats are integrated; full meta-progression, respec and mastery remain. |
 | §3 World and story | WORLD-01..02 | Lore and branching choices absent. |
 | §4 Regions | REGION-01..05, WORLD-03 | Five previews remain; next-region unlocks are now granted on boss victory and loaded by region selection. Region maps, exploration and end-to-end combat unlock verification remain. |
 | §5 Characters | CHAR-01..05 | Five catalog hunters are selectable; complete kits, mastery, cosmetics and full playtesting remain. |
 | §6 Combat and movement | RUN-03..04, WEAPON-01..12, UI-09 | Basic movement/ability/weapon in progress. |
-| §7 Run system | RUN-01, RUN-07, RUN-09 | Spawn pacing/cap and region boss flow are wired; event director, elite system and final tuning remain. |
+| §7 Run system | RUN-01, RUN-07, RUN-09 | Spawn pacing/cap, elite scheduling, timed run events and region boss flow are wired; final tuning and natural 15-minute run balance remain. |
 | §8 Enemies | ENEMY-01..25 | All 25 archetypes have scene AI and authored special combat rules. Runtime tests cover catalog/region links, deterministic AI intents, attack ranges/cooldowns and special actions; CI #247 passes. |
 | §9 Bosses | BOSS-01..05 | Five bosses have three authored phases each. Runtime tests cover all 15 phase definitions, region links, add references, telegraphs, transitions, cooldowns and defeat clamping; CI #247 passes. |
-| §10 Weapons | WEAPON-01..12, RUN-08 | Twelve attack behavior dispatches, level stats and boss-gated evolution behavior are wired; branches, chest interaction, feedback and balance remain. |
+| §10 Weapons | WEAPON-01..12, RUN-08 | Twelve weapon behaviors, level stats, two branches, boss-chest evolution and 14 weapon/passive synergies are wired and browser-tested; final VFX/audio feedback and balance remain. |
 | §11 Passives | PASSIVE-01..12 | All twelve passives and their twelve level-five special mechanics are integrated into level-up/runtime behavior; CI #247 passes. Balance, final feedback art/audio and device testing remain. |
 | §12 Elements | ELEM-01..07 | Seven-element buildup, resistance, reactions and partial unique status effects are integrated; full status depth and tuning remain. |
-| §13 XP and level-up | RUN-05..06 | XP pickup and level-up flow are browser-tested; reroll/banish/skip controls are implemented and real-overlay tested. Broader XP balance and RNG controls remain. |
+| §13 XP and level-up | RUN-05..06 | XP pickup/level-up, two rerolls, banish, skip and per-run reset are browser-tested; permanent reroll bonuses are applied. XP curve and natural-run balance remain. |
 | §14 Relics/crafting/equipment | PROG-02..04 | Hunter Hub and six permanent upgrade cards are implemented. NPC services, relics, crafting and equipment profiles remain incomplete. |
 | §15 Economy/progression | PROG-01, PROG-06 | Ruh Özü persists; six capped permanent upgrades now apply to live run stats. Respec/reallocation, broader unlock trees, mastery and achievements remain. |
 | §16 Quests/challenges | PROG-05 | Not implemented. |
@@ -147,7 +147,7 @@ Allowed states: NOT_STARTED · IN_PROGRESS · IMPLEMENTED_UNVERIFIED · VERIFIED
 | §19 Visual standards | VIS-01..02 | Vector placeholders only. |
 | §20 Audio | AUDIO-01 | Not implemented. |
 | §21 Accessibility | ACCESS-01 | Not implemented. |
-| §22 Technical architecture | CORE-01..03, SAVE-01 | Engine foundation and local save schema v2 are implemented. Version-1 migration, backup recovery, first-profile/reload and reward persistence pass CI #240; physical-device storage validation remains. |
+| §22 Technical architecture | CORE-01..03, SAVE-01 | Engine foundation and local save schema v2 are implemented. Version-1 migration, backup recovery, first-profile/reload and reward persistence pass CI #247; physical-device storage validation remains. |
 | §23 Monetization | CORE-01 | No monetization planned; no ads/paid dependencies. |
 | §24 QA | QA-01..02 | CI #247 passes 106 unit tests, 14 Chromium browser tests, typecheck, build and npm audit (0 vulnerabilities). Long-session, accessibility, physical controller, mobile, TV and Android QA remain. |
 | §25 Localization | LOC-01 | Not implemented. |
