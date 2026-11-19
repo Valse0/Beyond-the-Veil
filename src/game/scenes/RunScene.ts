@@ -198,9 +198,8 @@ export class RunScene extends Phaser.Scene {
     this.build={weapons:[{weaponId:weapon.id,level:3,evolved:false}],passives:[]};
     this.queuedLevels=1;
     this.pauseRunWorld();
-    this.currentLevelChoices=this.buildChoices().filter(choice=>choice.kind==='weapon-branch'&&choice.contentId===weapon.id);
-    if(this.currentLevelChoices.length!==2)throw new Error('Expected exactly two branch choices for '+weapon.id+'.');
-    this.renderLevelUpChoices();
+    this.showLevelUp();
+    if(this.currentLevelChoices.filter(choice=>choice.kind==='weapon-branch'&&choice.contentId===weapon.id).length!==2)throw new Error('Expected exactly two branch choices for '+weapon.id+'.');
   }
 
   browserTestFireSelectedWeapon():{shotCount:number;damages:number[]} {
@@ -1104,8 +1103,18 @@ export class RunScene extends Phaser.Scene {
     return choices;
   }
 
-  private drawLevelUpChoices(excludedIds:readonly string[]=[]):LevelChoice[] {
-    return drawChoicesFromPool(this.buildChoices(),this.levelUpControls,()=>Phaser.Math.RND.frac(),excludedIds);
+  private drawLevelUpChoices(excludedIds:readonly string[]=[],controlState:LevelUpControlState=this.levelUpControls):LevelChoice[] {
+    const pool=this.buildChoices();
+    const unavailable=new Set([...excludedIds,...controlState.bannedChoiceIds]);
+    const branchWeaponIds=[...new Set(pool.filter(choice=>choice.kind==='weapon-branch').map(choice=>choice.contentId).filter((id):id is string=>Boolean(id)))];
+    for(const weaponId of branchWeaponIds){
+      const pair=pool.filter(choice=>choice.kind==='weapon-branch'&&choice.contentId===weaponId&&!unavailable.has(choice.id));
+      if(pair.length!==2)continue;
+      const regularPool=pool.filter(choice=>choice.kind!=='weapon-branch');
+      const fillers=drawChoicesFromPool(regularPool,controlState,()=>Phaser.Math.RND.frac(),excludedIds);
+      return [...pair,...fillers.slice(0,2)];
+    }
+    return drawChoicesFromPool(pool.filter(choice=>choice.kind!=='weapon-branch'),controlState,()=>Phaser.Math.RND.frac(),excludedIds);
   }
 
   private showLevelUp():void {
@@ -1140,7 +1149,7 @@ export class RunScene extends Phaser.Scene {
     const nextState=spendLevelUpReroll(this.levelUpControls);
     if(!nextState)return;
     const visibleIds=this.currentLevelChoices.map(choice=>choice.id);
-    const nextChoices=drawChoicesFromPool(this.buildChoices(),nextState,()=>Phaser.Math.RND.frac(),visibleIds);
+    const nextChoices=this.drawLevelUpChoices(visibleIds,nextState);
     if(nextChoices.length===0)return;
     this.levelUpControls=nextState;this.currentLevelChoices=nextChoices;this.banishMode=false;
     this.renderLevelUpChoices();
@@ -1156,7 +1165,7 @@ export class RunScene extends Phaser.Scene {
     const nextState=spendLevelUpBanish(this.levelUpControls,choice.id);
     if(!nextState)return;
     const remainingIds=this.currentLevelChoices.filter(item=>item.id!==choice.id).map(item=>item.id);
-    const nextChoices=drawChoicesFromPool(this.buildChoices(),nextState,()=>Phaser.Math.RND.frac(),remainingIds);
+    const nextChoices=this.drawLevelUpChoices(remainingIds,nextState);
     this.levelUpControls=nextState;this.currentLevelChoices=nextChoices;this.banishMode=false;
     this.renderLevelUpChoices();
   }
