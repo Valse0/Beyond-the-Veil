@@ -136,3 +136,12 @@ The six collection sets are derived from the source catalogs rather than duplica
 Each collection has a unique achievement and a persistent collection reward ID. Completing all six unlocks `veil-archivist-regalia` and the `grand-collector` achievement. The reward IDs are saved independently from equipped cosmetics and do not grant gameplay power. The archive UI and visual reward presentation are deferred.
 
 The catalog is generated from the enemy, weapon, relic, region, character and mastery source definitions. Tests assert the exact 25/12/10/5/5/5 content counts and stable cross-references.
+
+
+### Achievement cosmetics
+
+- forest-wraith — Lanetli Avcı için başarımla açılan kozmetik kimliği.
+- bone-regalia — Kara Şövalye için başarımla açılan kozmetik kimliği.
+- mourning-veil — Ruh Büyücüsü için başarımla açılan kozmetik kimliği.
+
+These are stable content IDs only; final artwork and cosmetic selection UI remain deferred.

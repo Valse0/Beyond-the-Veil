@@ -58,14 +58,17 @@ test('full collections complete once and grant six rewards plus the grand-comple
   const discoveries = {
     enemyIdsEarned: ENEMIES.map(item => item.id),
     weaponIdsEarned: WEAPONS.map(item => item.id),
-    relicIdsEarned: RELICS.map(item => item.id),
     loreIdsEarned: REGIONS.map(item => item.explorationPoints[0].id)
   };
-  for (const character of CHARACTERS) {
-    save = applyRunResult(save, {
-      regionId: 'cursed-forest', won: true, soulEssenceEarned: 0, characterId: character.id, kills: 0,
-      ...discoveries
-    });
+  for (const region of REGIONS) {
+    for (const character of CHARACTERS) {
+      save = applyRunResult(save, {
+        regionId: region.id, won: true, soulEssenceEarned: 0, characterId: character.id, kills: 0,
+        relicIdsEarned: RELICS.filter(item => item.regionId === region.id).map(item => item.id),
+        bossChestOpened: true, completedTreasureHunt: true,
+        ...discoveries
+      });
+    }
   }
   assert.deepEqual(save.collections.completedCollectionIds, COLLECTIONS.map(item => item.id));
   assert.equal(save.collections.unlockedCollectionRewardIds.length, 7);
@@ -80,22 +83,23 @@ test('full collections complete once and grant six rewards plus the grand-comple
   assert.equal(save.collections.unlockedMasteryRewardIds.filter(id => CHARACTERS.some(c => c.mastery.some(m => m.level === 10 && m.rewardId === id))).length, 5);
   const again = applyRunResult(save, {
     regionId: 'cursed-forest', won: true, soulEssenceEarned: 0, characterId: 'cursed-hunter', kills: 0,
+    relicIdsEarned: RELICS.filter(item => item.regionId === 'cursed-forest').map(item => item.id),
+    bossChestOpened: true, completedTreasureHunt: true,
     ...discoveries
   });
   assert.equal(again.collections.unlockedCollectionRewardIds.length, 7);
   assert.equal(again.collections.completedAchievementIds.filter(id => id.startsWith('collection-')).length, 6);
 });
 
-test('relics granted by achievements count toward relic-vault completion immediately', () => {
+test('achievement rewards do not bypass the relic vault source requirements', () => {
   const save = createInitialSaveData();
-  const achievementRelics = new Set(['forest-heart', 'king-crown-shard', 'grave-lament']);
-  save.collections.relicIds = RELICS.filter(item => !achievementRelics.has(item.id)).map(item => item.id);
+  const missingRelic = 'forest-heart';
+  save.collections.relicIds = RELICS.filter(item => item.id !== missingRelic).map(item => item.id);
   const result = applyRunResult(save, {
-    regionId: 'cursed-forest', won: true, soulEssenceEarned: 0,
+    regionId: 'cursed-forest', won: false, soulEssenceEarned: 0,
     characterId: 'cursed-hunter', kills: 100, explorationEventsCompleted: 3
   });
-  assert.equal(result.collections.relicIds.length, 10);
-  assert.ok(result.collections.completedCollectionIds.includes('relic-vault'));
-  assert.ok(result.collections.completedAchievementIds.includes('collection-relic-vault'));
-  assert.ok(result.collections.unlockedCollectionRewardIds.includes('relic-curator'));
+  assert.equal(result.collections.relicIds.length, 9);
+  assert.ok(!result.collections.completedCollectionIds.includes('relic-vault'));
+  assert.ok(!result.collections.unlockedCollectionRewardIds.includes('relic-curator'));
 });

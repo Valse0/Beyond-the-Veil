@@ -72,7 +72,7 @@ test('character mastery persists on defeat, awards kill bonuses, and unlocks mil
   const second = applyRunResult(first, { regionId: 'cursed-forest', won: true, soulEssenceEarned: 0, characterId: 'cursed-hunter', kills: 90 });
   assert.equal(second.collections.characterMastery['cursed-hunter'], 27);
   assert.deepEqual(second.collections.unlockedMasteryRewardIds, ['hunter-title']);
-  assert.deepEqual(second.collections.unlockedCosmeticIds, ['ashen-hunter']);
+  assert.deepEqual(second.collections.unlockedCosmeticIds, ['ashen-hunter', 'forest-wraith']);
   assert.equal(save.collections.characterMastery['cursed-hunter'], undefined);
 });
 
@@ -82,13 +82,13 @@ test('mastery grants the boss victory bonus and unlocks level-five and level-ten
   const result = applyRunResult(save, { regionId: 'cursed-forest', won: true, soulEssenceEarned: 0, characterId: 'black-knight', kills: 0 });
   assert.equal(result.collections.characterMastery['black-knight'], 112);
   assert.deepEqual(result.collections.unlockedMasteryRewardIds, ['knight-title', 'aegis-alt']);
-  assert.deepEqual(result.collections.unlockedCosmeticIds, ['ashen-hunter']);
+  assert.deepEqual(result.collections.unlockedCosmeticIds, ['ashen-hunter', 'bone-regalia']);
   const final = applyRunResult({ ...result, collections: { ...result.collections, characterMastery: { ...result.collections.characterMastery, 'black-knight': 249 } } }, {
     regionId: 'cursed-forest', won: false, soulEssenceEarned: 0, characterId: 'black-knight', kills: 0
   });
   assert.equal(final.collections.characterMastery['black-knight'], 252);
   assert.deepEqual(final.collections.unlockedMasteryRewardIds, ['knight-title', 'aegis-alt', 'iron-oath-skin']);
-  assert.deepEqual(final.collections.unlockedCosmeticIds, ['ashen-hunter', 'iron-oath-skin']);
+  assert.deepEqual(final.collections.unlockedCosmeticIds, ['ashen-hunter', 'bone-regalia', 'iron-oath-skin']);
 });
 
 test('run results grant achievements and keep rewards after defeat', () => {
@@ -98,7 +98,8 @@ test('run results grant achievements and keep rewards after defeat', () => {
   assert.ok(result.collections.completedAchievementIds.includes('first-blood'));
   assert.ok(result.collections.completedAchievementIds.includes('curious-soul'));
   assert.ok(result.collections.unlockedCosmeticIds.includes('ashen-hunter'));
-  assert.ok(result.collections.relicIds.includes('forest-heart'));
+  assert.ok(result.collections.unlockedCosmeticIds.includes('forest-wraith'));
+  assert.ok(!result.collections.relicIds.includes('forest-heart'));
 });
 
 test('run discoveries persist on defeat while region story lore requires a victory input', () => {

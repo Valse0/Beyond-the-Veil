@@ -134,3 +134,6 @@ Seven authored pair reactions have typed outcomes: Thermal Shock (burst), Igniti
 - Exploration-source relics are accepted only after a treasure-hunt event completed successfully in their authored region; the resulting relic is retained even if the run later ends in defeat.
 - Achievement rewards no longer grant boss or exploration relic IDs. Those relics remain exclusive to their authored gameplay sources.
 - Relic runtime coverage asserts the authored stat modifier for all ten relics, including element-specific damage bonuses, character affinities and set effects. Browser coverage follows the actual Phaser chest/event handlers and verifies ownership persistence.
+
+
+- Achievement rewards use separate authored cosmetic IDs (forest-wraith, bone-regalia, mourning-veil) rather than directly granting boss- or exploration-source relics.

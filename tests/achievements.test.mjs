@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyAchievementRunProgress } from '../.test-dist/src/gameplay/progression/achievements.js';
 import { createInitialSaveData } from '../.test-dist/src/systems/save/save-manager.js';
+import { CHARACTERS } from '../.test-dist/src/data/characters.js';
 import { applyRunResult } from '../.test-dist/src/gameplay/run/run-results.js';
 
 test('run achievements grant catalogued rewards to the correct collections', () => {
@@ -54,4 +55,6 @@ test('run results track distinct hunters, regions, boss victories and exploratio
 test('achievement catalog never bypasses the authored boss-chest or treasure-hunt relic sources', async () => {
   const { ACHIEVEMENTS } = await import('../.test-dist/src/data/achievements.js');
   assert.ok(ACHIEVEMENTS.every(item => item.reward.kind !== 'relic'));
+  const cosmeticIds = new Set(CHARACTERS.flatMap(character => character.cosmetics));
+  assert.ok(ACHIEVEMENTS.filter(item => item.reward.kind === 'cosmetic').every(item => cosmeticIds.has(item.reward.id)));
 });
