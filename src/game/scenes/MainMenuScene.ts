@@ -1,7 +1,13 @@
 import Phaser from 'phaser';
 
+type MainMenuItem = 'new-run' | 'hunter-hub';
+
 export class MainMenuScene extends Phaser.Scene {
+  private selectedItem: MainMenuItem = 'new-run';
   private previousPadConfirm = false;
+  private previousPadNavigation = '';
+  private playButton?: Phaser.GameObjects.Text;
+  private hubButton?: Phaser.GameObjects.Text;
 
   constructor() { super('main-menu'); }
 
@@ -27,21 +33,21 @@ export class MainMenuScene extends Phaser.Scene {
       fontFamily: 'Georgia, serif', fontSize: '20px', color: '#a9a0a0'
     });
 
-    const play = this.add.text(82, h - 185, '▶  YENİ KOŞU', {
+    this.playButton = this.add.text(82, h - 185, '▶  YENİ KOŞU', {
       fontFamily: 'Arial, sans-serif', fontSize: '22px', color: '#f2e8d4',
       backgroundColor: '#5b3d32', padding: { x: 25, y: 16 }
     }).setInteractive({ useHandCursor: true });
-    play.on('pointerover', () => play.setStyle({ backgroundColor: '#79513c', color: '#ffffff' }));
-    play.on('pointerout', () => play.setStyle({ backgroundColor: '#5b3d32', color: '#f2e8d4' }));
-    play.on('pointerup', () => this.startNewRun());
+    this.playButton.on('pointerover', () => this.setSelectedItem('new-run'));
+    this.playButton.on('pointerup', () => this.startNewRun());
 
-    const hub = this.add.text(320, h - 185, '⚒  AVCI KARARGAHI', {
+    this.hubButton = this.add.text(320, h - 185, '⚒  AVCI KARARGAHI', {
       fontFamily: 'Arial, sans-serif', fontSize: '22px', color: '#f2e8d4',
       backgroundColor: '#2b2528', padding: { x: 25, y: 16 }
     }).setInteractive({ useHandCursor: true });
-    hub.on('pointerover', () => hub.setStyle({ backgroundColor: '#3d3439', color: '#ffffff' }));
-    hub.on('pointerout', () => hub.setStyle({ backgroundColor: '#2b2528', color: '#f2e8d4' }));
-    hub.on('pointerup', () => this.scene.start('hunter-hub'));
+    this.hubButton.on('pointerover', () => this.setSelectedItem('hunter-hub'));
+    this.hubButton.on('pointerup', () => this.openHunterHub());
+
+    this.setSelectedItem(this.selectedItem);
 
     this.add.text(84, h - 82, 'WASD / OKLAR: HAREKET     SPACE: DASH     E: RUH DARBESİ     ESC: DURAKLAT', {
       fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#77727a'
@@ -50,20 +56,88 @@ export class MainMenuScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#625d66'
     }).setOrigin(1, 0.5);
 
-    this.add.text(84, h - 125, 'ENTER / A: YENİ KOŞU', {
+    this.add.text(84, h - 125, 'OKLAR: SEÇ     ENTER / SPACE / A: ONAYLA', {
       fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#a9977d'
     });
-    this.input.keyboard?.on('keydown-ENTER', () => this.startNewRun());
+
+    this.input.keyboard?.on('keydown-LEFT', (event: KeyboardEvent) => {
+      if (!event.repeat) this.setSelectedItem('new-run');
+    });
+    this.input.keyboard?.on('keydown-UP', (event: KeyboardEvent) => {
+      if (!event.repeat) this.setSelectedItem('new-run');
+    });
+    this.input.keyboard?.on('keydown-RIGHT', (event: KeyboardEvent) => {
+      if (!event.repeat) this.setSelectedItem('hunter-hub');
+    });
+    this.input.keyboard?.on('keydown-DOWN', (event: KeyboardEvent) => {
+      if (!event.repeat) this.setSelectedItem('hunter-hub');
+    });
+    this.input.keyboard?.on('keydown-ENTER', (event: KeyboardEvent) => {
+      if (!event.repeat) this.activateSelectedItem();
+    });
+    this.input.keyboard?.on('keydown-SPACE', (event: KeyboardEvent) => {
+      if (!event.repeat) this.activateSelectedItem();
+    });
   }
 
   update(): void {
     const pad = this.input.gamepad?.getPad(0);
-    const confirm = Boolean(pad?.A || pad?.buttons[9]?.pressed);
-    if (confirm && !this.previousPadConfirm) this.startNewRun();
+    if (!pad) {
+      this.previousPadConfirm = false;
+      this.previousPadNavigation = '';
+      return;
+    }
+
+    const confirm = Boolean(pad.A || pad.buttons[9]?.pressed);
+    if (confirm && !this.previousPadConfirm) this.activateSelectedItem();
     this.previousPadConfirm = confirm;
+
+    const dpadUp = Boolean(pad.buttons[12]?.pressed);
+    const dpadDown = Boolean(pad.buttons[13]?.pressed);
+    const dpadLeft = Boolean(pad.buttons[14]?.pressed);
+    const dpadRight = Boolean(pad.buttons[15]?.pressed);
+    const stickX = pad.leftStick.x;
+    const stickY = pad.leftStick.y;
+    const direction = dpadLeft || (!dpadUp && !dpadDown && !dpadRight && stickX < -0.5)
+      ? 'left'
+      : dpadRight || (!dpadUp && !dpadDown && stickX > 0.5)
+        ? 'right'
+        : dpadUp || stickY < -0.5
+          ? 'up'
+          : dpadDown || stickY > 0.5
+            ? 'down'
+            : '';
+
+    if (direction && direction !== this.previousPadNavigation) {
+      this.setSelectedItem(direction === 'left' || direction === 'up' ? 'new-run' : 'hunter-hub');
+    }
+    this.previousPadNavigation = direction;
+  }
+
+  private setSelectedItem(item: MainMenuItem): void {
+    this.selectedItem = item;
+    this.playButton?.setStyle({
+      backgroundColor: item === 'new-run' ? '#79513c' : '#2b2528',
+      color: item === 'new-run' ? '#ffffff' : '#bcb2a7',
+      fontStyle: item === 'new-run' ? 'bold' : 'normal'
+    });
+    this.hubButton?.setStyle({
+      backgroundColor: item === 'hunter-hub' ? '#79513c' : '#2b2528',
+      color: item === 'hunter-hub' ? '#ffffff' : '#bcb2a7',
+      fontStyle: item === 'hunter-hub' ? 'bold' : 'normal'
+    });
+  }
+
+  private activateSelectedItem(): void {
+    if (this.selectedItem === 'new-run') this.startNewRun();
+    else this.openHunterHub();
   }
 
   private startNewRun(): void {
     this.scene.start('character-select');
+  }
+
+  private openHunterHub(): void {
+    this.scene.start('hunter-hub');
   }
 }
