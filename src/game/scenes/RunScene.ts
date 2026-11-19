@@ -487,7 +487,7 @@ export class RunScene extends Phaser.Scene {
     this.assertBrowserTestMode();
     this.spawnBoss();
     if(!this.bossSprite||!this.bossDefinition)throw new Error('The current region has no test boss.');
-    this.damageBossTarget(this.bossSprite,this.bossDefinition.health+1);
+    this.damageBossTarget(this.bossSprite,this.bossDefinition.health*3);
   }
 
   browserTestMoveToBossChest():void {
