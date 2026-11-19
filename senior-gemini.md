@@ -35,7 +35,7 @@ The browser suite includes real Phaser checks for the six permanent-upgrade effe
 
 [GitHub Actions #247](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44555450343)
 
-The #247 workflow includes the final synergy-fixture isolation changes and verifies the latest branch head.
+The #247 workflow includes the final synergy-fixture isolation changes and verifies the latest code head at that time. Subsequent commits on the current branch are documentation-only.
 
 ## 4. Critical remaining GDD work
 
