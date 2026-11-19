@@ -120,8 +120,8 @@ export class HunterHubScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#d9c9aa',
       backgroundColor: '#2b2528', padding: { x: 18, y: 10 }
     }).setOrigin(1, 0.5);
-    this.respecButton.on('pointerover', () => this.respecButton?.setStyle({ color: '#ffffff', backgroundColor: '#5b3d32' }));
-    this.respecButton.on('pointerout', () => this.respecButton?.setStyle({ color: '#d9c9aa', backgroundColor: '#2b2528' }));
+    this.respecButton.on('pointerover', () => { this.selectedIndex = UPGRADES.length; this.highlightSelected(); });
+    this.respecButton.on('pointerout', () => this.highlightSelected());
     this.respecButton.on('pointerup', () => this.openRespecDialog());
 
     this.input.keyboard?.on('keydown-ESC', () => {
@@ -158,20 +158,24 @@ export class HunterHubScene extends Phaser.Scene {
     }
 
     if (up && !this.previousPad.up) {
-      this.selectedIndex = (this.selectedIndex - 1 + UPGRADES.length) % UPGRADES.length;
+      this.selectedIndex = (this.selectedIndex - 1 + UPGRADES.length + 1) % (UPGRADES.length + 1);
       this.highlightSelected();
     }
     if (down && !this.previousPad.down) {
-      this.selectedIndex = (this.selectedIndex + 1) % UPGRADES.length;
+      this.selectedIndex = (this.selectedIndex + 1) % (UPGRADES.length + 1);
       this.highlightSelected();
     }
     if (confirm && !this.previousPad.confirm) {
-      const upgrade = UPGRADES[this.selectedIndex]!;
-      const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
-      if (saveManager) {
-        const currentLevel = saveManager.getPermanentUpgradeLevel(upgrade.id);
-        const cost = getPermanentUpgradeCost(upgrade.id, currentLevel);
-        if (cost !== null) this.purchaseUpgrade(upgrade.id, cost, upgrade.maxLevel);
+      if (this.selectedIndex === UPGRADES.length) {
+        this.openRespecDialog();
+      } else {
+        const upgrade = UPGRADES[this.selectedIndex]!;
+        const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+        if (saveManager) {
+          const currentLevel = saveManager.getPermanentUpgradeLevel(upgrade.id);
+          const cost = getPermanentUpgradeCost(upgrade.id, currentLevel);
+          if (cost !== null) this.purchaseUpgrade(upgrade.id, cost, upgrade.maxLevel);
+        }
       }
     }
     if (back && !this.previousPad.back) {
@@ -322,6 +326,9 @@ export class HunterHubScene extends Phaser.Scene {
         }
       }
     });
+    this.respecButton?.setStyle(this.selectedIndex === UPGRADES.length
+      ? { color: '#ffffff', backgroundColor: '#5b3d32' }
+      : { color: '#d9c9aa', backgroundColor: '#2b2528' });
     this.highlightSelected();
   }
 }
