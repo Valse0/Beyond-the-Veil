@@ -652,7 +652,7 @@ export class RunScene extends Phaser.Scene {
       const marker=this.add.graphics().setDepth(7);marker.lineStyle(2,elementTint[element],.9);marker.strokeCircle(target.x,target.y,Math.min(72,range*.28)*stats.areaMultiplier);
       this.time.delayedCall(behavior==='area-seed'?450:650,()=>{if(!this.runFinished){this.damageTargetsInRadius(target.x,target.y,Math.min(78,range*.3)*stats.areaMultiplier,damage,element);}marker.destroy();});return;
     }
-    const count=behavior==='fan-volley'?Math.max(3,projectiles):projectiles;
+    const count=behavior==='fan-volley'?Math.max(3,stats.baseProjectiles)+stats.projectileBonus:projectiles;
     for(let i=0;i<count;i++){
       const spread=count>1?(i-(count-1)/2)*.22:0;
       this.createProjectile(weapon,damage,element,angle+spread,behavior==='homing-projectile'||behavior==='spirit-seeker',stats.pierce,target,stats.areaMultiplier);
