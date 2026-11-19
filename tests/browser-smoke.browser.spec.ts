@@ -13,7 +13,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
     const raw = window.localStorage.getItem('beyond-the-veil.save');
     return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string }; progression: { unlockedCharacterIds: string[]; unlockedRegionIds: string[] } } : null;
   });
-  expect(firstSave?.schemaVersion).toBe(1);
+  expect(firstSave?.schemaVersion).toBe(2);
   expect(firstSave?.progression.unlockedCharacterIds).toContain('cursed-hunter');
   expect(firstSave?.progression.unlockedRegionIds).toContain('cursed-forest');
 
@@ -24,7 +24,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
     const raw = window.localStorage.getItem('beyond-the-veil.save');
     return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string } } : null;
   });
-  expect(reloadedSave?.schemaVersion).toBe(1);
+  expect(reloadedSave?.schemaVersion).toBe(2);
   expect(reloadedSave?.profile.createdAt).toBe(firstSave?.profile.createdAt);
   const dimensions = await canvas.evaluate((element: HTMLCanvasElement) => ({
     width: element.width,
@@ -155,7 +155,7 @@ type BrowserRunSnapshot = {
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
   runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
-  health:number;maxHealth:number;passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
+  health:number;maxHealth:number;damage:number;moveSpeed:number;permanentUpgradeEffects:{maxHealthBonus:number;damageMultiplier:number;moveSpeedMultiplier:number;armorBonus:number;xpGainMultiplier:number;extraRerolls:number};passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
   weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
   shotDiagnostics:{weaponId:string;damage:number}[];
   bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;finishTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null;sceneTime:{paused:boolean;now:number;active:boolean};playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
@@ -382,6 +382,39 @@ test('owned passive changes its linked weapon attack through the live Phaser hit
 });
 
 
+
+test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
+      schemaVersion: 2,
+      profile: { createdAt: '2026-11-19T00:00:00.000Z', updatedAt: '2026-11-19T00:00:00.000Z' },
+      progression: {
+        soulEssence: 0, completedRuns: 0,
+        unlockedCharacterIds: ['cursed-hunter'], unlockedRegionIds: ['cursed-forest'],
+        completedDifficulties: {},
+        permanentUpgrades: { maxHealth: 2, attackPower: 2, moveSpeed: 1, armor: 3, xpBonus: 2, rerolls: 2 }
+      },
+      collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [] },
+      settings: {}
+    }));
+  });
+  await startBrowserTestRun(page);
+  const initial = await readBrowserRunSnapshot(page);
+  expect(initial.maxHealth).toBe(130);
+  expect(initial.health).toBe(130);
+  expect(initial.permanentUpgradeEffects).toEqual({
+    maxHealthBonus: 30, damageMultiplier: 1.1, moveSpeedMultiplier: 1.04,
+    armorBonus: 6, xpGainMultiplier: 1.16, extraRerolls: 2
+  });
+  expect(initial.controls.rerollsRemaining).toBe(4);
+
+  await spawnBrowserTestXp(page, 10);
+  await expect.poll(async () => (await readBrowserRunSnapshot(page)).level).toBe(2);
+  const leveled = await readBrowserRunSnapshot(page);
+  expect(leveled.experience).toBeCloseTo(1.6, 4);
+  expect(leveled.controls.rerollsRemaining).toBe(4);
+});
+
 test('all fourteen authored weapon synergies trigger through their real Phaser combat paths', async ({ page }) => {
   const pageErrors:string[]=[];
   page.on('pageerror',error=>pageErrors.push(error.message));
@@ -412,6 +445,41 @@ test('all fourteen authored weapon synergies trigger through their real Phaser c
     await expect.poll(async()=> (await readBrowserRunSnapshot(page)).weaponSynergyTriggers,{timeout:8_000,message:synergyId+' should execute its combat trigger'}).toContain(synergyId);
     const triggered=await readBrowserRunSnapshot(page);
     expect(triggered.weaponSynergyTriggers.filter(id=>id===synergyId)).toHaveLength(1);
+    const diagnostics=await page.evaluate(()=>{
+      const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestSynergyDiagnostics:()=>{targetDamageCount:number;targetHealth:number[];secondaryDamage:number;playerHealthBefore:number;playerHealthAfter:number;passiveZoneCount:number;guardActive:boolean;curseStacks:number}}}}}).__BEYOND_VEIL_GAME__;
+      if(!game)throw new Error('Development browser test bridge is not available.');
+      return game.scene.getScene('run').browserTestSynergyDiagnostics();
+    });
+    switch(result.synergyKind){
+      case 'spirit-splinter':
+      case 'grave-aftershock':
+      case 'ember-burst':
+      case 'frost-ring':
+      case 'spirit-chain':
+      case 'storm-arc':
+        expect(diagnostics.targetDamageCount,synergyId+' must damage secondary combat targets').toBeGreaterThan(1);
+        break;
+      case 'storm-lance':
+        expect(diagnostics.targetDamageCount,synergyId+' must reach the additional chain target').toBe(4);
+        break;
+      case 'venom-trail':
+      case 'magma-rift':
+        expect(diagnostics.passiveZoneCount,synergyId+' must create its damaging ground zone').toBeGreaterThan(0);
+        break;
+      case 'blood-thread':
+        expect(diagnostics.playerHealthAfter,synergyId+' must heal the hunter').toBeGreaterThan(diagnostics.playerHealthBefore);
+        break;
+      case 'ward-pulse':
+        expect(diagnostics.guardActive,synergyId+' must activate damage reduction').toBe(true);
+        break;
+      case 'curse-sigil':
+        expect(diagnostics.curseStacks,synergyId+' must apply a curse stack').toBeGreaterThan(0);
+        break;
+      case 'crown-sigil':
+      case 'crown-guidance':
+        expect(diagnostics.targetDamageCount,synergyId+' must damage its weakened priority target').toBeGreaterThan(0);
+        break;
+    }
   }
   expect(pageErrors).toEqual([]);
 });
