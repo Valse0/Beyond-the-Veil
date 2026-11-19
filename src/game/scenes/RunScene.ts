@@ -199,6 +199,10 @@ export class RunScene extends Phaser.Scene {
     for(const child of [...this.orbs.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
     this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];
     this.clearOverlay();this.runFinished=false;this.paused=false;this.time.paused=false;this.physics.world.resume();
+    // Stop autonomous spawning and auto-attacks so ambient XP pickups cannot open a level-up
+    // overlay while a delayed synergy effect is being measured.
+    this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};
+    for(const key of Object.keys(this.weaponReady))this.weaponReady[key]=Number.POSITIVE_INFINITY;
     this.queuedLevels=0;this.currentLevelChoices=[];
     this.state={...this.state,health:this.state.maxHealth,experience:0,experienceToNext:10,level:1};
     this.build={weapons:[{weaponId,level:1,evolved:false}],passives:[{passiveId,level:1,special:false}]};
