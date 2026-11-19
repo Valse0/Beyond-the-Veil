@@ -1258,7 +1258,7 @@ test('live enemy and boss defeats advance the active quest and persist across de
 test('real Phaser exploration overlaps persist lore and secret paths on defeat and do not respawn after reload',async({page})=>{
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.addInitScript(()=>window.localStorage.removeItem('beyond-the-veil.save'));
+  await page.addInitScript(()=>{if(!window.sessionStorage.getItem('__bv_exploration_test_cleaned')){window.localStorage.removeItem('beyond-the-veil.save');window.sessionStorage.setItem('__bv_exploration_test_cleaned','1');}});
   await startBrowserTestRun(page);
   const initial=await page.evaluate(()=>{
     const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestSnapshot:()=>{explorationLandmarks:{id:string;name:string;description:string;motif:string;decorationVisible:boolean}[]}}}}}).__BEYOND_VEIL_GAME__;
