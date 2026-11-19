@@ -72,7 +72,7 @@ test('migrates a version-zero save and preserves known fields', () => {
   assert.equal(result.data.progression.soulEssence, 30);
   assert.equal(result.data.progression.completedRuns, 2);
   assert.equal(result.data.settings.musicVolume, 0.5);
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 1);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 2);
 });
 
 test('refuses to overwrite a save from a newer schema version', () => {
@@ -125,12 +125,12 @@ test('permanent upgrades purchasing deducts soul essence and persists level', ()
   manager.save(data);
 
   assert.equal(manager.getPermanentUpgradeLevel('maxHealth'), 0);
-  const success = manager.purchasePermanentUpgrade('maxHealth', 100, 5);
+  const success = manager.purchasePermanentUpgrade('maxHealth', 50, 5);
   assert.equal(success, true);
   assert.equal(manager.getPermanentUpgradeLevel('maxHealth'), 1);
 
   const reloaded = new SaveManager(storage, fixedNow);
-  assert.equal(reloaded.load().data.progression.soulEssence, 100);
+  assert.equal(reloaded.load().data.progression.soulEssence, 150);
   assert.equal(reloaded.getPermanentUpgradeLevel('maxHealth'), 1);
 });
 
@@ -141,13 +141,15 @@ test('permanent upgrade purchase fails if insufficient funds or max level reache
   data.progression.soulEssence = 50;
   manager.save(data);
 
-  assert.equal(manager.purchasePermanentUpgrade('attackPower', 100, 5), false);
+  assert.equal(manager.purchasePermanentUpgrade('attackPower', 75, 5), false);
   assert.equal(manager.getPermanentUpgradeLevel('attackPower'), 0);
 
-  assert.equal(manager.purchasePermanentUpgrade('attackPower', 40, 5), true);
+  data.progression.soulEssence = 100;
+  manager.save(data);
+  assert.equal(manager.purchasePermanentUpgrade('attackPower', 75, 5), true);
   assert.equal(manager.getPermanentUpgradeLevel('attackPower'), 1);
 
-  assert.equal(manager.purchasePermanentUpgrade('attackPower', 10, 1), false);
+  assert.equal(manager.purchasePermanentUpgrade('attackPower', 150, 1), false);
 });
 
 
