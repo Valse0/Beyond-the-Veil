@@ -9,7 +9,7 @@ import { PASSIVES } from '../../data/passives.js';
 import { ELEMENTS } from '../../data/elements.js';
 import { REGIONS } from '../../data/regions.js';
 import { findNearestTarget } from '../../gameplay/combat/combat-rules.js';
-import { advanceRun, applyUpgrade, createRunState, gainExperience, receiveDamage, recordKill } from '../../gameplay/run/run-model.js';
+import { advanceRun, applyUpgrade, createRunState, gainExperience, recordKill } from '../../gameplay/run/run-model.js';
 import { stepEnemyAI, type EnemyActorState } from '../../gameplay/enemies/enemy-runtime.js';
 import { applyElementHit, tickElementStatuses, type ElementState } from '../../gameplay/elements/element-runtime.js';
 import { addPassive, addWeapon, choosePassiveSpecial, chooseWeaponBranch, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState } from '../../gameplay/weapons/build-runtime.js';
@@ -130,7 +130,7 @@ export class RunScene extends Phaser.Scene {
   /** Development-only bridge used by Playwright; never callable in production builds. */
   browserTestSnapshot():{
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
-    paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string}[];
+    paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
     runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
     passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];
     weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
@@ -781,10 +781,15 @@ export class RunScene extends Phaser.Scene {
       const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier};
       const hit=applyElementHit(this.bossElementState,tuned,damage,this.bossDefinition.resistance[element]??0,this.time.now,ELEMENTS);
       this.bossElementState=hit.state;damage=hit.damage+(hit.reaction?.damage??0);
+      if(isPassiveSpecialActive(this.build,'venom-vial')&&isPoisonBloomReady(hit.state.poison?.stacks??0,5)){const bloom=PASSIVES.find(item=>item.id==='venom-vial')!.specialUpgrade.mechanic;if(bloom.kind==='poison-spores'){const ready=tryPassiveCooldown(this.passiveSpecialState,'toxic-bloom',this.time.now,bloom.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)this.spawnPassiveZone(boss.x,boss.y,bloom);}}
       if(hit.triggered&&element==='spirit')this.healPlayer(Math.max(1,this.state.maxHealth*.025));
-      if(hit.triggered&&element==='blood')this.healPlayer(damage*(.03+this.currentBuildStats().lifesteal));
+      if(hit.triggered&&element==='blood'){const sacrament=PASSIVES.find(item=>item.id==='blood-reliquary')!.specialUpgrade.mechanic;const bonus=sacrament.kind==='low-health-lifesteal'&&isPassiveSpecialActive(this.build,'blood-reliquary')?getLowHealthLifestealBonus(this.state.health,this.state.maxHealth,sacrament):0;this.healPlayer(damage*(.03+this.currentBuildStats().lifesteal+bonus));}
       if(hit.triggered&&element==='lightning')this.chainLightningFrom(boss,damage*.4);
     }
+    const crit=resolveCriticalHit(damage,this.currentBuildStats().criticalChance,Math.random(),1.5);damage=crit.damage;
+    if(crit.critical&&isPassiveSpecialActive(this.build,'veil-thread')){const current=this.bossElementState.dark;const darkDef=ELEMENTS.find(item=>item.id==='dark')!;this.bossElementState={...this.bossElementState,dark:{buildup:0,stacks:addCurseStack(current&&current.expiresAt>this.time.now?current.stacks:0,1),expiresAt:this.time.now+darkDef.durationMs,nextTickAt:this.time.now+1000}};}
+    if(element==='fire'&&isPassiveSpecialActive(this.build,'ashen-heart')){const fire=PASSIVES.find(item=>item.id==='ashen-heart')!.specialUpgrade.mechanic;if(fire.kind==='fire-explosion'){const ready=tryPassiveCooldown(this.passiveSpecialState,'ember-core',this.time.now,fire.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)for(const nearby of this.activeTargets()){if(nearby!==boss&&Phaser.Math.Distance.Between(boss.x,boss.y,nearby.x,nearby.y)<=fire.radius)this.damageEnemy(nearby,damage*fire.damageMultiplier);}}}
+    if(isPassiveSpecialActive(this.build,'frostbound-sigil')&&baseDamage>=38&&isFrozenTarget(this.bossElementState.ice?.expiresAt,this.time.now)&&Number(boss.getData('iceShatteredUntil')??0)<(this.bossElementState.ice?.expiresAt??0)){const ice=PASSIVES.find(item=>item.id==='frostbound-sigil')!.specialUpgrade.mechanic;if(ice.kind==='ice-shatter'){damage+=baseDamage*ice.damageMultiplier;boss.setData('iceShatteredUntil',this.bossElementState.ice!.expiresAt);}}
     if(element&&this.bossDefinition.weakness.includes(element))damage*=1.3;
     const transition=damageBoss(this.bossState,this.bossDefinition,damage,this.time.now);this.bossState=transition.state;
     boss.setData('health',transition.state.health).setTint(element?elementTint[element]:0xffffff);
@@ -803,6 +808,17 @@ export class RunScene extends Phaser.Scene {
     boss.destroy();this.bossSprite=undefined;this.bossHud?.setText('BOSS YENİLDİ');this.bossPhaseText?.setText('Boss sandığına ulaş ve aç');
     this.eventHud?.setText('BOSS SANDIĞI  •  YAKLAŞARAK AÇ').setVisible(true);
     this.cameras.main.flash(500,175,135,72);
+  }
+
+  private applyCrownOfAshes(source:Phaser.Physics.Arcade.Sprite):void {
+    const mechanic=PASSIVES.find(item=>item.id==='hollow-crown')!.specialUpgrade.mechanic;
+    if(mechanic.kind!=='crown-weaken')return;
+    for(const target of this.activeTargets()){
+      if(target===source||Phaser.Math.Distance.Between(source.x,source.y,target.x,target.y)>mechanic.radius)continue;
+      target.setData('weakenedUntil',this.time.now+mechanic.durationMs).setData('weakenedMultiplier',mechanic.damageMultiplier).setTint(0x9b78c8);
+      this.time.delayedCall(mechanic.durationMs,()=>{if(target.active&&Number(target.getData('weakenedUntil')??0)<=this.time.now)target.clearTint();});
+    }
+    this.showPassiveSpecialFeedback('KÜL TACI  •  DÜŞMANLAR ZAYIFLADI');
   }
 
   private recordRunEventEnemyDefeat(enemy:Phaser.Physics.Arcade.Sprite):void {
