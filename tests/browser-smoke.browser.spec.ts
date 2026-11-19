@@ -564,7 +564,7 @@ test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls
         equippedRelicIds: [], equipmentProfiles: {}, activeEquipmentProfileIds: {}
       },
       collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [], achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] },
-      story: { quests: {}, npcFates: {}, regionAtmospheres: {}, unlockedPathIds: [], bossEncounterIds: [], unlockedRewardIds: [], unlockedAlternateQuestIds: [], endingId: null, appliedOutcomeIds: [] },
+      story: { quests: {}, npcFates: {}, regionAtmospheres: {}, unlockedPathIds: [], bossEncounterIds: [], unlockedRewardIds: [], unlockedAlternateQuestIds: [], endingId: null, completedEndingId: null, appliedOutcomeIds: [] },
       settings: {}
     }));
   });
