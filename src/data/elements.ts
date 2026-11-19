@@ -7,7 +7,8 @@ const reactions:readonly (ElementReactionDefinition&{a:string;b:string})[]=[
   {id:'soul-rupture',a:'dark',b:'spirit',with:'spirit',name:'Ruh Yarılması',effect:'Lanet katmanlarını tüketerek zincir hasarı ve küçük iyileşme sağlar.',kind:'soul-chain',damageMultiplier:1.35,durationMs:1400,chainTargets:2,healFraction:.025},
   {id:'conductive-plague',a:'lightning',b:'poison',with:'poison',name:'İletken Veba',effect:'Zehirli hedef üzerinden iki düşmana yıldırım sıçratır.',kind:'conductive-chain',damageMultiplier:1.25,durationMs:1200,chainTargets:2},
   {id:'crimson-ignition',a:'blood',b:'fire',with:'fire',name:'Kızıl Alev',effect:'Kanama katmanlarını patlama hasarına dönüştürür.',kind:'rupture',damageMultiplier:1.65,durationMs:900},
-  {id:'blood-soul-siphon',a:'blood',b:'spirit',with:'spirit',name:'Ruh Kanı',effect:'Ruh enerjisini kana dönüştürerek avcıyı iyileştirir.',kind:'siphon',damageMultiplier:1.2,durationMs:1500,healFraction:.07}
+  {id:'blood-soul-siphon',a:'blood',b:'spirit',with:'spirit',name:'Ruh Kanı',effect:'Ruh enerjisini kana dönüştürerek avcıyı iyileştirir.',kind:'siphon',damageMultiplier:1.2,durationMs:1500,healFraction:.07},
+  {id:'eclipse-hemorrhage',a:'dark',b:'blood',with:'blood',name:'Tutulma Kanaması',effect:'Lanet ve kanama birleşerek ağır bir iç patlama oluşturur.',kind:'rupture',damageMultiplier:1.5,durationMs:1000}
 ];
 
 const definitions=[

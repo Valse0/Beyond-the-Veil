@@ -233,8 +233,8 @@ test('seven elements define distinct status identities and all authored reaction
   const pair=[element.id,reaction.with].sort().join(':');
   pairs.add(pair);
  }
- assert.equal(reactionIds.size,7);
- assert.equal(pairs.size,7);
+ assert.equal(reactionIds.size,8);
+ assert.equal(pairs.size,8);
 });
 
 test('every authored elemental reaction resolves with its distinct effect payload and bounded status stacks',()=>{
@@ -245,7 +245,8 @@ test('every authored elemental reaction resolves with its distinct effect payloa
   ['dark','spirit','soul-rupture','soul-chain'],
   ['lightning','poison','conductive-plague','conductive-chain'],
   ['blood','fire','crimson-ignition','rupture'],
-  ['blood','spirit','blood-soul-siphon','siphon']
+  ['blood','spirit','blood-soul-siphon','siphon'],
+  ['dark','blood','eclipse-hemorrhage','rupture']
  ];
  for(const [first,second,id,kind] of cases){
   let state={};
