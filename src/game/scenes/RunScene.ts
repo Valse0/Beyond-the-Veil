@@ -89,6 +89,7 @@ export class RunScene extends Phaser.Scene {
   private pendingCursedStage=1;
   private runSeed=1;
   private weaponReady:Record<string,number>={};
+  private lastWeaponExecution?:{weaponId:string;behavior:string};
   private bossDefinition?:BossDefinition;
   private bossState?:BossEncounterState;
   private bossSprite?:Phaser.Physics.Arcade.Sprite;
@@ -460,6 +461,46 @@ export class RunScene extends Phaser.Scene {
     this.fireWeapons(this.time.now+10_000);
     const shots=this.shots.getChildren().filter(child=>child.active&&child.getData('weaponId')===weapon.id) as Phaser.Physics.Arcade.Sprite[];
     return {shotCount:shots.length,damages:shots.map(shot=>Number(shot.getData('damage')))};
+  }
+
+  browserTestEvolvedWeaponPath(weaponId:string,branchId:string):{
+    weaponId:string;branchId:string;evolved:boolean;evolutionName:string|undefined;behavior:string;executedBehavior:string|null;projectileCount:number;damagedTargetCount:number
+  } {
+    this.assertBrowserTestMode();
+    const weapon=WEAPONS.find(item=>item.id===weaponId);
+    const passive=weapon?PASSIVES.find(item=>item.id===weapon.evolution.requiredPassiveId):undefined;
+    if(!weapon||!passive||!weapon.evolution.branchPaths.some(path=>path.branchId===branchId))throw new Error('Unknown weapon evolution path: '+weaponId+'/'+branchId);
+    const targetDefinition=ENEMIES.find(item=>item.id===this.region.enemyIds[0]);
+    if(!targetDefinition)throw new Error('The active region has no enemy for the evolution probe.');
+    for(const child of [...this.enemies.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
+    for(const child of [...this.shots.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
+    this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};
+    this.build={
+      weapons:[{weaponId:weapon.id,level:weapon.maxLevel,branchId,evolved:false}],
+      passives:[{passiveId:passive.id,level:5,special:false}]
+    };
+    this.build=evolveWeapon(this.build,weapon);
+    this.refreshBuildStats();
+    const targets=Array.from({length:3},(_,index)=>{
+      const enemy=this.createEnemy(this.player.x+30+index*18,this.player.y, targetDefinition,1);
+      (enemy.body as Phaser.Physics.Arcade.Body).enable=false;
+      enemy.setData('health',10_000);
+      return enemy;
+    });
+    const before=targets.map(enemy=>Number(enemy.getData('health')));
+    this.lastWeaponExecution=undefined;
+    this.weaponReady[weapon.id]=0;
+    this.fireWeapons(this.time.now+10_000);
+    this.weaponReady[weapon.id]=Number.POSITIVE_INFINITY;
+    const progress=this.build.weapons[0]!;
+    const stats=weaponLevelStats(progress,weapon,this.unlockedWeaponVariantIds);
+    const after=targets.map(enemy=>Number(enemy.getData('health')));
+    return {
+      weaponId,branchId,evolved:progress.evolved,evolutionName:stats.evolutionName,behavior:stats.behavior,
+      executedBehavior:this.lastWeaponExecution?.weaponId===weaponId?this.lastWeaponExecution.behavior:null,
+      projectileCount:this.shots.getChildren().filter(child=>child.active&&child.getData('weaponId')===weaponId).length,
+      damagedTargetCount:after.filter((health,index)=>health<before[index]!).length
+    };
   }
 
   browserTestPrepareBossChestEvolution():void {
@@ -1036,23 +1077,14 @@ export class RunScene extends Phaser.Scene {
       if(distance>stats.range)continue;
       this.weaponReady[weapon.id]=time+stats.intervalMs/(this.currentBuildStats().attackSpeedMultiplier*this.relicStats.attackSpeedMultiplier*this.baseHasteMultiplier);
       const damage=stats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier*this.permanentUpgradeEffects.damageMultiplier*this.relicStats.damageMultiplier*getRelicDamageMultiplier(this.equippedRelicIds,this.character.id,weapon.element);
-      let behavior=progress.evolved?this.evolvedWeaponBehavior(weapon):weapon.behavior;
+      const behavior=stats.behavior;
       if(weapon.id==='oath-pike'&&getActiveWeaponSynergies(weapon.id,this.build.passives.map(passive=>passive.passiveId)).some(item=>item.kind==='storm-lance'))behavior='chain-lightning';
       this.executeWeapon(weapon,behavior,damage,stats.projectiles,stats.range,target,stats);
     }
   }
 
-  private evolvedWeaponBehavior(weapon:WeaponDefinition):string {
-    const evolved:Record<string,string>={
-      'veil-bolt':'fan-volley','gravecleaver':'cleaving-arc','oath-pike':'chain-lightning',
-      'ember-chains':'chain-lightning','winter-orbit':'orbiting-blades','briar-seed':'area-seed',
-      'soul-lantern':'spirit-seeker','blood-loom':'life-tether','stormglass':'fan-volley',
-      'iron-bell':'defensive-pulse','rune-mortar':'delayed-mortar','eclipse-sigil':'delayed-sigil'
-    };
-    return evolved[weapon.id]??weapon.behavior;
-  }
-
   private executeWeapon(weapon:WeaponDefinition,behavior:string,damage:number,projectiles:number,range:number,target:Phaser.Physics.Arcade.Sprite,stats:ReturnType<typeof weaponLevelStats>):void {
+    this.lastWeaponExecution={weaponId:weapon.id,behavior};
     const targets=this.activeTargets(),element=weapon.element;
     const passiveIds=this.build.passives.map(passive=>passive.passiveId);
     const synergies=getActiveWeaponSynergies(weapon.id,passiveIds);

@@ -12,7 +12,9 @@ export interface WeaponLevel { level:number;damage:number;intervalMs:number;rang
 export interface WeaponBranchModifiers { damageMultiplier:number;intervalMultiplier:number;rangeMultiplier:number;projectileBonus:number;pierceBonus:number;areaMultiplier:number;chainTargetBonus:number }
 export interface WeaponBranchVariant { id:string;name:string;description:string;modifiers:Partial<WeaponBranchModifiers> }
 export interface WeaponBranch { id:string;name:string;effect:string;modifiers:WeaponBranchModifiers;variant?:WeaponBranchVariant }
-export interface WeaponDefinition { id:string;name:string;category:string;description:string;behavior:string;element:ElementId;baseDamage:number;intervalMs:number;range:number;projectileSpeed:number;maxLevel:number;levels:WeaponLevel[];branches:WeaponBranch[];evolution:{id:string;name:string;requiredPassiveId:string;behaviorChange:string};characterSynergies:string[];assetId:string }
+export interface WeaponEvolutionPath { id:string;branchId:string;name:string;description:string;behaviorChange:string }
+export interface WeaponEvolution { id:string;name:string;requiredPassiveId:string;behaviorChange:string;defaultBehavior:string;branchPaths:WeaponEvolutionPath[] }
+export interface WeaponDefinition { id:string;name:string;category:string;description:string;behavior:string;element:ElementId;baseDamage:number;intervalMs:number;range:number;projectileSpeed:number;maxLevel:number;levels:WeaponLevel[];branches:WeaponBranch[];evolution:WeaponEvolution;characterSynergies:string[];assetId:string }
 export type PassiveSpecialMechanic =
   | {kind:'fire-explosion';radius:number;damageMultiplier:number;cooldownMs:number}
   | {kind:'ice-shatter';minimumHitDamage:number;damageMultiplier:number}

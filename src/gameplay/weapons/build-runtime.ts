@@ -28,9 +28,16 @@ export function choosePassiveSpecial(build:BuildState,passive:PassiveDefinition)
   if(!owned||owned.level<passive.maxLevel||owned.special)return build;
   return {...build,passives:build.passives.map(p=>p.passiveId===passive.id?{...p,special:true}:p)};
 }
+export function getWeaponEvolutionPath(weapon:WeaponDefinition,branchId?:string) {
+  return branchId?weapon.evolution.branchPaths.find(path=>path.branchId===branchId):undefined;
+}
 export function evolveWeapon(build:BuildState,weapon:WeaponDefinition):BuildState {
   const passive=build.passives.find(p=>p.passiveId===weapon.evolution.requiredPassiveId&&p.level>=5);
-  return {...build,weapons:build.weapons.map(w=>w.weaponId===weapon.id&&w.level>=5&&passive?{...w,evolved:true}:w)};
+  return {...build,weapons:build.weapons.map(w=>{
+    if(w.weaponId!==weapon.id||w.evolved||w.level<weapon.maxLevel||!passive)return w;
+    if(w.branchId&&!getWeaponEvolutionPath(weapon,w.branchId))return w;
+    return {...w,evolved:true};
+  })};
 }
 export function deriveBuildStats(build:BuildState,passives:readonly PassiveDefinition[]):BuildStats {
   const stats:BuildStats={damageMultiplier:1,attackSpeedMultiplier:1,moveSpeedMultiplier:1,armor:0,criticalChance:0,magnetRadiusBonus:0,xpGainMultiplier:1,lifesteal:0,abilityCooldownMultiplier:1,elementalBuildupMultiplier:1};
@@ -58,6 +65,7 @@ export function weaponLevelStats(progress:WeaponProgress,definition:WeaponDefini
   const variant=branch?.variant&&unlockedVariantIds.includes(branch.variant.id)?branch.variant:undefined;
   const modifiers=branch?.modifiers;
   const extra=variant?.modifiers;
+  const evolutionPath=progress.evolved?getWeaponEvolutionPath(definition,progress.branchId):undefined;
   return {
     ...row,
     damage:Math.round(row.damage*(modifiers?.damageMultiplier??1)*(extra?.damageMultiplier??1)),
@@ -71,7 +79,8 @@ export function weaponLevelStats(progress:WeaponProgress,definition:WeaponDefini
     chainTargetBonus:(modifiers?.chainTargetBonus??0)+(extra?.chainTargetBonus??0),
     branchName:branch?.name,
     variantName:variant?.name,
-    behavior:progress.evolved?definition.evolution.behaviorChange:definition.behavior,
-    evolutionName:progress.evolved?definition.evolution.name:undefined
+    behavior:progress.evolved?(evolutionPath?.behaviorChange??definition.evolution.defaultBehavior):definition.behavior,
+    evolutionName:progress.evolved?(evolutionPath?.name??definition.evolution.name):undefined,
+    evolutionId:progress.evolved?(evolutionPath?.id??definition.evolution.id):undefined
   };
 }

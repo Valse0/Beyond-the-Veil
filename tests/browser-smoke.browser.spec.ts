@@ -1104,3 +1104,42 @@ test('enemy support fields affect ally movement and soul-snipe fades after its s
  expect(fade.alpha).toBeLessThan(1);
  expect(pageErrors).toEqual([]);
 });
+
+
+test('all 24 selected weapon branches evolve and dispatch their authored live Phaser attack behavior',async({page})=>{
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  const cases=[
+    ['veil-bolt','veil-bolt-branch-focus','piercing-thrust'],['veil-bolt','veil-bolt-branch-spread','chain-lightning'],
+    ['gravecleaver','gravecleaver-branch-focus','piercing-thrust'],['gravecleaver','gravecleaver-branch-spread','orbiting-blades'],
+    ['oath-pike','oath-pike-branch-focus','homing-projectile'],['oath-pike','oath-pike-branch-spread','fan-volley'],
+    ['ember-chains','ember-chains-branch-focus','piercing-thrust'],['ember-chains','ember-chains-branch-spread','delayed-sigil'],
+    ['winter-orbit','winter-orbit-branch-focus','cleaving-arc'],['winter-orbit','winter-orbit-branch-spread','defensive-pulse'],
+    ['briar-seed','briar-seed-branch-focus','delayed-mortar'],['briar-seed','briar-seed-branch-spread','fan-volley'],
+    ['soul-lantern','soul-lantern-branch-focus','homing-projectile'],['soul-lantern','soul-lantern-branch-spread','chain-lightning'],
+    ['blood-loom','blood-loom-branch-focus','piercing-thrust'],['blood-loom','blood-loom-branch-spread','chain-lightning'],
+    ['stormglass','stormglass-branch-focus','piercing-thrust'],['stormglass','stormglass-branch-spread','chain-lightning'],
+    ['iron-bell','iron-bell-branch-focus','cleaving-arc'],['iron-bell','iron-bell-branch-spread','orbiting-blades'],
+    ['rune-mortar','rune-mortar-branch-focus','delayed-sigil'],['rune-mortar','rune-mortar-branch-spread','area-seed'],
+    ['eclipse-sigil','eclipse-sigil-branch-focus','delayed-mortar'],['eclipse-sigil','eclipse-sigil-branch-spread','area-seed']
+  ] as const;
+  const results=await page.evaluate((paths)=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestEvolvedWeaponPath:(weaponId:string,branchId:string)=>{weaponId:string;branchId:string;evolved:boolean;evolutionName:string|undefined;behavior:string;executedBehavior:string|null;projectileCount:number;damagedTargetCount:number}}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    const scene=game.scene.getScene('run');
+    return paths.map(([weaponId,branchId])=>scene.browserTestEvolvedWeaponPath(weaponId,branchId));
+  },cases.map(([weaponId,branchId])=>[weaponId,branchId]));
+  expect(results).toHaveLength(24);
+  for(let index=0;index<cases.length;index++){
+    const [weaponId,branchId,behavior]=cases[index]!;
+    const result=results[index]!;
+    expect(result.weaponId).toBe(weaponId);
+    expect(result.branchId).toBe(branchId);
+    expect(result.evolved).toBe(true);
+    expect(result.evolutionName).toBeTruthy();
+    expect(result.behavior).toBe(behavior);
+    expect(result.executedBehavior).toBe(behavior);
+  }
+  expect(pageErrors).toEqual([]);
+});
