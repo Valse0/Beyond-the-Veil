@@ -23,6 +23,11 @@ export function chooseWeaponBranch(build:BuildState,weapon:WeaponDefinition,bran
 export function upgradePassive(build:BuildState,passive:PassiveDefinition):BuildState {
   return {...build,passives:build.passives.map(p=>p.passiveId===passive.id?{...p,level:Math.min(passive.maxLevel,p.level+1)}:p)};
 }
+export function choosePassiveSpecial(build:BuildState,passive:PassiveDefinition):BuildState {
+  const owned=build.passives.find(p=>p.passiveId===passive.id);
+  if(!owned||owned.level<passive.maxLevel||owned.special)return build;
+  return {...build,passives:build.passives.map(p=>p.passiveId===passive.id?{...p,special:true}:p)};
+}
 export function evolveWeapon(build:BuildState,weapon:WeaponDefinition):BuildState {
   const passive=build.passives.find(p=>p.passiveId===weapon.evolution.requiredPassiveId&&p.level>=5);
   return {...build,weapons:build.weapons.map(w=>w.weaponId===weapon.id&&w.level>=5&&passive?{...w,evolved:true}:w)};
