@@ -95,6 +95,7 @@ export class RunScene extends Phaser.Scene {
   private enemyStates=new WeakMap<Phaser.Physics.Arcade.Sprite,EnemyActorState>();
   private elementStates=new WeakMap<Phaser.Physics.Arcade.Sprite,ElementState>();
   private bossElementState:ElementState={};
+  private lastElementReactionId='';
   private hazardCycle:HazardCycle=createHazardCycle();
   private hazardMarker?:Phaser.GameObjects.Graphics;
   private hazardTarget={x:0,y:0};
@@ -315,6 +316,30 @@ export class RunScene extends Phaser.Scene {
     else this.updateRunEvent(this.time.now);
     if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
     this.refreshHud();
+  }
+
+  browserTestElementReactionProbe(first:ElementId,second:ElementId):{enemyReaction:string;bossReaction:string;enemyIceFrozen:boolean;bossIceFrozen:boolean} {
+    this.assertBrowserTestMode();
+    const definition=ENEMIES.find(enemy=>enemy.id===this.region.enemyIds[0]);
+    if(!definition)throw new Error('The active region has no enemy for the element probe.');
+    const enemy=this.createEnemy(this.player.x+36,this.player.y,definition,100);
+    (enemy.body as Phaser.Physics.Arcade.Body).enable=false;
+    this.lastElementReactionId='';
+    for(let i=0;i<7;i++)this.damageEnemy(enemy,1,first);
+    for(let i=0;i<7;i++)this.damageEnemy(enemy,1,second);
+    const enemyReaction=this.lastElementReactionId;
+    const enemyIceFrozen=(this.elementStates.get(enemy)?.ice?.frozenUntil??0)>this.time.now;
+    this.spawnBoss();
+    if(!this.bossSprite)throw new Error('The active region has no boss for the element probe.');
+    this.lastElementReactionId='';
+    for(let i=0;i<7;i++)this.damageBossTarget(this.bossSprite,1,first);
+    for(let i=0;i<7;i++)this.damageBossTarget(this.bossSprite,1,second);
+    return {
+      enemyReaction,
+      bossReaction:this.lastElementReactionId,
+      enemyIceFrozen,
+      bossIceFrozen:(this.bossElementState.ice?.frozenUntil??0)>this.time.now
+    };
   }
 
   browserTestSpawnAndDefeatEnemy(enemyId:string):void {
@@ -958,7 +983,7 @@ export class RunScene extends Phaser.Scene {
       const elementDef=ELEMENTS.find(e=>e.id===element)!;
       const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier*this.relicStats.elementalBuildupMultiplier};
       const hit=applyElementHit(existing,tuned,damage,def.resistances[element]??0,this.time.now,ELEMENTS);
-      this.elementStates.set(enemy,hit.state);damage=hit.damage+(hit.reaction?.damage??0);if(hit.reaction)this.resolveElementReaction(enemy,hit.reaction);
+      this.elementStates.set(enemy,hit.state);damage=hit.damage+(hit.reaction?.damage??0);if(hit.reaction){this.lastElementReactionId=hit.reaction.id;this.resolveElementReaction(enemy,hit.reaction);}
       if(isPassiveSpecialActive(this.build,'venom-vial')&&isPoisonBloomReady(hit.state.poison?.stacks??0,5)){const bloom=PASSIVES.find(item=>item.id==='venom-vial')!.specialUpgrade.mechanic;if(bloom.kind==='poison-spores'){const ready=tryPassiveCooldown(this.passiveSpecialState,'toxic-bloom',this.time.now,bloom.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)this.spawnPassiveZone(enemy.x,enemy.y,bloom);}}
       if(hit.triggered&&element==='spirit')this.healPlayer(Math.max(1,this.state.maxHealth*.025));
       if(hit.triggered&&element==='blood'){const sacrament=PASSIVES.find(item=>item.id==='blood-reliquary')!.specialUpgrade.mechanic;const bonus=sacrament.kind==='low-health-lifesteal'&&isPassiveSpecialActive(this.build,'blood-reliquary')?getLowHealthLifestealBonus(this.state.health,this.state.maxHealth,sacrament):0;this.healPlayer(damage*(.03+this.currentBuildStats().lifesteal+this.relicStats.lifestealBonus+bonus));}
@@ -1022,7 +1047,7 @@ export class RunScene extends Phaser.Scene {
       const elementDef=ELEMENTS.find(e=>e.id===element)!;
       const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier*this.relicStats.elementalBuildupMultiplier};
       const hit=applyElementHit(this.bossElementState,tuned,damage,this.bossDefinition.resistance[element]??0,this.time.now,ELEMENTS);
-      this.bossElementState=hit.state;damage=hit.damage+(hit.reaction?.damage??0);if(hit.reaction)this.resolveElementReaction(boss,hit.reaction);
+      this.bossElementState=hit.state;damage=hit.damage+(hit.reaction?.damage??0);if(hit.reaction){this.lastElementReactionId=hit.reaction.id;this.resolveElementReaction(boss,hit.reaction);}
       if(isPassiveSpecialActive(this.build,'venom-vial')&&isPoisonBloomReady(hit.state.poison?.stacks??0,5)){const bloom=PASSIVES.find(item=>item.id==='venom-vial')!.specialUpgrade.mechanic;if(bloom.kind==='poison-spores'){const ready=tryPassiveCooldown(this.passiveSpecialState,'toxic-bloom',this.time.now,bloom.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)this.spawnPassiveZone(boss.x,boss.y,bloom);}}
       if(hit.triggered&&element==='spirit')this.healPlayer(Math.max(1,this.state.maxHealth*.025));
       if(hit.triggered&&element==='blood'){const sacrament=PASSIVES.find(item=>item.id==='blood-reliquary')!.specialUpgrade.mechanic;const bonus=sacrament.kind==='low-health-lifesteal'&&isPassiveSpecialActive(this.build,'blood-reliquary')?getLowHealthLifestealBonus(this.state.health,this.state.maxHealth,sacrament):0;this.healPlayer(damage*(.03+this.currentBuildStats().lifesteal+bonus));}

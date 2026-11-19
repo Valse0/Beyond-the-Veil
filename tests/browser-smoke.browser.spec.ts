@@ -308,6 +308,14 @@ async function completeBrowserTestEvent(page: import('@playwright/test').Page): 
   });
 }
 
+async function probeBrowserElementReaction(page: import('@playwright/test').Page,first:string,second:string):Promise<{enemyReaction:string;bossReaction:string;enemyIceFrozen:boolean;bossIceFrozen:boolean}> {
+  return page.evaluate(([a,b]) => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestElementReactionProbe:(first:string,second:string)=>{enemyReaction:string;bossReaction:string;enemyIceFrozen:boolean;bossIceFrozen:boolean}}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run').browserTestElementReactionProbe(a,b);
+  },[first,second]);
+}
+
 async function finishBrowserTestRun(page: import('@playwright/test').Page): Promise<void> {
   await page.evaluate(() => {
     const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestFinishRun:()=>void}}}}).__BEYOND_VEIL_GAME__;
@@ -966,4 +974,17 @@ test('first completed run grants and persists the first achievement after reload
   expect(reloaded.collections.completedAchievementIds).toContain('first-descent');
   expect(reloaded.collections.unlockedCosmeticIds).toContain('ashen-hunter');
   expect(pageErrors).toEqual([]);
+});
+
+
+test('element reactions use the same live status rules for normal enemies and bosses',async({page})=>{
+ const errors:string[]=[];
+ page.on('pageerror',error=>errors.push(error.message));
+ await startBrowserTestRun(page);
+ const result=await probeBrowserElementReaction(page,'fire','ice');
+ expect(result.enemyReaction).toBe('thermal-shock');
+ expect(result.bossReaction).toBe('thermal-shock');
+ expect(result.enemyIceFrozen).toBe(true);
+ expect(result.bossIceFrozen).toBe(true);
+ expect(errors).toEqual([]);
 });
