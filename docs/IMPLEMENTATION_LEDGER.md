@@ -323,3 +323,19 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Added unit coverage for historical cost, rounding, fresh profiles, full refund with zero loose essence, persistence, backup recovery and storage write failure. Added browser coverage for cancel, keyboard-confirmed respec and persistence after reload.
 - Relevant commits: 26d99c1 (quote tests), 88e6569 / bd2f0ac / 75d6791 (save and quote test refinement), 16b7bb1 (quote implementation), 1288b34 / 006fb10 (save operation and fee semantics), 554f8aa / 37f481e / 5108fcf (Hub UI and focus), 3e99987 / a260005 / 1b2ac3e (browser test), ff4d372 / 0660c30 (backup assertions).
 - CI verification pending; do not mark this requirement verified until TypeScript, unit tests, production build, Chromium tests and audit have all passed. Save schema remains v2; no migration required.
+
+
+## Relic System v1 implementation pass (2026-11-19)
+
+| Requirement | Scope | Status | Evidence | Remaining work |
+|---|---|---|---|---|
+| RELIC-01 | GDD §14.1 — ten relic definitions: five boss and five exploration, rarity, elemental/character affinity and regional set bonuses | IMPLEMENTED_UNVERIFIED | `src/data/relics.ts`; `tests/relic-runtime.test.mjs` | CI and gameplay balance verification pending |
+| RELIC-02 | GDD §14.1 — owned relic collection and maximum three unique equipped relics | IMPLEMENTED_UNVERIFIED | `src/gameplay/relics/relic-runtime.ts`; `src/systems/save/save-manager.ts`; `tests/save-system.test.mjs` | CI and UI/equipment interaction coverage pending |
+| RELIC-03 | GDD §14.1 — relic effects affect live run stats and elemental weapon damage | IMPLEMENTED_UNVERIFIED | `src/game/scenes/RunScene.ts`; `src/gameplay/relics/relic-runtime.ts` | CI and balance/playtest verification pending |
+| RELIC-04 | GDD §14.1 — boss chest and exploration event acquisition persist idempotently | IMPLEMENTED_UNVERIFIED | `src/gameplay/run/run-results.ts`; `src/game/scenes/RunScene.ts`; `tests/run-results.test.mjs`; `tests/browser-smoke.browser.spec.ts` | CI/browser verification pending |
+| SAVE-RELIC-01 | Save schema v3 migrates schema 0/1/2 and preserves existing profile progress | IMPLEMENTED_UNVERIFIED | `src/systems/save/save-types.ts`; `src/systems/save/save-manager.ts`; `tests/save-system.test.mjs` | CI migration and backup verification pending |
+
+- Implementation uses Phaser 3.85-compatible APIs and introduces no dependency, backend, paid service, asset or final UI.
+- Boss relic ownership is queued only after the physical boss chest is opened; the run-result save writes it together with existing run rewards. The exploration relic is queued only after a successful treasure-hunt event in its region.
+- Equipped relics are loaded from the profile at run start. Their modifiers feed actual weapon damage/attack cadence, player health/armor/movement, elemental buildup, critical chance, lifesteal, active ability cooldown and magnet radius.
+- The Relic Master NPC screen, relic crafting, special evolution recipes, final icons/art and balance/device playtesting remain outstanding; this package does not claim those GDD requirements complete.

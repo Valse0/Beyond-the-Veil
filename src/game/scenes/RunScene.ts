@@ -826,7 +826,7 @@ export class RunScene extends Phaser.Scene {
       if(stats.chainTargetBonus>0){const secondary=targets.filter(item=>item!==target).sort((a,b)=>Phaser.Math.Distance.Between(target.x,target.y,a.x,a.y)-Phaser.Math.Distance.Between(target.x,target.y,b.x,b.y))[0];if(secondary&&Phaser.Math.Distance.Between(target.x,target.y,secondary.x,secondary.y)<=170)this.damageEnemy(secondary,damage*.65,element);}
       const blood=synergy('blood-thread');
       if(blood)this.recordWeaponSynergy(blood.id);
-      this.healPlayer(damage*(this.currentBuildStats().lifesteal+(blood?.damageMultiplier??0)));return;
+      this.healPlayer(damage*(this.currentBuildStats().lifesteal+this.relicStats.lifestealBonus+(blood?.damageMultiplier??0)));return;
     }
     if(behavior==='delayed-mortar'||behavior==='delayed-sigil'||behavior==='area-seed'){
       const marker=this.add.graphics().setDepth(7);marker.lineStyle(2,elementTint[element],.9);marker.strokeCircle(target.x,target.y,Math.min(72,range*.28)*stats.areaMultiplier);
@@ -931,7 +931,7 @@ export class RunScene extends Phaser.Scene {
     if(anchor)damage*=.88;
     if(element){
       const elementDef=ELEMENTS.find(e=>e.id===element)!;
-      const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier};
+      const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier*this.relicStats.elementalBuildupMultiplier};
       const hit=applyElementHit(existing,tuned,damage,def.resistances[element]??0,this.time.now,ELEMENTS);
       this.elementStates.set(enemy,hit.state);damage=hit.damage+(hit.reaction?.damage??0);
       if(isPassiveSpecialActive(this.build,'venom-vial')&&isPoisonBloomReady(hit.state.poison?.stacks??0,5)){const bloom=PASSIVES.find(item=>item.id==='venom-vial')!.specialUpgrade.mechanic;if(bloom.kind==='poison-spores'){const ready=tryPassiveCooldown(this.passiveSpecialState,'toxic-bloom',this.time.now,bloom.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)this.spawnPassiveZone(enemy.x,enemy.y,bloom);}}
@@ -976,7 +976,7 @@ export class RunScene extends Phaser.Scene {
     let damage=baseDamage*(1+curse*.06);
     if(element){
       const elementDef=ELEMENTS.find(e=>e.id===element)!;
-      const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier};
+      const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier*this.relicStats.elementalBuildupMultiplier};
       const hit=applyElementHit(this.bossElementState,tuned,damage,this.bossDefinition.resistance[element]??0,this.time.now,ELEMENTS);
       this.bossElementState=hit.state;damage=hit.damage+(hit.reaction?.damage??0);
       if(isPassiveSpecialActive(this.build,'venom-vial')&&isPoisonBloomReady(hit.state.poison?.stacks??0,5)){const bloom=PASSIVES.find(item=>item.id==='venom-vial')!.specialUpgrade.mechanic;if(bloom.kind==='poison-spores'){const ready=tryPassiveCooldown(this.passiveSpecialState,'toxic-bloom',this.time.now,bloom.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)this.spawnPassiveZone(boss.x,boss.y,bloom);}}

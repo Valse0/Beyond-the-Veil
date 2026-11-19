@@ -63,3 +63,18 @@ src/data/asset-registry.ts defines 71 stable IDs: 5 characters, 25 enemies, 5 bo
 ## Implementation boundary
 
 Definitions live in src/data; shared contracts live in src/core/types/content.ts; validation lives in src/gameplay/content/content-validation.ts. The catalog is design-ready data, not yet wired into all runtime attacks, animations, progression or region scenes.
+
+
+## Relics
+
+The initial relic catalog contains ten items: five boss drops and five exploration rewards, one pair per region. Rarities are Rare, Epic and Legendary. Each regional pair activates a two-piece set bonus; each relic also carries an elemental or character affinity. Stable IDs and effects live in `src/data/relics.ts`; pure equipment/stat calculations live in `src/gameplay/relics/relic-runtime.ts`.
+
+| Region | Boss relic | Exploration relic | Set |
+|---|---|---|---|
+| Lanetli Orman | `matriarch-seed` | `forest-heart` | Diken Ahdi |
+| Unutulmuş Mezarlık | `king-crown-shard` | `grave-lament` | Sessiz Krallık |
+| Derin Zindan | `furnace-heart` | `dungeon-gear` | Son Dövme |
+| Çürümüş Bataklık | `oracle-eye` | `swamp-vessel` | Boğulmuş Kehanet |
+| Lanetli Kale | `unwritten-crown` | `castle-shard` | Perde Alameti |
+
+Boss relics are claimed by opening the boss chest. Exploration relics are claimed by completing the region's treasure-hunt event. The save stores an unlimited owned collection and a three-slot unique equipped loadout. These are gameplay/data systems only; the collection screen and Relic Master NPC interface remain pending.

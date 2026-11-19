@@ -28,10 +28,11 @@ test('equipment requires ownership, rejects duplicates and keeps exactly three s
 });
 
 test('two matching regional relics activate a set bonus and character affinity', () => {
-  const single = deriveRelicStats(['matriarch-seed'], 'blood-priestess');
-  const pair = deriveRelicStats(['matriarch-seed', 'forest-heart'], 'blood-priestess');
+  const single = deriveRelicStats(['matriarch-seed'], 'cursed-hunter');
+  const pair = deriveRelicStats(['matriarch-seed', 'forest-heart'], 'cursed-hunter');
+  const affinity = deriveRelicStats(['matriarch-seed'], 'blood-priestess');
   assert.ok(pair.damageMultiplier > single.damageMultiplier);
-  assert.ok(pair.lifestealBonus > single.lifestealBonus);
+  assert.ok(affinity.lifestealBonus > single.lifestealBonus);
 });
 
 test('element-bound relic damage only amplifies its matching element', () => {

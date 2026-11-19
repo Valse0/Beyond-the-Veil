@@ -33,6 +33,8 @@ function isSaveData(value: unknown): value is SaveData {
   const profile = value.profile;
   const progression = value.progression;
   const collections = value.collections;
+  const equippedRelicIds = isObject(progression) ? progression.equippedRelicIds : undefined;
+  const ownedRelicIds = isObject(collections) ? collections.relicIds : undefined;
   return isObject(profile)
     && typeof profile.createdAt === 'string'
     && typeof profile.updatedAt === 'string'

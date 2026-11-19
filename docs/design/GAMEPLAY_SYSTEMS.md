@@ -71,3 +71,12 @@ These mechanics are initial implementation values. The scene still uses procedur
 
 ## Full content catalog status
 The first-release data catalog defines all five hunters, five regions, 25 base enemies, five multi-phase bosses, twelve weapons, twelve passives and seven elements. The current run scene can be started with a chosen character and region, but the shipped menu currently selects only the defaults. Only the first region/boss is reachable through the current menu flow. See [CONTENT_CATALOG.md](CONTENT_CATALOG.md).
+
+
+## Relics v1
+
+The first executable relic set contains ten stable content IDs: five boss relics and five exploration relics, paired into one regional set per region. Each relic declares rarity, source, region, set, base effect, one character affinity and a two-piece set bonus. Element-tagged effects apply only to matching elemental weapon damage or buildup.
+
+A profile can own any number of relics and equip at most three unique owned relics. Equipment is stored as stable IDs in the save profile. Boss relics enter the run reward queue only when the matching boss chest is opened; exploration relics are awarded by successfully completing that region's treasure-hunt event. Both are persisted with the run result, including a later run defeat, and duplicate acquisitions are idempotent.
+
+Save schema v3 adds `collections.relicIds` and `progression.equippedRelicIds`. Existing schema 0, 1 and 2 profiles migrate with an empty relic collection/loadout while preserving Ruh Özü, upgrades, unlocks, mastery and settings. Relic modifiers are applied to live run damage, attack cadence, maximum health, armor, movement, elemental buildup, critical chance, lifesteal, ability cooldown and magnet radius. The catalog and runtime are implemented; balance, future crafting integration, and a player-facing Relic Master/equipment interface remain separate work.
