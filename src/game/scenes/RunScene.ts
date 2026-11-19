@@ -1476,11 +1476,11 @@ export class RunScene extends Phaser.Scene {
     const knownLore=new Set(save?.collections.discoveredLoreIds??[]);
     const knownPaths=new Set(save?.story.unlockedPathIds??[]);
     const [lore,secret]=this.region.explorationPoints;
-    if(lore&&!knownLore.has(lore.id))this.createExplorationPoint(WORLD_W/2-330,WORLD_H/2-220,'exploration-lore',lore.id,lore.name);
-    if(secret&&!knownPaths.has(secret.id))this.createExplorationPoint(WORLD_W/2+330,WORLD_H/2+220,'exploration-secret',secret.id,secret.name);
+    if(lore&&!knownLore.has(lore.id))this.createExplorationPoint(WORLD_W/2-330,WORLD_H/2-220,'exploration-lore',lore.id);
+    if(secret&&!knownPaths.has(secret.id))this.createExplorationPoint(WORLD_W/2+330,WORLD_H/2+220,'exploration-secret',secret.id);
   }
 
-  private createExplorationPoint(x:number,y:number,type:'exploration-lore'|'exploration-secret',pointId:string,labelText:string):void {
+  private createExplorationPoint(x:number,y:number,type:'exploration-lore'|'exploration-secret',pointId:string):void {
     const secret=type==='exploration-secret';
     const marker=this.add.circle(x,y,secret?17:15,secret?0x8062a6:0xd4ad65,.92).setStrokeStyle(3,secret?0xe0c4ff:0xffe6a8).setDepth(5);
     this.physics.add.existing(marker);
