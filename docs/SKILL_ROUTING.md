@@ -26,13 +26,14 @@ Availability must be verified in the active agent environment before use.
 
 Allowed availability values:
 - `AVAILABLE`: exact skill files are present and readable in the active environment.
+- `PINNED_SUBMODULE`: the repository pins the skill source as a submodule, but initialization and active CLI activation must be verified separately.
 - `PARTIALLY_AVAILABLE`: only named skills from a larger family are present.
 - `NOT_INSTALLED`: the skill is not present in the relevant environment.
 - `SESSION_UNVERIFIED`: installation may exist elsewhere, but this session cannot verify or access it.
 - `BLOCKED`: a concrete access or technical issue prevents use.
 - `DEFERRED`: intentionally not being used for the current task.
 
-Never infer that a skill is activated because the user has it installed in another CLI/editor. A pinned repository submodule proves repository presence, not active CLI activation. Never install a plugin, skill, or MCP server on the user's behalf unless separately requested and authorized.
+Never infer that a skill is activated because the user has it installed in another CLI/editor. A pinned repository submodule proves repository presence, not active CLI activation. Never install a plugin, skill, or MCP server on the user's behalf unless separately requested and authorized. If the active environment has no subagent reviewer capability, perform an explicit self-review and state that limitation instead of claiming a delegated review.
 
 ## 3. Task-to-skill routing
 
