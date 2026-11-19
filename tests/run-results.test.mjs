@@ -61,3 +61,31 @@ test('treasure-hunt materials persist after the run and ignore unknown or invali
   assert.deepEqual(result.collections.craftingMaterials, { 'living-root': 1 });
   assert.deepEqual(save.collections.craftingMaterials, {});
 });
+
+
+test('character mastery persists on defeat, awards kill bonuses, and unlocks milestones cumulatively', () => {
+  const save = createInitialSaveData('2026-11-19T12:00:00.000Z');
+  const first = applyRunResult(save, { regionId: 'cursed-forest', won: false, soulEssenceEarned: 0, characterId: 'cursed-hunter', kills: 20 });
+  assert.equal(first.collections.characterMastery['cursed-hunter'], 5);
+  assert.deepEqual(first.collections.unlockedMasteryRewardIds, []);
+  const second = applyRunResult(first, { regionId: 'cursed-forest', won: true, soulEssenceEarned: 0, characterId: 'cursed-hunter', kills: 90 });
+  assert.equal(second.collections.characterMastery['cursed-hunter'], 27);
+  assert.deepEqual(second.collections.unlockedMasteryRewardIds, ['hunter-title']);
+  assert.deepEqual(second.collections.unlockedCosmeticIds, []);
+  assert.equal(save.collections.characterMastery['cursed-hunter'], undefined);
+});
+
+test('mastery grants the boss victory bonus and unlocks level-five and level-ten rewards', () => {
+  const save = createInitialSaveData('2026-11-19T12:00:00.000Z');
+  save.collections.characterMastery['black-knight'] = 99;
+  const result = applyRunResult(save, { regionId: 'cursed-forest', won: true, soulEssenceEarned: 0, characterId: 'black-knight', kills: 0 });
+  assert.equal(result.collections.characterMastery['black-knight'], 112);
+  assert.deepEqual(result.collections.unlockedMasteryRewardIds, ['knight-title', 'aegis-alt']);
+  assert.deepEqual(result.collections.unlockedCosmeticIds, []);
+  const final = applyRunResult({ ...result, collections: { ...result.collections, characterMastery: { ...result.collections.characterMastery, 'black-knight': 249 } } }, {
+    regionId: 'cursed-forest', won: false, soulEssenceEarned: 0, characterId: 'black-knight', kills: 0
+  });
+  assert.equal(final.collections.characterMastery['black-knight'], 252);
+  assert.deepEqual(final.collections.unlockedMasteryRewardIds, ['knight-title', 'aegis-alt', 'iron-oath-skin']);
+  assert.deepEqual(final.collections.unlockedCosmeticIds, ['iron-oath-skin']);
+});

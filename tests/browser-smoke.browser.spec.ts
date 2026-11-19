@@ -13,7 +13,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
     const raw = window.localStorage.getItem('beyond-the-veil.save');
     return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string }; progression: { unlockedCharacterIds: string[]; unlockedRegionIds: string[] } } : null;
   });
-  expect(firstSave?.schemaVersion).toBe(4);
+  expect(firstSave?.schemaVersion).toBe(5);
   expect(firstSave?.progression.unlockedCharacterIds).toContain('cursed-hunter');
   expect(firstSave?.progression.unlockedRegionIds).toContain('cursed-forest');
 
@@ -24,7 +24,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
     const raw = window.localStorage.getItem('beyond-the-veil.save');
     return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string } } : null;
   });
-  expect(reloadedSave?.schemaVersion).toBe(4);
+  expect(reloadedSave?.schemaVersion).toBe(5);
   expect(reloadedSave?.profile.createdAt).toBe(firstSave?.profile.createdAt);
   const dimensions = await canvas.evaluate((element: HTMLCanvasElement) => ({
     width: element.width,
@@ -539,7 +539,7 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
 test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
-      schemaVersion: 4,
+      schemaVersion: 5,
       profile: { createdAt: '2026-11-19T00:00:00.000Z', updatedAt: '2026-11-19T00:00:00.000Z' },
       progression: {
         soulEssence: 0, completedRuns: 0,
@@ -548,7 +548,7 @@ test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls
         permanentUpgrades: { maxHealth: 2, attackPower: 2, moveSpeed: 1, armor: 3, xpBonus: 2, rerolls: 2 },
         equippedRelicIds: []
       },
-      collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [] },
+      collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [] },
       settings: {}
     }));
   });
@@ -809,10 +809,11 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   expect(victory.lastRunSaved).toBe(true);
 
   const savedVictory=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(savedVictory.schemaVersion).toBe(4);
+  expect(savedVictory.schemaVersion).toBe(5);
   expect(savedVictory.collections.relicIds).toContain('matriarch-seed');
   expect(savedVictory.progression.soulEssence).toBe(victory.runSoulEssence);
   expect(savedVictory.progression.completedRuns).toBe(1);
+  expect(savedVictory.collections.characterMastery['cursed-hunter']).toBeGreaterThanOrEqual(13);
   expect(savedVictory.progression.unlockedRegionIds).toContain('forgotten-graveyard');
 
   await page.reload();
@@ -891,7 +892,21 @@ test('completed treasure hunt grants and persists its regional crafting material
   });
   await expect.poll(async()=>page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!).collections.craftingMaterials['living-root'])).toBe(1);
   const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(saved.schemaVersion).toBe(4);
+  expect(saved.schemaVersion).toBe(5);
   expect(saved.collections.craftingMaterials).toEqual({ 'living-root': 1 });
+  expect(pageErrors).toEqual([]);
+});
+
+
+test('defeat preserves the selected hunter mastery baseline in the profile save', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  await finishBrowserTestRun(page);
+  const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(saved.schemaVersion).toBe(5);
+  expect(saved.progression.completedRuns).toBe(1);
+  expect(saved.collections.characterMastery['cursed-hunter']).toBe(3);
+  expect(saved.collections.unlockedMasteryRewardIds).toEqual([]);
   expect(pageErrors).toEqual([]);
 });
