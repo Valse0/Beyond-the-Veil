@@ -234,7 +234,7 @@ test('permanent upgrade respec refunds net investment, charges the fee and persi
 test('respec refuses a profile without investments and does not change either save key', () => {
   const storage = new MemoryStorage();
   const manager = new SaveManager(storage, fixedNow);
-  manager.save(createInitialSaveData(fixedNow));
+  manager.save(createInitialSaveData(fixedNow()));
   const beforePrimary = storage.getItem(SAVE_STORAGE_KEY);
   const beforeBackup = storage.getItem(SAVE_BACKUP_KEY);
 
