@@ -24,7 +24,7 @@ import { getActiveWeaponSynergies, getWeaponSynergyChainBonus, getWeaponSynergyD
 import { addCurseStack, createPassiveSpecialRuntimeState, getLowHealthLifestealBonus, getWeakenedDamageMultiplier, grantFreeReroll, isFrozenTarget, isPassiveSpecialActive, isPoisonBloomReady, resolveCriticalHit, resolveLastWard, resolveSealedPlate, tryPassiveCooldown, type PassiveSpecialRuntimeState } from '../../gameplay/passives/passive-runtime.js';
 import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState } from '../../gameplay/bosses/boss-runtime.js';
 import { createBossArena, damageBossArenaObject, getBossArenaDamageMultiplier, getSafeBossArenaObject, stepBossArena, transitionBossArenaPhase, type BossArenaObjectKind, type BossArenaState } from '../../gameplay/bosses/boss-arena-runtime.js';
-import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent } from '../../gameplay/regions/region-runtime.js';
+import { createHazardCycle, getRegionHazardMechanic, stepRegionHazard, type HazardCycle, type HazardEvent, type RegionHazardMechanic } from '../../gameplay/regions/region-runtime.js';
 import { applyRunResult } from '../../gameplay/run/run-results.js';
 import { createWaveDirector, stepWaveDirector, waveRandom, type WaveDirectorState } from '../../gameplay/spawning/wave-director.js';
 import { advanceRunEvent, createRunEventState, getRunEventName, getRunEventObjective, getRunEventReward, recordRunEventAction, startDueRunEvent, type RunEventAction, type RunEventKind, type RunEventState } from '../../gameplay/events/run-events.js';
@@ -122,6 +122,14 @@ export class RunScene extends Phaser.Scene {
   private activeHazardId='';
   private hazardHasHit=false;
   private hazardLabel?:Phaser.GameObjects.Text;
+  private hazardCounterLabel?:Phaser.GameObjects.Text;
+  private hazardDirection={x:1,y:0};
+  private hazardTargetForced=false;
+  private hazardPoisonStacks=0;
+  private hazardPoisonExpiresAt=0;
+  private hazardPoisonNextTickAt=0;
+  private hazardLastEffectId='';
+  private hazardLastDamage=0;
   private bossSpawned=false;
   private bossVictoryPending=false;
   private bossChestOverlapCount=0;
@@ -175,6 +183,52 @@ export class RunScene extends Phaser.Scene {
 
   private assertBrowserTestMode():void {
     if(this.registry.get('browserTestMode')!==true)throw new Error('Browser test controls are disabled.');
+  }
+
+  browserTestTriggerHazard(hazardId:string):{regionId:string;hazardId:string;telegraphMs:number;shape:string} {
+    this.assertBrowserTestMode();
+    const region=REGIONS.find(item=>item.hazards.some(hazard=>hazard.id===hazardId));
+    const index=region?.hazards.findIndex(hazard=>hazard.id===hazardId)??-1;
+    const hazard=region?.hazards[index];
+    const mechanic=getRegionHazardMechanic(hazardId);
+    if(!region||!hazard||!mechanic)throw new Error('Unknown region hazard: '+hazardId);
+    this.region=region;
+    this.state={...this.state,health:this.state.maxHealth};
+    this.player.setPosition(WORLD_W/2,WORLD_H/2).setVelocity(0,0);
+    this.playerSlowUntil=0;this.playerSlowMultiplier=1;
+    this.hazardPoisonStacks=0;this.hazardPoisonExpiresAt=0;this.hazardPoisonNextTickAt=0;
+    this.hazardLastEffectId='';this.hazardLastDamage=0;
+    this.hazardCycle={hazardIndex:index,nextAt:this.time.now,activeUntil:0,telegraphUntil:0};
+    this.activeHazardId='';this.hazardHasHit=false;this.hazardTargetForced=true;
+    this.updateRegionHazard(this.time.now);
+    return {regionId:region.id,hazardId,telegraphMs:hazard.telegraphMs,shape:mechanic.shape};
+  }
+
+  browserTestHazardSnapshot():{regionId:string;activeHazardId:string;lastEffectId:string;lastDamage:number;health:number;maxHealth:number;poisonStacks:number;slowActive:boolean;activeEnemyCount:number} {
+    this.assertBrowserTestMode();
+    return {regionId:this.region.id,activeHazardId:this.activeHazardId,lastEffectId:this.hazardLastEffectId,lastDamage:this.hazardLastDamage,health:this.state.health,maxHealth:this.state.maxHealth,poisonStacks:this.hazardPoisonStacks,slowActive:this.time.now<this.playerSlowUntil,activeEnemyCount:this.enemies.countActive(true)};
+  }
+
+  browserTestTriggerHazard(hazardId:string):{regionId:string;hazardId:string;telegraphMs:number;shape:string} {
+    this.assertBrowserTestMode();
+    const region=REGIONS.find(item=>item.hazards.some(hazard=>hazard.id===hazardId));
+    const index=region?.hazards.findIndex(hazard=>hazard.id===hazardId)??-1;
+    const hazard=region?.hazards[index];
+    const mechanic=getRegionHazardMechanic(hazardId);
+    if(!region||!hazard||!mechanic)throw new Error('Unknown region hazard: '+hazardId);
+    this.region=region;this.state={...this.state,health:this.state.maxHealth};
+    this.player.setPosition(WORLD_W/2,WORLD_H/2).setVelocity(0,0);
+    this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.hazardPoisonStacks=0;this.hazardPoisonExpiresAt=0;this.hazardPoisonNextTickAt=0;
+    this.hazardLastEffectId='';this.hazardLastDamage=0;
+    this.hazardCycle={hazardIndex:index,nextAt:this.time.now,activeUntil:0,telegraphUntil:0};
+    this.activeHazardId='';this.hazardHasHit=false;this.hazardTargetForced=true;
+    this.updateRegionHazard(this.time.now);
+    return {regionId:region.id,hazardId,telegraphMs:hazard.telegraphMs,shape:mechanic.shape};
+  }
+
+  browserTestHazardSnapshot():{regionId:string;activeHazardId:string;lastEffectId:string;lastDamage:number;health:number;maxHealth:number;poisonStacks:number;slowActive:boolean;activeEnemyCount:number} {
+    this.assertBrowserTestMode();
+    return {regionId:this.region.id,activeHazardId:this.activeHazardId,lastEffectId:this.hazardLastEffectId,lastDamage:this.hazardLastDamage,health:this.state.health,maxHealth:this.state.maxHealth,poisonStacks:this.hazardPoisonStacks,slowActive:this.time.now<this.playerSlowUntil,activeEnemyCount:this.enemies.countActive(true)};
   }
 
   /** Development-only bridge used by Playwright; never callable in production builds. */
@@ -709,7 +763,7 @@ export class RunScene extends Phaser.Scene {
     this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.bossArenaState=undefined;this.playerPoisonStacks=0;this.playerPoisonExpiresAt=0;this.playerPoisonNextTickAt=0;this.arenaInteractionReadyAt=0;this.lastBossArenaVisualsAt=0;this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;this.weaponSynergyGuardUntil=0;this.weaponSynergyGuardReduction=.28;this.weaponSynergyTriggers=[];
-    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.runDiscoveredLoreIds=[];this.runDiscoveredPathIds=[];this.activeStoryPaths=[];this.lastTraversedStoryPathId=null;this.activeStoryWorldState=null;this.storyWorldObjectCount=0;this.bossChestOpened=false;this.completedTreasureHunt=false;this.runCraftingMaterials={};this.lastRunSaved=null;
+    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.hazardTargetForced=false;this.hazardPoisonStacks=0;this.hazardPoisonExpiresAt=0;this.hazardPoisonNextTickAt=0;this.hazardLastEffectId='';this.hazardLastDamage=0;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.runDiscoveredLoreIds=[];this.runDiscoveredPathIds=[];this.activeStoryPaths=[];this.lastTraversedStoryPathId=null;this.activeStoryWorldState=null;this.storyWorldObjectCount=0;this.bossChestOpened=false;this.completedTreasureHunt=false;this.runCraftingMaterials={};this.lastRunSaved=null;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
@@ -1912,17 +1966,87 @@ export class RunScene extends Phaser.Scene {
   }
 
   private updateRegionHazard(time:number):void {
+    if(this.hazardPoisonStacks>0){
+      if(time>=this.hazardPoisonExpiresAt){this.hazardPoisonStacks=0;this.hazardPoisonNextTickAt=0;}
+      else if(time>=this.hazardPoisonNextTickAt){this.hazardPoisonNextTickAt=time+1_000;this.receiveCombatDamage(this.hazardPoisonStacks*1.25);}
+    }
     const result=stepRegionHazard(this.region,this.hazardCycle,time);this.hazardCycle=result.cycle;
     const event:HazardEvent=result.event;
-    if(event.phase==='idle'){this.hazardMarker?.destroy();this.hazardMarker=undefined;this.hazardLabel?.destroy();this.hazardLabel=undefined;this.activeHazardId='';this.hazardHasHit=false;return;}
+    if(event.phase==='idle'){
+      this.hazardMarker?.destroy();this.hazardMarker=undefined;this.hazardLabel?.destroy();this.hazardLabel=undefined;
+      this.hazardCounterLabel?.destroy();this.hazardCounterLabel=undefined;this.activeHazardId='';this.hazardHasHit=false;return;
+    }
+    const mechanic=getRegionHazardMechanic(event.hazard.id);
+    if(!mechanic)return;
     if(this.activeHazardId!==event.hazard.id){
       this.activeHazardId=event.hazard.id;this.hazardHasHit=false;
-      const angle=Math.random()*Math.PI*2;this.hazardTarget={x:Phaser.Math.Clamp(this.player.x+Math.cos(angle)*150,50,WORLD_W-50),y:Phaser.Math.Clamp(this.player.y+Math.sin(angle)*150,50,WORLD_H-50)};
+      if(!this.hazardTargetForced){
+        const angle=Math.random()*Math.PI*2;
+        this.hazardTarget={x:Phaser.Math.Clamp(this.player.x+Math.cos(angle)*150,50,WORLD_W-50),y:Phaser.Math.Clamp(this.player.y+Math.sin(angle)*150,50,WORLD_H-50)};
+      }
+      this.hazardTargetForced=false;
+      const angle=Phaser.Math.Angle.Between(this.hazardTarget.x,this.hazardTarget.y,this.player.x,this.player.y);
+      this.hazardDirection={x:Math.cos(angle),y:Math.sin(angle)};
       this.hazardMarker?.destroy();this.hazardMarker=this.add.graphics().setDepth(6);
       this.hazardLabel?.destroy();this.hazardLabel=this.add.text(this.hazardTarget.x,this.hazardTarget.y-58,event.hazard.name,{fontSize:'12px',color:'#f1d59b',backgroundColor:'#251d20',padding:{x:5,y:3}}).setOrigin(.5).setDepth(7);
+      this.hazardCounterLabel?.destroy();this.hazardCounterLabel=this.add.text(this.hazardTarget.x,this.hazardTarget.y+mechanic.radius+18,event.hazard.counter,{fontSize:'10px',color:'#d8c8a8',backgroundColor:'#211b20',padding:{x:4,y:2},align:'center',wordWrap:{width:250}}).setOrigin(.5).setDepth(7);
     }
-    if(this.hazardMarker){this.hazardMarker.clear();const active=event.phase==='active';this.hazardMarker.lineStyle(3,active?0xe55d54:0xd7b568,.95);this.hazardMarker.fillStyle(active?0xd84f4f:0xd7b568,active?.25:.1);this.hazardMarker.strokeCircle(this.hazardTarget.x,this.hazardTarget.y,66);this.hazardMarker.fillCircle(this.hazardTarget.x,this.hazardTarget.y,66);}
-    if(event.phase==='active'&&!this.hazardHasHit&&Phaser.Math.Distance.Between(this.player.x,this.player.y,this.hazardTarget.x,this.hazardTarget.y)<82){this.hazardHasHit=true;this.receiveCombatDamage(12);}
+    const active=event.phase==='active';
+    if(this.hazardMarker){
+      const marker=this.hazardMarker;marker.clear();marker.lineStyle(3,active?0xe55d54:0xd7b568,.95);marker.fillStyle(active?0xd84f4f:0xd7b568,active?.2:.08);
+      const {x,y}=this.hazardTarget,{x:dx,y:dy}=this.hazardDirection,r=mechanic.radius;
+      if(mechanic.shape==='line'){
+        marker.lineBetween(x-dx*r,y-dy*r,x+dx*r,y+dy*r);
+        marker.lineBetween(x-dx*r-dy*16,y-dy*r+dx*16,x+dx*r-dy*16,y+dy*r+dx*16);
+        marker.lineBetween(x-dx*r+dy*16,y-dy*r-dx*16,x+dx*r+dy*16,y+dy*r-dx*16);
+      }else if(mechanic.shape==='cross'){
+        marker.lineBetween(x-r,y,x+r,y);marker.lineBetween(x,y-r,x,y+r);
+      }else{
+        marker.strokeCircle(x,y,r);
+        if(mechanic.shape==='ring')marker.strokeCircle(x,y,r*.72);
+        marker.fillCircle(x,y,r);
+      }
+    }
+    if(active&&!this.hazardHasHit&&(this.isPlayerInsideRegionHazard(mechanic)||Boolean(mechanic.summonCount)))this.resolveRegionHazard(event.hazard.id,mechanic);
+  }
+
+  private isPlayerInsideRegionHazard(mechanic:RegionHazardMechanic):boolean {
+    const dx=this.player.x-this.hazardTarget.x,dy=this.player.y-this.hazardTarget.y,distance=Math.hypot(dx,dy),r=mechanic.radius;
+    if(mechanic.shape==='circle'||mechanic.shape==='ring')return distance<=r+18;
+    const along=dx*this.hazardDirection.x+dy*this.hazardDirection.y;
+    const across=Math.abs(dx*this.hazardDirection.y-dy*this.hazardDirection.x);
+    if(mechanic.shape==='line')return Math.abs(along)<=r&&across<=30;
+    return (Math.abs(dx)<=28&&Math.abs(dy)<=r)||(Math.abs(dy)<=28&&Math.abs(dx)<=r);
+  }
+
+  private resolveRegionHazard(hazardId:string,mechanic:RegionHazardMechanic):void {
+    this.hazardHasHit=true;this.hazardLastEffectId=hazardId;this.hazardLastDamage=mechanic.damage;
+    if(mechanic.damage>0)this.receiveCombatDamage(mechanic.damage);
+    if(mechanic.slowMultiplier&&mechanic.slowDurationMs){
+      const currentSlow=this.time.now<this.playerSlowUntil?this.playerSlowMultiplier:1;
+      this.playerSlowUntil=Math.max(this.playerSlowUntil,this.time.now+mechanic.slowDurationMs);
+      this.playerSlowMultiplier=Math.min(currentSlow,mechanic.slowMultiplier);
+    }
+    if(mechanic.poisonStacks){
+      this.hazardPoisonStacks=Math.min(4,this.hazardPoisonStacks+mechanic.poisonStacks);
+      this.hazardPoisonExpiresAt=this.time.now+(mechanic.poisonDurationMs??4_000);
+      if(this.hazardPoisonNextTickAt<=this.time.now)this.hazardPoisonNextTickAt=this.time.now+1_000;
+    }
+    if(mechanic.pushForce){
+      const angle=Phaser.Math.Angle.Between(this.hazardTarget.x,this.hazardTarget.y,this.player.x,this.player.y);
+      this.player.setVelocity(Math.cos(angle)*mechanic.pushForce,Math.sin(angle)*mechanic.pushForce);
+    }
+    if(mechanic.summonEnemyId&&mechanic.summonCount){
+      const definition=ENEMIES.find(enemy=>enemy.id===mechanic.summonEnemyId);
+      if(definition&&this.enemies.countActive(true)<42){
+        for(let index=0;index<mechanic.summonCount&&this.enemies.countActive(true)<42;index++){
+          const angle=Math.PI*2*index/mechanic.summonCount;
+          const enemy=this.createEnemy(this.hazardTarget.x+Math.cos(angle)*42,this.hazardTarget.y+Math.sin(angle)*42,definition,.72);
+          enemy.setData('experience',0).setData('summonedByHazard',hazardId);
+        }
+      }
+    }
+    this.eventHud?.setText('ÇEVRESEL TEHLİKE  •  '+hazardId.toUpperCase()).setVisible(true);
   }
 
   private isEnemyFacingPlayer(enemy:Phaser.Physics.Arcade.Sprite,actor?:EnemyActorState):boolean {

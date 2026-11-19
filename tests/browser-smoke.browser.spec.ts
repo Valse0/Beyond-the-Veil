@@ -1412,3 +1412,35 @@ test('final story ending is completed only by the matching live final-boss victo
   expect(reloaded.story.completedEndingId).toBe('ending-mended-veil');
   expect(pageErrors).toEqual([]);
 });
+
+test('five regions apply their authored environmental hazards through the live Phaser scene',async({page})=>{
+  await startBrowserTestRun(page);
+  const cases=[
+    {id:'forest-poison-bloom',region:'cursed-forest'},
+    {id:'grave-cursed-tomb',region:'forgotten-graveyard'},
+    {id:'dungeon-fire-trap',region:'deep-dungeon'},
+    {id:'swamp-toxic-water',region:'rotten-swamp'},
+    {id:'castle-dark-flame',region:'cursed-castle'}
+  ];
+  const trigger=async(id:string)=>page.evaluate(hazardId=>{
+    const game=(window as Window&{__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestTriggerHazard:(id:string)=>{regionId:string;hazardId:string;telegraphMs:number;shape:string}}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run').browserTestTriggerHazard(hazardId);
+  },id);
+  const snapshot=async()=>page.evaluate(()=>{
+    const game=(window as Window&{__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestHazardSnapshot:()=>{regionId:string;activeHazardId:string;lastEffectId:string;lastDamage:number;health:number;maxHealth:number;poisonStacks:number;slowActive:boolean;activeEnemyCount:number}}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run').browserTestHazardSnapshot();
+  });
+  for(const item of cases){
+    const setup=await trigger(item.id);
+    expect(setup.regionId).toBe(item.region);
+    expect(setup.hazardId).toBe(item.id);
+    expect(['circle','ring','line','cross']).toContain(setup.shape);
+    await expect.poll(async()=>(await snapshot()).lastEffectId,{timeout:7_000,message:item.id+' should resolve after its warning'}).toBe(item.id);
+    const result=await snapshot();
+    expect(result.regionId).toBe(item.region);
+    expect(result.lastDamage).toBeGreaterThan(0);
+    expect(result.health).toBeLessThan(result.maxHealth);
+  }
+});

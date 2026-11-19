@@ -244,3 +244,15 @@ The resolver is engine-independent and keeps the catalog separate from Phaser pr
 ## Environmental lore landmarks
 
 Each region uses its existing two exploration-point IDs for a themed story landmark and a hidden-passage trace. The catalog in `src/data/environmental-lore.ts` supplies the name, short environmental clue, motif and replaceable palette; `RunScene` renders temporary Phaser shapes for the forest camp, grave inscriptions, dungeon workshop, swamp altar and castle seal. The existing Arcade overlap remains the only discovery trigger. Discovery still feeds the existing lore and secret-path save fields, and already discovered landmarks do not respawn. These shapes are placeholders, not final environment art.
+
+## Region hazard mechanics v1
+
+The five regions now resolve their 20 existing hazard IDs into distinct live gameplay profiles. The shared hazard cycle still owns warning and active timing; the region runtime supplies the attack shape and tuned effect, while `RunScene` owns the Phaser presentation and player/enemy interactions.
+
+- **Cursed Forest:** poison bloom applies a short poison buildup; thorn roots sweep a warned line and slow; hidden nests summon two root husks; elemental flora emits a warned ring burst and brief root-slow.
+- **Forgotten Graveyard:** cursed tombs erupt in a knockback burst; spirit orbs pulse through a ring and slow; temporary portals summon two wailing wisps; awakening graves release a bone skitter.
+- **Deep Dungeon:** fire traps sweep a line; spike floors strike a cross; moving machinery sweeps and pushes; rune locks strike crossing energy lanes and briefly slow.
+- **Rotten Swamp:** toxic water applies poison; slow mud reduces movement briefly; rotting ground collapses in a warned ring and pushes; hidden enemies ambush with a mire lurker.
+- **Cursed Castle:** cursed seals pulse and slow; dark flame sweeps a long line; shifting passages strike crossing lanes and push; phase arenas pulse a larger ring and knock the hunter away.
+
+Every warning displays the authored counter instruction. The player can avoid the damaging shapes by leaving the marked line, cross or area before activation. Poison and slow are temporary; summoned enemies remain ordinary killable enemies and grant no duplicate XP from the hazard spawn. All visuals remain replaceable Phaser placeholders. No save data, stable hazard IDs, boss rules or dependencies change.
