@@ -10,7 +10,13 @@ export class HunterHubScene extends Phaser.Scene {
   private costTexts: Map<string, Phaser.GameObjects.Text> = new Map();
   private buttonBgs: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private buttonTexts: Map<string, Phaser.GameObjects.Text> = new Map();
+  private respecButton?: Phaser.GameObjects.Text;
+  private respecDialog?: Phaser.GameObjects.Container;
+  private respecDialogStatus?: Phaser.GameObjects.Text;
+  private respecCancelBg?: Phaser.GameObjects.Rectangle;
+  private respecConfirmBg?: Phaser.GameObjects.Rectangle;
   private selectedIndex = 0;
+  private respecDialogSelection: 'cancel' | 'confirm' = 'cancel';
   private previousPad = { up: false, down: false, left: false, right: false, confirm: false, back: false };
   private navKeys!: Record<string, Phaser.Input.Keyboard.Key>;
 
@@ -27,6 +33,11 @@ export class HunterHubScene extends Phaser.Scene {
     this.buttonBgs.clear();
     this.buttonTexts.clear();
     this.selectedIndex = 0;
+    this.respecDialog = undefined;
+    this.respecDialogStatus = undefined;
+    this.respecCancelBg = undefined;
+    this.respecConfirmBg = undefined;
+    this.respecDialogSelection = 'cancel';
     this.previousPad = { up: false, down: false, left: false, right: false, confirm: false, back: false };
 
     const backdrop = this.add.graphics();
@@ -42,7 +53,7 @@ export class HunterHubScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#b8aaa0'
     });
 
-    this.navKeys = this.input.keyboard!.addKeys('UP,DOWN,ENTER,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.navKeys = this.input.keyboard!.addKeys('UP,DOWN,LEFT,RIGHT,ENTER,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
 
     this.essenceText = this.add.text(width - 64, 52, '', {
       fontFamily: 'Georgia, serif', fontSize: '24px', color: '#f0d9b5', fontStyle: 'bold'
@@ -105,7 +116,18 @@ export class HunterHubScene extends Phaser.Scene {
     backBtn.on('pointerout', () => backBtn.setStyle({ color: '#b8aaa0', backgroundColor: '#1d1720' }));
     backBtn.on('pointerup', () => this.scene.start('main-menu'));
 
-    this.input.keyboard?.on('keydown-ESC', () => this.scene.start('main-menu'));
+    this.respecButton = this.add.text(width - 64, height - 60, '↻ YENİDEN DAĞIT', {
+      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#d9c9aa',
+      backgroundColor: '#2b2528', padding: { x: 18, y: 10 }
+    }).setOrigin(1, 0.5);
+    this.respecButton.on('pointerover', () => this.respecButton?.setStyle({ color: '#ffffff', backgroundColor: '#5b3d32' }));
+    this.respecButton.on('pointerout', () => this.respecButton?.setStyle({ color: '#d9c9aa', backgroundColor: '#2b2528' }));
+    this.respecButton.on('pointerup', () => this.openRespecDialog());
+
+    this.input.keyboard?.on('keydown-ESC', () => {
+      if (this.respecDialog) this.closeRespecDialog();
+      else this.scene.start('main-menu');
+    });
     this.refreshHubState();
   }
 
@@ -113,11 +135,27 @@ export class HunterHubScene extends Phaser.Scene {
     const pad = this.input.gamepad?.getPad(0);
     const keyboardUp = Phaser.Input.Keyboard.JustDown(this.navKeys.UP!);
     const keyboardDown = Phaser.Input.Keyboard.JustDown(this.navKeys.DOWN!);
+    const keyboardLeft = Phaser.Input.Keyboard.JustDown(this.navKeys.LEFT!);
+    const keyboardRight = Phaser.Input.Keyboard.JustDown(this.navKeys.RIGHT!);
     const keyboardConfirm = Phaser.Input.Keyboard.JustDown(this.navKeys.ENTER!) || Phaser.Input.Keyboard.JustDown(this.navKeys.SPACE!);
+    const padLeft = Boolean(pad && (pad.left || Number(pad.axes[0]?.value) < -0.5));
+    const padRight = Boolean(pad && (pad.right || Number(pad.axes[0]?.value) > 0.5));
     const up = keyboardUp || Boolean(pad && (pad.up || Number(pad.axes[1]?.value) < -0.5));
     const down = keyboardDown || Boolean(pad && (pad.down || Number(pad.axes[1]?.value) > 0.5));
     const confirm = keyboardConfirm || Boolean(pad && (pad.A || pad.buttons[9]?.pressed));
     const back = Boolean(pad && (pad.B || pad.buttons[8]?.pressed));
+
+    if (this.respecDialog) {
+      const left = keyboardLeft || padLeft;
+      const right = keyboardRight || padRight;
+      if ((left && !this.previousPad.left) || (right && !this.previousPad.right)) {
+        this.setRespecDialogSelection(left ? 'cancel' : 'confirm');
+      }
+      if (confirm && !this.previousPad.confirm) this.activateRespecDialogSelection();
+      if (back && !this.previousPad.back) this.closeRespecDialog();
+      this.previousPad = { up, down, left, right, confirm, back };
+      return;
+    }
 
     if (up && !this.previousPad.up) {
       this.selectedIndex = (this.selectedIndex - 1 + UPGRADES.length) % UPGRADES.length;
@@ -132,10 +170,8 @@ export class HunterHubScene extends Phaser.Scene {
       const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
       if (saveManager) {
         const currentLevel = saveManager.getPermanentUpgradeLevel(upgrade.id);
-        const cost = upgrade.baseCost * (currentLevel + 1);
-        if (currentLevel < upgrade.maxLevel) {
-          this.purchaseUpgrade(upgrade.id, cost, upgrade.maxLevel);
-        }
+        const cost = getPermanentUpgradeCost(upgrade.id, currentLevel);
+        if (cost !== null) this.purchaseUpgrade(upgrade.id, cost, upgrade.maxLevel);
       }
     }
     if (back && !this.previousPad.back) {
@@ -143,6 +179,84 @@ export class HunterHubScene extends Phaser.Scene {
     }
 
     this.previousPad = { up, down, left: false, right: false, confirm, back };
+  }
+
+  private openRespecDialog(): void {
+    if (this.respecDialog) return;
+    const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+    const quote = saveManager?.getPermanentUpgradeRespecQuote();
+    if (!quote || quote.totalInvested <= 0) return;
+
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const dialog = this.add.container(0, 0).setDepth(1000);
+    const dim = this.add.rectangle(centerX, centerY, width, height, 0x050407, 0.84).setInteractive();
+    const panel = this.add.rectangle(centerX, centerY, 560, 300, 0x211a23, 1).setStrokeStyle(2, 0xb99a61, 0.9);
+    const title = this.add.text(centerX, centerY - 105, 'GELİŞTİRMELERİ YENİDEN DAĞIT', {
+      fontFamily: 'Georgia, serif', fontSize: '22px', color: '#f2e8d4', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    const details = this.add.text(centerX, centerY - 28,
+      `Toplam yatırım: ${quote.totalInvested} Ruh Özü\nHizmet bedeli (%10): ${quote.fee} Ruh Özü\nGeri alınacak: ${quote.refund} Ruh Özü\n\nAltı geliştirme seviyen sıfırlanacak. Emin misin?`, {
+        fontFamily: 'Arial, sans-serif', fontSize: '17px', color: '#c9bdb0', align: 'center', lineSpacing: 8
+      }).setOrigin(0.5);
+    this.respecDialogStatus = this.add.text(centerX, centerY + 68, '', {
+      fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#d18b82', align: 'center'
+    }).setOrigin(0.5);
+
+    this.respecCancelBg = this.add.rectangle(centerX - 112, centerY + 112, 180, 46, 0x342d34, 1)
+      .setStrokeStyle(1, 0x82747b, 0.8).setInteractive({ useHandCursor: true });
+    const cancelText = this.add.text(centerX - 112, centerY + 112, 'VAZGEÇ', {
+      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#e4d9cf', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    this.respecConfirmBg = this.add.rectangle(centerX + 112, centerY + 112, 180, 46, 0x5b3d32, 1)
+      .setStrokeStyle(1, 0xb99a61, 0.8).setInteractive({ useHandCursor: true });
+    const confirmText = this.add.text(centerX + 112, centerY + 112, 'SIFIRLA', {
+      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#f2e8d4', fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    this.respecCancelBg.on('pointerover', () => this.setRespecDialogSelection('cancel'));
+    this.respecCancelBg.on('pointerup', () => this.closeRespecDialog());
+    this.respecConfirmBg.on('pointerover', () => this.setRespecDialogSelection('confirm'));
+    this.respecConfirmBg.on('pointerup', () => this.confirmRespec());
+    dialog.add([dim, panel, title, details, this.respecDialogStatus, this.respecCancelBg, cancelText, this.respecConfirmBg, confirmText]);
+    this.respecDialog = dialog;
+    this.setRespecDialogSelection('cancel');
+  }
+
+  private setRespecDialogSelection(selection: 'cancel' | 'confirm'): void {
+    this.respecDialogSelection = selection;
+    this.respecCancelBg?.setStrokeStyle(selection === 'cancel' ? 3 : 1, selection === 'cancel' ? 0xf2e8d4 : 0x82747b, 1);
+    this.respecConfirmBg?.setStrokeStyle(selection === 'confirm' ? 3 : 1, selection === 'confirm' ? 0xf2e8d4 : 0xb99a61, 1);
+  }
+
+  private activateRespecDialogSelection(): void {
+    if (this.respecDialogSelection === 'confirm') this.confirmRespec();
+    else this.closeRespecDialog();
+  }
+
+  private confirmRespec(): void {
+    const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+    if (saveManager?.respecPermanentUpgrades()) {
+      this.closeRespecDialog();
+      this.refreshHubState();
+      return;
+    }
+    this.respecDialogStatus?.setText('Kayıt güncellenemedi. Geliştirmelerin korunuyor.');
+  }
+
+  private closeRespecDialog(): void {
+    this.respecDialog?.destroy(true);
+    this.respecDialog = undefined;
+    this.respecDialogStatus = undefined;
+    this.respecCancelBg = undefined;
+    this.respecConfirmBg = undefined;
+    this.respecDialogSelection = 'cancel';
+    this.previousPad.left = false;
+    this.previousPad.right = false;
+    this.previousPad.confirm = false;
+    this.previousPad.back = false;
   }
 
   private highlightSelected(): void {
@@ -165,23 +279,23 @@ export class HunterHubScene extends Phaser.Scene {
     const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
     if (!saveManager) return;
     const success = saveManager.purchasePermanentUpgrade(upgradeId, cost, maxLevel);
-    if (success) {
-      this.refreshHubState();
-    }
+    if (success) this.refreshHubState();
   }
 
   private refreshHubState(): void {
     const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
     const loaded = saveManager ? saveManager.load() : null;
     const soulEssence = loaded && 'data' in loaded ? loaded.data.progression.soulEssence : 0;
+    const quote = saveManager?.getPermanentUpgradeRespecQuote();
 
-    if (this.essenceText) {
-      this.essenceText.setText(`Ruh Özü: ${soulEssence}`);
+    if (this.essenceText) this.essenceText.setText(`Ruh Özü: ${soulEssence}`);
+    if (this.respecButton) {
+      this.respecButton.setAlpha(quote && quote.totalInvested > 0 ? 1 : 0.45);
     }
 
     UPGRADES.forEach((upgrade) => {
       const currentLevel = saveManager ? saveManager.getPermanentUpgradeLevel(upgrade.id) : 0;
-      const cost = upgrade.baseCost * (currentLevel + 1);
+      const cost = getPermanentUpgradeCost(upgrade.id, currentLevel);
       const isMax = currentLevel >= upgrade.maxLevel;
 
       const levelText = this.levelTexts.get(upgrade.id);
@@ -189,8 +303,8 @@ export class HunterHubScene extends Phaser.Scene {
 
       const costText = this.costTexts.get(upgrade.id);
       if (costText) {
-        costText.setText(isMax ? 'MAX' : `${cost} Öz`);
-        costText.setColor(isMax ? '#888888' : (soulEssence >= cost ? '#f0d9b5' : '#d18b82'));
+        costText.setText(isMax ? 'MAX' : `${cost ?? ''} Öz`);
+        costText.setColor(isMax ? '#888888' : (soulEssence >= (cost ?? Number.POSITIVE_INFINITY) ? '#f0d9b5' : '#d18b82'));
       }
 
       const btnBg = this.buttonBgs.get(upgrade.id);
