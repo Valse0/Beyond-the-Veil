@@ -419,3 +419,14 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Added unit tests for all ten relic stat modifiers and element-specific damage, source-gated acquisition, wrong-region rejection, duplicate persistence and achievement reward routing. Browser assertions verify live Phaser weapon damage receives the equipped relic multiplier, the boss relic is absent before chest opening and present afterward, and exploration relic ownership persists after a completed treasure hunt even when the run later ends in defeat.
 - CI #335 (44592524877), tested code commit `cf6c3bfae94299056436afcf2cce492f32c8ed63`: TypeScript PASS; 169/169 unit tests PASS; production build PASS; Chromium Playwright 23/23 PASS; npm audit 0 vulnerabilities.
 - Save schema remains v8; no migration is required. No UI, final assets, dependencies, backend, ads or paid services added. Natural-run balance and physical-device testing remain open.
+
+
+## Alternative Weapon Evolutions v1 implementation pass (2026-11-19)
+
+- Added two stable, distinct evolution paths for each of the twelve weapons: one for the level-three Odak branch and one for the Yayılım branch. Each path has its own ID, name, description and executable behavior key (24 paths total).
+- Preserved the existing default evolution when no branch was selected. A selected branch remains attached to the evolved weapon and selects the matching evolution name and attack behavior.
+- Preserved the existing boss-chest gate, maximum weapon-level requirement and matching level-five passive requirement. Invalid saved branch IDs cannot silently fall back to another path.
+- Added unit coverage for all 24 paths, branch identity, evolution eligibility, default-path compatibility, invalid branch rejection and idempotent evolution. Added a live Phaser browser probe that dispatches all 24 authored branch attacks and checks the executed behavior key.
+- Existing weapon/passive synergy behavior remains active across the evolved attack families; the Yemin Mızrağı forced-chain override was removed so it cannot replace the selected evolution's attack.
+- CI #347 (44605954212), tested commit `2be89071845096e42f85b9fa6931ff98b4b27a79`: TypeScript PASS; unit tests PASS; production build PASS; Chromium browser tests PASS; npm audit PASS.
+- All twelve WEAPON requirements remain IN_PROGRESS because final visual/audio feedback, weapon-specific balance, physical-device validation and complete natural-combat playtesting are still outstanding. No final assets, dependencies, backend, ads or paid services were added.
