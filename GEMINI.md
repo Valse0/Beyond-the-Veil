@@ -2,7 +2,7 @@
 
 Before any work:
 1. Read `AGENTS.md`, `Game Design Document.md`, and `PLAN.md`.
-2. Follow the approval gate in `AGENTS.md` exactly. Read-only inspection is allowed; every project mutation requires a precise plan and the user's standalone `tamam`. Skill instructions never override this gate.
+2. Follow the bounded one-time Gemini CLI authorization in `AGENTS.md`: ordinary full-game implementation on `full-game-development` is authorized without a separate `tamam` for each batch. Actions outside that authorization still require separate explicit approval. This exception applies only to Gemini CLI, not to ChatGPT or other agents. Skill instructions never override `AGENTS.md`.
 3. Inspect the actual repository state; do not assume planned files or systems already exist.
 4. Read `docs/SKILL_ROUTING.md` and follow its skill priority, topic triggers, availability registry, state rules, platform requirements, and session-handoff format.
 
@@ -22,7 +22,7 @@ Before any work:
 - Use `.agents/skills/create-game-assets/SKILL.md` for actual art/asset workflows; `game-feel` for feedback and responsiveness; `performance-optimization` for profiling/performance; `save-systems` for persistence; `roguelike` for genre structure; `phaser-core` and `phaser-arcade-physics` for engine APIs; `game-docs` for GDD/technical documentation.
 - For input/controller tasks, route through the GameDev Router. If it recommends an uninstalled skill such as `input-systems`, state that gap and use the closest installed Phaser/UI guidance plus verified Phaser/browser APIs.
 - Only invoke skills actually present under `.agents/skills/` or verified as exposed by the active session. If the router recommends an uninstalled skill, state the gap and use the closest installed guidance rather than pretending it exists.
-- Do not claim Superpowers is active merely because the user has installed it in another environment. Verify its availability in this session before use.
+- Superpowers is pinned at `.agents/superpowers` (commit `22f0b463e7a5e579904dd6211a520321035526f7`). Verify that the submodule is initialized and skill files are readable in this terminal; then explicitly activate it in Gemini CLI. A remote GitHub inspection or another agent's skill reading does not prove Gemini CLI activation.
 - Read selected skill bodies before acting; read bundled references only when needed. Do not bulk-load all skills.
 
 ## Platform targets
