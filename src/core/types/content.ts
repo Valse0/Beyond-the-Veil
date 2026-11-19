@@ -38,7 +38,8 @@ export interface RegionDefinition { id:RegionId;name:string;subtitle:string;atmo
 export interface AssetRecord { id:string;role:AssetRole;contentId:string;path:null;status:'placeholder'|'final'|'blocked';width:number;height:number;anchor:string;filtering:'nearest';requiredStates:string[];source:{kind:string;creator:string;license:string;attribution:string};nativeScaleReviewed:boolean;inEngineReviewed:boolean;technicalChecksPassed:boolean }
 
 export type QuestCategory = 'main' | 'side' | 'exploration' | 'character';
-export interface QuestObjectiveDefinition { id: string; description: string; target: number }
+export type QuestObjectiveEventType = 'enemy-kill' | 'elite-kill' | 'boss-defeat' | 'run-event-complete';
+export interface QuestObjectiveDefinition { id: string; description: string; target: number; event: QuestObjectiveEventType; eventFilter?: string }
 export interface QuestOutcomeDefinition {
   id: string; summary: string; npcFates?: Record<string,string>; regionAtmospheres?: Record<string,string>;
   unlockedPathIds?: string[]; bossEncounterIds?: string[]; rewardIds?: string[];

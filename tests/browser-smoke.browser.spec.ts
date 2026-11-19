@@ -1172,3 +1172,33 @@ test('schema-v8 profile migrates into persistent quest state in the live game an
   expect(reloaded.story.unlockedPathIds).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+
+test('live enemy and boss defeats advance the active quest and persist across defeat and reload',async({page})=>{
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await startBrowserTestRun(page);
+  const call=(method:'browserTestDefeatQuestEnemy'|'browserTestDefeatBoss'|'browserTestFinishRun')=>page.evaluate((name)=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>Record<string,()=>void>}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run')[name]!();
+  },method);
+  const initial=await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestSnapshot:()=>{questProgress:Record<string,{status:string;objectiveProgress:Record<string,number>}>}}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run').browserTestSnapshot().questProgress;
+  });
+  expect(initial['forest-root-oath']?.status).toBe('active');
+  await call('browserTestDefeatQuestEnemy');
+  await call('browserTestDefeatQuestEnemy');
+  await call('browserTestDefeatBoss');
+  await call('browserTestFinishRun');
+  const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(saved.story.quests['forest-root-oath'].objectiveProgress['inspect-root-runes']).toBe(2);
+  expect(saved.story.quests['forest-root-oath'].objectiveProgress['silence-root-corruption']).toBe(1);
+  await page.reload();
+  const reloaded=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(reloaded.story.quests['forest-root-oath'].objectiveProgress['inspect-root-runes']).toBe(2);
+  expect(reloaded.story.quests['forest-root-oath'].objectiveProgress['silence-root-corruption']).toBe(1);
+  expect(errors).toEqual([]);
+});

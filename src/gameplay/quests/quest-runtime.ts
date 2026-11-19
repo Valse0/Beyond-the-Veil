@@ -2,6 +2,7 @@
 import { QUESTS, QUEST_BY_ID } from '../../data/quests.js';
 import { applyCollectionProgress } from '../progression/collections.js';
 import type { SaveData, QuestProgress, QuestStoryState } from '../../systems/save/save-types.js';
+import type { QuestObjectiveEventType } from '../../core/types/content.js';
 
 export function createInitialQuestStoryState(): QuestStoryState {
   return { quests:{}, npcFates:{}, regionAtmospheres:{}, unlockedPathIds:[], bossEncounterIds:[], unlockedRewardIds:[], unlockedAlternateQuestIds:[], endingId:null, appliedOutcomeIds:[] };
@@ -43,6 +44,33 @@ export function startQuest(save:SaveData,questId:string):SaveData|null {
   if(!next.story.quests[questId])next.story.quests[questId]={status:'active',objectiveProgress:{},chosenChoiceId:null,outcomeId:null};
   return next;
 }
+export function startAvailableQuests(save:SaveData,regionId:string):SaveData {
+  let next=save;
+  for(const quest of getAvailableQuests(next,regionId)){
+    if(next.story.quests[quest.id])continue;
+    const started=startQuest(next,quest.id);
+    if(started)next=started;
+  }
+  return next;
+}
+
+export function recordQuestEvent(save:SaveData,regionId:string,event:{type:QuestObjectiveEventType;filter?:string;amount?:number}):SaveData {
+  const amount=event.amount??1;
+  if(!Number.isInteger(amount)||amount<=0)return save;
+  let next=startAvailableQuests(save,regionId);
+  for(const quest of QUESTS){
+    if(quest.regionId!==regionId)continue;
+    const progress=next.story.quests[quest.id];
+    if(progress?.status!=='active')continue;
+    for(const objective of quest.objectives){
+      if(objective.event!==event.type||(objective.eventFilter!==undefined&&objective.eventFilter!==event.filter))continue;
+      const updated=recordQuestObjective(next,quest.id,objective.id,amount);
+      if(updated)next=updated;
+    }
+  }
+  return next;
+}
+
 export function recordQuestObjective(save:SaveData,questId:string,objectiveId:string,amount=1):SaveData|null {
   const q=QUEST_BY_ID.get(questId), objective=q?.objectives.find(x=>x.id===objectiveId), current=save.story.quests[questId];
   if(!q||!objective||!current||current.status!=='active'||!Number.isInteger(amount)||amount<=0)return null;

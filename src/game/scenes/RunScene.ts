@@ -24,6 +24,8 @@ import { applyRunResult } from '../../gameplay/run/run-results.js';
 import { createWaveDirector, stepWaveDirector, waveRandom, type WaveDirectorState } from '../../gameplay/spawning/wave-director.js';
 import { advanceRunEvent, createRunEventState, getRunEventName, getRunEventObjective, getRunEventReward, recordRunEventAction, startDueRunEvent, type RunEventAction, type RunEventKind, type RunEventState } from '../../gameplay/events/run-events.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
+import type { SaveData } from '../../systems/save/save-types.js';
+import { recordQuestEvent, startAvailableQuests } from '../../gameplay/quests/quest-runtime.js';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
 import { createLevelUpControlState, drawLevelUpChoices as drawChoicesFromPool, spendLevelUpBanish, spendLevelUpReroll, spendLevelUpSkip, type LevelUpControlState } from '../../gameplay/level-up/level-up-controls.js';
 import { derivePermanentUpgradeEffects, type PermanentUpgradeEffects } from '../../gameplay/progression/permanent-upgrades.js';
@@ -146,6 +148,7 @@ export class RunScene extends Phaser.Scene {
   private bossChestOpened=false;
   private completedTreasureHunt=false;
   private runDiscoveredEnemyIds:string[]=[];
+  private questSaveData?:SaveData;
   private runDiscoveredWeaponIds:string[]=[];
   private unlockedWeaponVariantIds:string[]=[];
   private runCraftingMaterials:Record<string,number>={};
@@ -164,6 +167,7 @@ export class RunScene extends Phaser.Scene {
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
     runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
+    questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
     passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
     weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
     shotDiagnostics:{weaponId:string;damage:number}[];
@@ -184,6 +188,7 @@ export class RunScene extends Phaser.Scene {
       shotDiagnostics:this.shots.getChildren().filter(child=>child.active&&child.getData('weaponId')).map(child=>({weaponId:String(child.getData('weaponId')),damage:Number(child.getData('damage'))})), 
       runSoulEssence:this.runSoulEssence,runRelicIds:[...this.runRelicIds],equippedRelicIds:[...this.equippedRelicIds],runCraftingMaterials:{...this.runCraftingMaterials},kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
       bossHealth:this.bossState?.health??null,health:this.state.health,maxHealth:this.state.maxHealth,damage:this.state.damage,moveSpeed:this.state.moveSpeed,
+      questProgress:Object.fromEntries(Object.entries(this.questSaveData?.story.quests??{}).map(([id,progress])=>[id,{status:progress.status,objectiveProgress:{...progress.objectiveProgress}}])),
       bossChestDiagnostics:(()=>{
         const playerBody=this.player.body as Phaser.Physics.Arcade.Body;
         const chest=this.eventObjects.getChildren().find(object=>object.getData('eventObjectType')==='boss-chest');
@@ -566,6 +571,14 @@ export class RunScene extends Phaser.Scene {
     try{this.damageBossTarget(this.bossSprite,amount);}finally{Math.random=random;}
   }
 
+  browserTestDefeatQuestEnemy():void {
+    this.assertBrowserTestMode();
+    const definition=ENEMIES.find(enemy=>enemy.id===this.region.enemyIds[0]);
+    if(!definition)throw new Error('The current region has no test enemy.');
+    const enemy=this.createEnemy(this.player.x+40,this.player.y,definition,1);
+    this.damageEnemy(enemy,Number(enemy.getData('health'))*100);
+  }
+
   browserTestDefeatBoss():void {
     this.assertBrowserTestMode();
     this.spawnBoss();
@@ -630,6 +643,7 @@ export class RunScene extends Phaser.Scene {
     this.time.paused=false;this.physics.world.resume();
     const saveManager=this.registry.get('saveManager') as SaveManager|undefined;
     const loadedSave=saveManager?.load();
+    this.questSaveData=loadedSave&&'data' in loadedSave?startAvailableQuests(loadedSave.data,this.region.id):undefined;
     this.permanentUpgradeEffects=derivePermanentUpgradeEffects(loadedSave&&'data' in loadedSave?loadedSave.data.progression.permanentUpgrades:undefined);
     const activeEquipmentProfile=loadedSave&&'data' in loadedSave?getActiveEquipmentProfile(loadedSave.data.progression,this.character.id):null;
     this.equippedRelicIds=activeEquipmentProfile?[...activeEquipmentProfile.relicIds]:loadedSave&&'data' in loadedSave?[...loadedSave.data.progression.equippedRelicIds]:[];
@@ -1290,6 +1304,8 @@ export class RunScene extends Phaser.Scene {
     const experience=Number(enemy.getData('experience'));
     if(!this.runDiscoveredEnemyIds.includes(def.id))this.runDiscoveredEnemyIds.push(def.id);
     this.recordRunEventEnemyDefeat(enemy);
+    this.recordQuestGameplayEvent('enemy-kill');
+    if(enemy.getData('isElite'))this.recordQuestGameplayEvent('elite-kill');
     this.runSoulEssence+=Math.floor(Math.max(0,experience)/2)+(enemy.getData('isElite')?35:0);
     if(enemy.getData('isElite')&&isPassiveSpecialActive(this.build,'hollow-crown'))this.applyCrownOfAshes(enemy);
     const eliteMarker=enemy.getData('eliteMarker') as Phaser.GameObjects.GameObject|undefined;eliteMarker?.destroy();
@@ -1355,6 +1371,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private defeatBoss(boss:Phaser.Physics.Arcade.Sprite):void {
+    this.recordQuestGameplayEvent('boss-defeat');
     this.dropExperience(boss,80);this.runSoulEssence+=this.bossDefinition?.reward.soulEssence??0;
     const vessel=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='boss-essence')?.specialUpgrade.mechanic;
     if(vessel?.kind==='boss-essence'&&isPassiveSpecialActive(this.build,'soul-vessel'))for(let i=0;i<vessel.fragmentCount;i++){const angle=(Math.PI*2*i)/vessel.fragmentCount;this.createRunEventObject(boss.x+Math.cos(angle)*48,boss.y+Math.sin(angle)*48,'essence-fragment',vessel.essencePerFragment);}
@@ -1532,6 +1549,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private completeRunEvent(kind:RunEventKind):void {
+    this.recordQuestGameplayEvent('run-event-complete',kind);
     const reward=getRunEventReward(kind);this.runSoulEssence+=reward;this.clearRunEventObjects();this.eventSetupPending=false;
     const relic=kind==='treasure-hunt'?RELICS.find(item=>item.regionId===this.region.id&&item.source==='exploration'):undefined;
     if(kind==='treasure-hunt')this.completedTreasureHunt=true;
@@ -1539,6 +1557,11 @@ export class RunScene extends Phaser.Scene {
     const material=kind==='treasure-hunt'?CRAFTING_MATERIALS.find(item=>item.regionId===this.region.id):undefined;
     if(material)this.runCraftingMaterials[material.id]=(this.runCraftingMaterials[material.id]??0)+1;
     this.eventHud?.setText(getRunEventName(kind)+' tamamlandı  •  +'+reward+' Ruh Özü'+(relic?'  •  '+relic.name:'')+(material?'  •  +1 '+material.name:'')).setVisible(true);
+  }
+
+  private recordQuestGameplayEvent(type:'enemy-kill'|'elite-kill'|'boss-defeat'|'run-event-complete',filter?:string):void {
+    if(!this.questSaveData)return;
+    this.questSaveData=recordQuestEvent(this.questSaveData,this.region.id,{type,filter});
   }
 
   private failRunEvent(kind:RunEventKind):void {
@@ -1975,7 +1998,8 @@ export class RunScene extends Phaser.Scene {
     try {
       const loaded=manager.load();
       if(!('data' in loaded))return false;
-      manager.save(applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,bossChestOpened:this.bossChestOpened,completedTreasureHunt:this.completedTreasureHunt,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length,enemyIdsEarned:this.runDiscoveredEnemyIds,weaponIdsEarned:this.runDiscoveredWeaponIds,loreIdsEarned:won?[this.region.explorationPoints[0]!.id]:[]}));
+      const runResult=applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,bossChestOpened:this.bossChestOpened,completedTreasureHunt:this.completedTreasureHunt,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length,enemyIdsEarned:this.runDiscoveredEnemyIds,weaponIdsEarned:this.runDiscoveredWeaponIds,loreIdsEarned:won?[this.region.explorationPoints[0]!.id]:[]});
+      manager.save({...runResult,story:this.questSaveData?.story??runResult.story});
       return true;
     } catch {
       return false;

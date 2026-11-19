@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInitialSaveData } from '../.test-dist/src/systems/save/save-manager.js';
 import { QUESTS } from '../.test-dist/src/data/quests.js';
-import { areQuestObjectivesComplete, chooseQuestBranch, getAvailableQuests, recordQuestObjective, startQuest } from '../.test-dist/src/gameplay/quests/quest-runtime.js';
+import { areQuestObjectivesComplete, chooseQuestBranch, getAvailableQuests, recordQuestEvent, recordQuestObjective, startAvailableQuests, startQuest } from '../.test-dist/src/gameplay/quests/quest-runtime.js';
 
 const now='2026-11-19T12:00:00.000Z';
 function unlocked(questId){
@@ -22,7 +22,7 @@ function finishObjectives(save,questId){
 test('quest catalog covers five regions with ten quests and two distinct choices each',()=>{
   assert.equal(QUESTS.length,10);
   assert.deepEqual(new Set(QUESTS.map(q=>q.regionId)),new Set(['cursed-forest','forgotten-graveyard','deep-dungeon','rotten-swamp','cursed-castle']));
-  for(const quest of QUESTS){assert.ok(quest.objectives.length>0);assert.equal(quest.choices.length,2);assert.notEqual(quest.choices[0].outcome.id,quest.choices[1].outcome.id);}
+  for(const quest of QUESTS){assert.ok(quest.objectives.length>0);assert.ok(quest.objectives.every(objective=>['enemy-kill','elite-kill','boss-defeat','run-event-complete'].includes(objective.event)));assert.equal(quest.choices.length,2);assert.notEqual(quest.choices[0].outcome.id,quest.choices[1].outcome.id);}
 });
 test('region and prerequisite locks gate main quest availability',()=>{
   const save=createInitialSaveData(now);
@@ -39,6 +39,24 @@ test('objective progress clamps at target, rejects invalid events and does not m
   assert.equal(recordQuestObjective(active,'forest-root-oath','unknown'),null);
   assert.equal(recordQuestObjective(active,'forest-root-oath','inspect-root-runes',0),null);
 });
+test('live gameplay events advance matching objectives and respect region and event filters',()=>{
+  const started=startAvailableQuests(unlocked('forest-root-oath'),'cursed-forest');
+  assert.equal(started.story.quests['forest-root-oath'].status,'active');
+  const afterKill=recordQuestEvent(started,'cursed-forest',{type:'enemy-kill',amount:2});
+  assert.equal(afterKill.story.quests['forest-root-oath'].objectiveProgress['inspect-root-runes'],2);
+  assert.equal(afterKill.story.quests['forest-root-oath'].objectiveProgress['silence-root-corruption'],undefined);
+  const afterBoss=recordQuestEvent(afterKill,'cursed-forest',{type:'boss-defeat'});
+  assert.equal(afterBoss.story.quests['forest-root-oath'].objectiveProgress['silence-root-corruption'],1);
+  assert.equal(recordQuestEvent(afterBoss,'forgotten-graveyard',{type:'boss-defeat'}),afterBoss);
+  const side=unlocked('forest-hidden-spring');side.story.unlockedAlternateQuestIds.push('forest-hidden-spring');
+  side.story.quests['forest-hidden-spring']={status:'active',objectiveProgress:{},chosenChoiceId:null,outcomeId:null};
+  const wrong=recordQuestEvent(side,'cursed-forest',{type:'run-event-complete',filter:'spirit-storm'});
+  assert.equal(wrong.story.quests['forest-hidden-spring'].objectiveProgress['follow-moss-trail'],undefined);
+  const right=recordQuestEvent(wrong,'cursed-forest',{type:'run-event-complete',filter:'treasure-hunt'});
+  assert.equal(right.story.quests['forest-hidden-spring'].objectiveProgress['follow-moss-trail'],1);
+  assert.equal(side.story.quests['forest-hidden-spring'].objectiveProgress['follow-moss-trail'],undefined);
+});
+
 test('branch choice is unavailable until all objectives are complete',()=>{
   const active=startQuest(unlocked('forest-root-oath'),'forest-root-oath');
   assert.equal(chooseQuestBranch(active,'forest-root-oath','spare-warden'),null);

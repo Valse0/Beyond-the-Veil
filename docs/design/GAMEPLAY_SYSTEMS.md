@@ -192,3 +192,8 @@ CI #347 (44605954212) verifies all 24 alternate evolution paths: TypeScript, 175
 - Authored Ruh Özü and valid story-archive lore rewards are applied once. Quest progress belongs to the persistent profile, not a run.
 - Save schema v9 migrates v8 saves without discarding existing profile progression, collections or settings.
 - Quest journal, dialogue presentation, live world-event dispatch, path geometry changes, boss-variant consumption and ending scenes remain later integration work; this package is the rules/data/persistence foundation.
+
+
+## Quest event integration v1
+
+Quest objectives now declare the gameplay event that advances them: ordinary enemy defeats, elite defeats, boss defeats, or completed run events (optionally filtered to a specific event kind). The Phaser run scene starts currently available quests for the active region, records these events through the quest runtime, and merges persistent quest progress into the normal run-result save. Progress survives defeat and reload; it is not tied to a single run. Branch selection, journal/dialogue UI, world-path consumption, boss-variant consumption and ending scenes remain separate future work.
