@@ -489,7 +489,15 @@ test('all fourteen authored weapon synergies trigger through their real Phaser c
       return game.scene.getScene('run').browserTestFireWeaponSynergy(weapon,passive);
     },[weaponId,passiveId]);
     expect(result.activeSynergyIds).toContain(synergyId);
-    await expect.poll(async()=> (await readBrowserRunSnapshot(page)).weaponSynergyTriggers,{timeout:8_000,message:synergyId+' should execute its combat trigger'}).toContain(synergyId);
+    await expect.poll(async()=>{
+      const snapshot=await readBrowserRunSnapshot(page);
+      const diagnostics=await page.evaluate(()=>{
+        const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestSynergyDiagnostics:()=>{runFinished:boolean;scenePaused:boolean;clockPaused:boolean;sceneActive:boolean;sceneTimeNow:number;activeEnemyCount:number;playerHealth:number;passiveZoneCount:number}}}}}).__BEYOND_VEIL_GAME__;
+        if(!game)throw new Error('Development browser test bridge is not available.');
+        return game.scene.getScene('run').browserTestSynergyDiagnostics();
+      });
+      return {triggered:snapshot.weaponSynergyTriggers.includes(synergyId),runFinished:diagnostics.runFinished,scenePaused:diagnostics.scenePaused,clockPaused:diagnostics.clockPaused,sceneActive:diagnostics.sceneActive,sceneTimeNow:diagnostics.sceneTimeNow,activeEnemyCount:diagnostics.activeEnemyCount,playerHealth:diagnostics.playerHealth,passiveZoneCount:diagnostics.passiveZoneCount};
+    },{timeout:8_000,message:synergyId+' should execute; last scene/clock state is included'}).toMatchObject({triggered:true});
     const triggered=await readBrowserRunSnapshot(page);
     expect(triggered.weaponSynergyTriggers.filter(id=>id===synergyId)).toHaveLength(1);
     const diagnostics=await page.evaluate(()=>{
