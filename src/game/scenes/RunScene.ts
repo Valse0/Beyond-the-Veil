@@ -209,6 +209,7 @@ export class RunScene extends Phaser.Scene {
     const weapon=progress?WEAPONS.find(item=>item.id===progress.weaponId):undefined;
     const targetDefinition=ENEMIES.find(item=>item.id===this.region.enemyIds[0]);
     if(!progress||!weapon||!targetDefinition||!progress.branchId)throw new Error('A branched weapon is required before firing the test attack.');
+    for(const child of [...this.shots.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
     this.createEnemy(this.player.x+50,this.player.y,targetDefinition,1);
     this.weaponReady[weapon.id]=0;
     this.fireWeapons(this.time.now+10_000);
