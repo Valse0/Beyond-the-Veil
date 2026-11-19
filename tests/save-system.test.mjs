@@ -210,3 +210,74 @@ test('rejects negative, non-finite, fractional, mismatched and unknown permanent
   assert.equal(storage.getItem(SAVE_STORAGE_KEY), before);
   assert.equal(manager.load().data.progression.soulEssence, 500);
 });
+
+
+test('permanent upgrade respec refunds net investment, charges the fee and persists atomically', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  const data = createInitialSaveData(fixedNow());
+  data.progression.soulEssence = 100;
+  data.progression.permanentUpgrades = { maxHealth: 2, attackPower: 1 };
+  manager.save(data);
+
+  const quote = manager.getPermanentUpgradeRespecQuote();
+  assert.deepEqual(quote, { totalInvested: 225, fee: 23, refund: 202 });
+  assert.equal(manager.respecPermanentUpgrades(), true);
+
+  const loaded = new SaveManager(storage, fixedNow).load();
+  assert.equal(loaded.data.progression.soulEssence, 302);
+  assert.deepEqual(loaded.data.progression.permanentUpgrades, {});
+  assert.equal(new SaveManager(storage, fixedNow).getPermanentUpgradeLevel('maxHealth'), 0);
+  assert.equal(JSON.parse(storage.getItem(SAVE_BACKUP_KEY)).progression.permanentUpgrades.maxHealth, 2);
+});
+
+test('respec refuses a profile without investments and does not change either save key', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  manager.save(createInitialSaveData(fixedNow));
+  const beforePrimary = storage.getItem(SAVE_STORAGE_KEY);
+  const beforeBackup = storage.getItem(SAVE_BACKUP_KEY);
+
+  assert.equal(manager.respecPermanentUpgrades(), false);
+  assert.equal(storage.getItem(SAVE_STORAGE_KEY), beforePrimary);
+  assert.equal(storage.getItem(SAVE_BACKUP_KEY), beforeBackup);
+});
+
+test('respec refuses insufficient fee balance without changing saved data', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  const data = createInitialSaveData(fixedNow());
+  data.progression.soulEssence = 4;
+  data.progression.permanentUpgrades = { maxHealth: 1 };
+  manager.save(data);
+  const beforePrimary = storage.getItem(SAVE_STORAGE_KEY);
+  const beforeBackup = storage.getItem(SAVE_BACKUP_KEY);
+
+  assert.equal(manager.respecPermanentUpgrades(), false);
+  assert.equal(storage.getItem(SAVE_STORAGE_KEY), beforePrimary);
+  assert.equal(storage.getItem(SAVE_BACKUP_KEY), beforeBackup);
+});
+
+test('respec does not alter the current save if storage rejects the write', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  const data = createInitialSaveData(fixedNow());
+  data.progression.soulEssence = 100;
+  data.progression.permanentUpgrades = { maxHealth: 1 };
+  manager.save(data);
+  const beforePrimary = storage.getItem(SAVE_STORAGE_KEY);
+  const beforeBackup = storage.getItem(SAVE_BACKUP_KEY);
+  const originalSetItem = storage.setItem.bind(storage);
+  let failPrimaryWrite = true;
+  storage.setItem = (key, value) => {
+    if (key === SAVE_STORAGE_KEY && failPrimaryWrite) {
+      failPrimaryWrite = false;
+      throw new Error('Simulated storage write failure');
+    }
+    originalSetItem(key, value);
+  };
+
+  assert.equal(manager.respecPermanentUpgrades(), false);
+  assert.equal(storage.getItem(SAVE_STORAGE_KEY), beforePrimary);
+  assert.equal(storage.getItem(SAVE_BACKUP_KEY), beforeBackup);
+});
