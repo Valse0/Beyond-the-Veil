@@ -42,7 +42,8 @@ test('boss chest relic rewards are added to the permanent relic collection on vi
     regionId: 'cursed-forest',
     won: true,
     soulEssenceEarned: 180,
-    relicIdsEarned: ['matriarch-seed', 'matriarch-seed', 'unknown-relic']
+    relicIdsEarned: ['matriarch-seed', 'matriarch-seed', 'unknown-relic'],
+    bossChestOpened: true
   });
   assert.deepEqual(result.collections.relicIds, ['matriarch-seed']);
   assert.deepEqual(result.progression.equippedRelicIds, []);
@@ -115,4 +116,41 @@ test('run discoveries persist on defeat while region story lore requires a victo
     loreIdsEarned: ['cursed-forest-lore']
   });
   assert.deepEqual(victory.collections.discoveredLoreIds, ['cursed-forest-lore']);
+});
+
+
+test('boss relics require an opened boss chest and a matching region victory', () => {
+  const save = createInitialSaveData();
+  const base = { regionId: 'cursed-forest', soulEssenceEarned: 0, relicIdsEarned: ['matriarch-seed'] };
+  const noChest = applyRunResult(save, { ...base, won: true });
+  const defeat = applyRunResult(save, { ...base, won: false, bossChestOpened: true });
+  const wrongRegion = applyRunResult(save, { ...base, regionId: 'forgotten-graveyard', won: true, bossChestOpened: true });
+  assert.deepEqual(noChest.collections.relicIds, []);
+  assert.deepEqual(defeat.collections.relicIds, []);
+  assert.deepEqual(wrongRegion.collections.relicIds, []);
+  const opened = applyRunResult(save, { ...base, won: true, bossChestOpened: true });
+  assert.deepEqual(opened.collections.relicIds, ['matriarch-seed']);
+});
+
+test('exploration relics require successful treasure-hunt completion and survive later defeat', () => {
+  const save = createInitialSaveData();
+  const base = { regionId: 'cursed-forest', won: false, soulEssenceEarned: 0, relicIdsEarned: ['forest-heart'] };
+  const incomplete = applyRunResult(save, base);
+  assert.deepEqual(incomplete.collections.relicIds, []);
+  const failed = applyRunResult(save, { ...base, completedTreasureHunt: false });
+  assert.deepEqual(failed.collections.relicIds, []);
+  const completed = applyRunResult(save, { ...base, completedTreasureHunt: true });
+  assert.deepEqual(completed.collections.relicIds, ['forest-heart']);
+  const duplicate = applyRunResult(completed, { ...base, completedTreasureHunt: true });
+  assert.deepEqual(duplicate.collections.relicIds, ['forest-heart']);
+});
+
+test('relic acquisition rejects cross-region and wrong-source IDs even with completion flags', () => {
+  const save = createInitialSaveData();
+  const result = applyRunResult(save, {
+    regionId: 'cursed-forest', won: true, soulEssenceEarned: 0,
+    relicIdsEarned: ['matriarch-seed', 'forest-heart', 'king-crown-shard'],
+    bossChestOpened: true, completedTreasureHunt: true
+  });
+  assert.deepEqual(result.collections.relicIds, ['matriarch-seed', 'forest-heart']);
 });

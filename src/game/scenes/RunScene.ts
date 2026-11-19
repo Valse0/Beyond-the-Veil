@@ -134,6 +134,8 @@ export class RunScene extends Phaser.Scene {
   private equippedRelicIds:string[]=[];
   private relicStats:RelicStats=deriveRelicStats([],'cursed-hunter');
   private runRelicIds:string[]=[];
+  private bossChestOpened=false;
+  private completedTreasureHunt=false;
   private runDiscoveredEnemyIds:string[]=[];
   private runDiscoveredWeaponIds:string[]=[];
   private unlockedWeaponVariantIds:string[]=[];
@@ -441,7 +443,9 @@ export class RunScene extends Phaser.Scene {
   browserTestCompleteTreasureHunt():void {
     this.assertBrowserTestMode();
     this.runEventState={...this.runEventState,activeEvent:{kind:'treasure-hunt',startedAtMs:0,deadlineAtMs:40_000,progress:0,stage:1,status:'active'}};
-    this.applyRunEventAction('treasure');
+    const chest=this.add.rectangle(this.player.x+20,this.player.y,28,24,0x9a7041).setStrokeStyle(3,0xe6c77f).setDepth(5);
+    this.eventObjects.add(chest);chest.setData('eventObjectType','treasure-chest');this.collectRunEventObject(chest);
+    if(this.runEventState.activeEvent?.status!=='completed')throw new Error('Treasure chest interaction did not complete the event.');
   }
 
   browserTestFinishRun():void {
@@ -480,7 +484,7 @@ export class RunScene extends Phaser.Scene {
     this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;this.weaponSynergyGuardUntil=0;this.weaponSynergyGuardReduction=.28;this.weaponSynergyTriggers=[];
-    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.runCraftingMaterials={};this.lastRunSaved=null;
+    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.bossChestOpened=false;this.completedTreasureHunt=false;this.runCraftingMaterials={};this.lastRunSaved=null;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
@@ -1196,6 +1200,7 @@ export class RunScene extends Phaser.Scene {
     }else if(!object.active)return;
     if(type==='boss-chest'&&this.bossVictoryPending){
       this.bossChestCollectOutcome='opened';
+      this.bossChestOpened=true;
       this.bossChestOpenedAtMs=this.time.now;
       const bossRelic=this.bossDefinition?RELICS.find(relic=>relic.id===this.bossDefinition!.reward.relicId):undefined;
       if(bossRelic&&!this.runRelicIds.includes(bossRelic.id))this.runRelicIds.push(bossRelic.id);
@@ -1248,6 +1253,7 @@ export class RunScene extends Phaser.Scene {
   private completeRunEvent(kind:RunEventKind):void {
     const reward=getRunEventReward(kind);this.runSoulEssence+=reward;this.clearRunEventObjects();this.eventSetupPending=false;
     const relic=kind==='treasure-hunt'?RELICS.find(item=>item.regionId===this.region.id&&item.source==='exploration'):undefined;
+    if(kind==='treasure-hunt')this.completedTreasureHunt=true;
     if(relic&&!this.runRelicIds.includes(relic.id))this.runRelicIds.push(relic.id);
     const material=kind==='treasure-hunt'?CRAFTING_MATERIALS.find(item=>item.regionId===this.region.id):undefined;
     if(material)this.runCraftingMaterials[material.id]=(this.runCraftingMaterials[material.id]??0)+1;
@@ -1676,7 +1682,7 @@ export class RunScene extends Phaser.Scene {
     try {
       const loaded=manager.load();
       if(!('data' in loaded))return false;
-      manager.save(applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length,enemyIdsEarned:this.runDiscoveredEnemyIds,weaponIdsEarned:this.runDiscoveredWeaponIds,loreIdsEarned:won?[this.region.explorationPoints[0]!.id]:[]}));
+      manager.save(applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,bossChestOpened:this.bossChestOpened,completedTreasureHunt:this.completedTreasureHunt,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length,enemyIdsEarned:this.runDiscoveredEnemyIds,weaponIdsEarned:this.runDiscoveredWeaponIds,loreIdsEarned:won?[this.region.explorationPoints[0]!.id]:[]}));
       return true;
     } catch {
       return false;

@@ -13,6 +13,8 @@ export interface RunResultInput {
   won: boolean;
   soulEssenceEarned: number;
   relicIdsEarned?: readonly string[];
+  bossChestOpened?: boolean;
+  completedTreasureHunt?: boolean;
   craftingMaterialsEarned?: Readonly<Record<string, number>>;
   characterId?: string;
   kills?: number;
@@ -35,7 +37,14 @@ export function applyRunResult(save: SaveData, result: RunResultInput): SaveData
   }
 
   const relicIds = new Set(save.collections.relicIds);
-  for (const id of result.relicIdsEarned ?? []) if (RELICS.some(relic => relic.id === id)) relicIds.add(id);
+  for (const id of result.relicIdsEarned ?? []) {
+    const relic = RELICS.find(item => item.id === id && item.regionId === result.regionId);
+    if (!relic) continue;
+    const validSource = relic.source === 'boss'
+      ? result.won && result.bossChestOpened === true
+      : result.completedTreasureHunt === true;
+    if (validSource) relicIds.add(id);
+  }
 
   const validMaterials: Record<string, number> = {};
   for (const material of CRAFTING_MATERIALS) {

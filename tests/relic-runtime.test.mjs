@@ -46,3 +46,25 @@ test('unknown, unowned and repeated IDs cannot inflate derived stats', () => {
   const one = deriveRelicStats(['matriarch-seed'], 'cursed-hunter');
   assert.deepEqual(stats, one);
 });
+
+
+test('all ten relic definitions produce their authored live-stat modifier', () => {
+  const cases = [
+    ['matriarch-seed', 'cursed-hunter', 'damageMultiplier', 1.06],
+    ['forest-heart', 'cursed-hunter', 'damageMultiplier', 1],
+    ['king-crown-shard', 'cursed-hunter', 'armorBonus', 4],
+    ['grave-lament', 'cursed-hunter', 'maxHealthBonus', 12],
+    ['furnace-heart', 'cursed-hunter', 'attackSpeedMultiplier', 1.05],
+    ['dungeon-gear', 'cursed-hunter', 'damageMultiplier', 1],
+    ['oracle-eye', 'cursed-hunter', 'elementalBuildupMultiplier', 1.08],
+    ['swamp-vessel', 'cursed-hunter', 'lifestealBonus', 0.04],
+    ['unwritten-crown', 'cursed-hunter', 'criticalChanceBonus', 0.04],
+    ['castle-shard', 'cursed-hunter', 'abilityCooldownMultiplier', 0.95]
+  ];
+  for (const [id, characterId, stat, expected] of cases) {
+    const value = deriveRelicStats([id], characterId)[stat];
+    assert.equal(value, expected, id + ' should apply its authored ' + stat);
+  }
+  assert.equal(getRelicDamageMultiplier(['forest-heart'], 'cursed-hunter', 'poison'), 1.04);
+  assert.equal(getRelicDamageMultiplier(['dungeon-gear'], 'cursed-hunter', 'fire'), 1.04);
+});

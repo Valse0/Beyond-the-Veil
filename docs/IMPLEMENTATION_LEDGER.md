@@ -409,3 +409,12 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Expanded runtime tests for all eight reaction pairs, unique/symmetric pair definitions, timed freeze, poison vulnerability and stack bounds. Added a real Phaser browser probe that applies the same fire/ice sequence to a normal enemy and a boss and verifies matching reaction IDs and freeze timing.
 - CI #327 (44589192686), tested commit `8a6e872100da9fe1f5d9e04ffc24240a2b7b66ce`: TypeScript PASS; 164/164 unit tests PASS; production build PASS; Chromium Playwright 22/22 PASS; npm audit 0 vulnerabilities.
 - No UI, final art, dependency, backend, ads or paid service changes. Physical-device and natural-run balance testing remain outstanding.
+
+
+## Relic System v1 live acquisition verification (2026-11-19)
+
+- Hardened run-result persistence with explicit acquisition evidence: boss relics require an opened boss chest, a victory and matching region; exploration relics require a successfully completed treasure hunt and matching region. Unknown, cross-region and wrong-source relic IDs are rejected.
+- Removed boss/exploration relic grants from achievement rewards; those relics are now exclusive to their authored chest/event paths. Achievement milestones still grant authored cosmetic/weapon-variant/collection rewards idempotently.
+- The treasure-hunt browser bridge now creates and collects a treasure chest through the same Phaser collection handler used in play, rather than directly advancing the event counter.
+- Added unit tests for all ten relic stat modifiers and element-specific damage, source-gated acquisition, wrong-region rejection, duplicate persistence and achievement reward routing. Browser assertions verify the boss relic is absent before chest opening, present after opening, and exploration relic ownership persists after a completed treasure hunt even when the run later ends in defeat.
+- Save schema remains v8; no migration is required. No UI, final assets, dependencies, backend, ads or paid services added. Natural-run balance and physical-device testing remain open.

@@ -126,3 +126,11 @@ Save schema v8 adds discovered enemy/weapon/biography IDs, completed collection 
 The seven elements now have distinct status roles: fire and blood deal periodic damage, ice slows and briefly freezes on threshold, poison deals periodic damage and increases incoming damage by stack, dark weakens through curse stacks, spirit rewards threshold triggers with sustain, and lightning applies short control pulses with its existing chain behavior. Status duration and stack caps are enforced in the pure element runtime; ice freeze and lightning stun are timed rather than permanent. Normal enemies and bosses share the same hit/tick runtime and reaction resolver.
 
 Seven authored pair reactions have typed outcomes: Thermal Shock (burst), Ignition Plague (fire spread), Shatter Arc (shatter plus chain), Soul Rupture (curse-fueled chain and sustain), Conductive Plague (multi-target chain), Crimson Ignition (bleed rupture), and Blood-Soul Siphon (sustain). Reaction effects are data-driven and idempotent per hit; poison vulnerability and dark curse modifiers are applied consistently to normal enemies and bosses. Existing weapon/passive synergy hooks remain active.
+
+
+## Relic acquisition and runtime verification
+
+- Boss-source relics are accepted by run-result persistence only when the boss chest was actually opened during a victory in the relic's authored region.
+- Exploration-source relics are accepted only after a treasure-hunt event completed successfully in their authored region; the resulting relic is retained even if the run later ends in defeat.
+- Achievement rewards no longer grant boss or exploration relic IDs. Those relics remain exclusive to their authored gameplay sources.
+- Relic runtime coverage asserts the authored stat modifier for all ten relics, including element-specific damage bonuses, character affinities and set effects. Browser coverage follows the actual Phaser chest/event handlers and verifies ownership persistence.

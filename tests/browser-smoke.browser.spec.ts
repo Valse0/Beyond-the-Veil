@@ -762,6 +762,7 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   expect(afterBoss.bossVictoryPending).toBe(true);
   expect(afterBoss.runFinished).toBe(false);
   expect(afterBoss.lastRunSaved).toBeNull();
+  expect(afterBoss.runRelicIds).not.toContain('matriarch-seed');
   expect(afterBoss.evolvedWeaponIds).toEqual([]);
 
   // Validate the chest body before moving the hunter. Once overlap fires, the chest
@@ -815,6 +816,7 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   expect(victory.runSoulEssence).toBeGreaterThanOrEqual(180);
   expect(victory.evolvedWeaponIds).toContain('veil-bolt');
   expect(victory.lastRunSaved).toBe(true);
+  expect(victory.runRelicIds).toContain('matriarch-seed');
 
   const savedVictory=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(savedVictory.schemaVersion).toBe(8);
@@ -894,6 +896,7 @@ test('completed treasure hunt grants and persists its regional crafting material
 
   const completed=await readBrowserRunSnapshot(page);
   expect(completed.runCraftingMaterials).toEqual({ 'living-root': 1 });
+  expect(completed.runRelicIds).toContain('forest-heart');
   await page.evaluate(() => {
     const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestFinishRun:()=>void}}}}).__BEYOND_VEIL_GAME__;
     if(!game)throw new Error('Development browser test bridge is not available.');
@@ -903,6 +906,7 @@ test('completed treasure hunt grants and persists its regional crafting material
   const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(saved.schemaVersion).toBe(8);
   expect(saved.collections.craftingMaterials).toEqual({ 'living-root': 1 });
+  expect(saved.collections.relicIds).toContain('forest-heart');
   expect(pageErrors).toEqual([]);
 });
 
@@ -987,4 +991,15 @@ test('element reactions use the same live status rules for normal enemies and bo
  expect(result.enemyIceFrozen).toBe(true);
  expect(result.bossIceFrozen).toBe(true);
  expect(errors).toEqual([]);
+});
+
+
+test('uncompleted treasure hunt cannot grant an exploration relic', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  await finishBrowserTestRun(page);
+  const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(saved.collections.relicIds).not.toContain('forest-heart');
+  expect(pageErrors).toEqual([]);
 });

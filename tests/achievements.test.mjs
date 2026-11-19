@@ -10,9 +10,10 @@ test('run achievements grant catalogued rewards to the correct collections', () 
   });
   assert.deepEqual(collections.completedAchievementIds, ['first-descent', 'first-blood', 'boss-slayer', 'curious-soul']);
   assert.ok(collections.unlockedCosmeticIds.includes('ashen-hunter'));
-  assert.ok(collections.relicIds.includes('forest-heart'));
-  assert.ok(collections.relicIds.includes('king-crown-shard'));
-  assert.ok(collections.relicIds.includes('grave-lament'));
+  assert.deepEqual(collections.relicIds, []);
+  assert.ok(collections.unlockedCosmeticIds.includes('default-hunter'));
+  assert.ok(collections.unlockedCosmeticIds.includes('default-knight'));
+  assert.ok(collections.unlockedCosmeticIds.includes('default-mage'));
   assert.equal(collections.achievementProgress['total-kills'], 100);
 });
 
@@ -25,7 +26,8 @@ test('achievement progress accumulates and completed rewards cannot be granted t
   assert.equal(collections.achievementProgress['runs-completed'], 2);
   assert.equal(collections.achievementProgress['total-kills'], 100);
   assert.equal(collections.unlockedCosmeticIds.filter(id => id === 'ashen-hunter').length, 1);
-  assert.equal(collections.relicIds.filter(id => id === 'forest-heart').length, 1);
+  assert.equal(collections.relicIds.length, 0);
+  assert.equal(collections.unlockedCosmeticIds.filter(id => id === 'default-hunter').length, 1);
 });
 
 test('run results track distinct hunters, regions, boss victories and exploration events', () => {
@@ -46,4 +48,10 @@ test('run results track distinct hunters, regions, boss victories and exploratio
   assert.ok(save.collections.completedAchievementIds.includes('pathfinder'));
   assert.equal(save.collections.achievementPlayedCharacterIds.length, 5);
   assert.equal(save.collections.achievementExploredRegionIds.length, 5);
+});
+
+ 
+test('achievement catalog never bypasses the authored boss-chest or treasure-hunt relic sources', async () => {
+  const { ACHIEVEMENTS } = await import('../.test-dist/src/data/achievements.js');
+  assert.ok(ACHIEVEMENTS.every(item => item.reward.kind !== 'relic'));
 });
