@@ -539,6 +539,13 @@ export class RunScene extends Phaser.Scene {
     this.bossState={...encounter,attackReadyAt:Object.fromEntries(definition.phases.flatMap(phase=>phase.attacks.map(attack=>[attack.id,Number.POSITIVE_INFINITY])))};
   }
 
+  browserTestAdvanceBossPhase():{phaseIndex:number;spawnedSupportEnemyIds:string[]} {
+    this.assertBrowserTestMode();
+    if(!this.bossSprite||!this.bossDefinition||!this.bossState)throw new Error('No boss encounter is active.');
+    this.damageBossTarget(this.bossSprite,this.bossDefinition.health*.55);
+    return {phaseIndex:this.bossState.phaseIndex,spawnedSupportEnemyIds:this.enemies.getChildren().filter(child=>child.active&&!child.getData('isBoss')).map(child=>String(child.getData('enemyType')))};
+  }
+
   browserTestArenaSnapshot():{
     bossId:string;bossVariantId:string|null;phaseIndex:number;phaseName:string;phaseAttackIds:string[];phaseAttackShapes:string[];phaseAddEnemyIds:string[];phaseDamageMultiplier:number;phaseMovementMultiplier:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
     objects:{id:string;kind:string;health:number;active:boolean;disabledUntil:number;revealed:boolean;isTrue:boolean;safe:boolean}[];
