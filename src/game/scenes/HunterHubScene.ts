@@ -119,7 +119,7 @@ export class HunterHubScene extends Phaser.Scene {
     this.respecButton = this.add.text(width - 64, height - 60, '↻ YENİDEN DAĞIT', {
       fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#d9c9aa',
       backgroundColor: '#2b2528', padding: { x: 18, y: 10 }
-    }).setOrigin(1, 0.5);
+    }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
     this.respecButton.on('pointerover', () => { this.selectedIndex = UPGRADES.length; this.highlightSelected(); });
     this.respecButton.on('pointerout', () => this.highlightSelected());
     this.respecButton.on('pointerup', () => this.openRespecDialog());
