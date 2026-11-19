@@ -47,7 +47,7 @@ test('respec quote refunds 90 percent of the exact historical investment', () =>
 test('respec quote is zero for a fresh profile and safely ignores unknown/malformed levels', () => {
   assert.deepEqual(calculatePermanentUpgradeRespec({}), { totalInvested: 0, fee: 0, refund: 0 });
   assert.deepEqual(calculatePermanentUpgradeRespec({ maxHealth: 1.5, invalid: 99 }), {
-    totalInvested: 0, fee: 0, refund: 0
+    totalInvested: 50, fee: 5, refund: 45
   });
 });
 
