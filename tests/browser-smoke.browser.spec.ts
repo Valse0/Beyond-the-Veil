@@ -1143,3 +1143,31 @@ test('all 24 selected weapon branches evolve and dispatch their authored live Ph
   }
   expect(pageErrors).toEqual([]);
 });
+
+
+test('schema-v8 profile migrates into persistent quest state in the live game and survives reload',async({page})=>{
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.addInitScript(()=>{
+    const now='2026-11-19T00:00:00.000Z';
+    window.localStorage.setItem('beyond-the-veil.save',JSON.stringify({
+      schemaVersion:8,profile:{createdAt:now,updatedAt:now},
+      progression:{soulEssence:88,completedRuns:2,unlockedCharacterIds:['cursed-hunter'],unlockedRegionIds:['cursed-forest'],completedDifficulties:{},permanentUpgrades:{},equippedRelicIds:[],equipmentProfiles:{},activeEquipmentProfileIds:{}},
+      collections:{characterMastery:{},unlockedCosmeticIds:[],discoveredLoreIds:[],relicIds:[],craftingMaterials:{},unlockedWeaponVariantIds:[],unlockedMasteryRewardIds:[],achievementProgress:{},completedAchievementIds:[],achievementPlayedCharacterIds:[],achievementExploredRegionIds:[],discoveredEnemyIds:[],discoveredWeaponIds:[],discoveredCharacterBioIds:[],completedCollectionIds:[],unlockedCollectionRewardIds:[]},
+      settings:{}
+    }));
+  });
+  await page.goto('/');
+  const canvas=page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  const migrated=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(migrated.schemaVersion).toBe(9);
+  expect(migrated.progression.soulEssence).toBe(88);
+  expect(migrated.story.quests).toEqual({});
+  expect(migrated.story.endingId).toBeNull();
+  await page.reload();
+  const reloaded=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(reloaded.schemaVersion).toBe(9);
+  expect(reloaded.story.unlockedPathIds).toEqual([]);
+  expect(errors).toEqual([]);
+});
