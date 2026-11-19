@@ -514,6 +514,7 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
   })).toEqual({ essence: before.progression.soulEssence, upgrades: before.progression.permanentUpgrades });
 
   await page.mouse.click(1110, 660);
+  await page.waitForTimeout(80);
   const pointerDialog = await canvas.screenshot();
   expect(pointerDialog.equals(hubAfterCancel)).toBe(false);
   await page.keyboard.press('ArrowRight');
