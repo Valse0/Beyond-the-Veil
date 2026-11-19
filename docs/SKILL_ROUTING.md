@@ -6,7 +6,7 @@ This document is the shared routing policy for AI-assisted work on Beyond the Ve
 
 Use this order as the default orchestration sequence:
 
-1. **Superpowers** — workflow discipline: clarify the task, plan, implement, test, review, and summarize. This is a preferred workflow layer, not a game-engine authority. It is not vendored in this repository; use it only when the current agent environment exposes and verifies it.
+1. **Superpowers** — workflow discipline: clarify the task, plan, implement, test, review, and summarize. This is a preferred workflow layer, not a game-engine authority. It is pinned as the `.agents/superpowers` Git submodule at commit `22f0b463e7a5e579904dd6211a520321035526f7`. Verify initialization and readable skill files in the active environment; Gemini CLI activation must still be verified inside Gemini CLI.
 2. **GameDev Agent Skills** — primary game-development expertise. Start with `.agents/skills/router/SKILL.md`, detect the actual engine/version, and load the smallest relevant installed skill set.
 3. **UI UX Pro Max** — supporting design system for visual hierarchy, typography, color, accessibility, responsive layout, and interaction quality. Use it alongside the game-specific UI skill; do not blindly apply web-framework advice to Phaser canvas UI.
 4. **Matt Pocock Skills** — supporting software-engineering guidance when the task concerns code structure, TypeScript design, boundaries, maintainability, or refactoring. The currently vendored relevant skill is `.agents/skills/codebase-design/SKILL.md`; do not imply that every upstream Matt Pocock skill is installed.
@@ -19,7 +19,7 @@ Availability must be verified in the active agent environment before use.
 
 | Skill family | Repository status | Rule |
 |---|---|---|
-| Superpowers | NOT_INSTALLED_IN_REPOSITORY / SESSION_UNVERIFIED | Separate user-managed installation. Use only if the active session exposes it and its instructions can be read. Otherwise follow the project's documented planning, implementation, testing, and review process without claiming Superpowers was used. |
+| Superpowers | PINNED_SUBMODULE / SESSION_CHECK_REQUIRED | Repository contains `.agents/superpowers` pinned at `22f0b463e7a5e579904dd6211a520321035526f7`. Read the exact skills before using them. Verify local submodule initialization and Gemini CLI activation separately; remote repository inspection is not CLI activation. |
 | GameDev Agent Skills | AVAILABLE | Vendored under `.agents/skills/`; route through `.agents/skills/router/SKILL.md`. |
 | UI UX Pro Max | AVAILABLE | Vendored under `.agents/skills/ui-ux-pro-max/`; use as supporting design guidance. |
 | Matt Pocock / codebase-design | PARTIALLY_AVAILABLE | `.agents/skills/codebase-design/SKILL.md` is installed. Do not claim the entire upstream skill collection is installed. |
@@ -32,7 +32,7 @@ Allowed availability values:
 - `BLOCKED`: a concrete access or technical issue prevents use.
 - `DEFERRED`: intentionally not being used for the current task.
 
-Never infer that a skill is available because the user has it installed in another CLI/editor. Never install a plugin, skill, or MCP server on the user's behalf unless separately requested and authorized.
+Never infer that a skill is activated because the user has it installed in another CLI/editor. A pinned repository submodule proves repository presence, not active CLI activation. Never install a plugin, skill, or MCP server on the user's behalf unless separately requested and authorized.
 
 ## 3. Task-to-skill routing
 
