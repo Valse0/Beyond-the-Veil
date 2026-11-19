@@ -163,17 +163,17 @@ A weapon can still reach its existing default evolution without choosing a level
 
 | Weapon | Odak evolution | Live attack | Yayılım evolution | Live attack |
 |---|---|---|---|---|
-| Eşik Kıvılcımı | Ruh Mızrağı | Delici atış | Ruh Fırtınası | Zincir yıldırım |
+| Eşik Kıvılcımı | Ruh Mızrağı | Delici atış | Ruh Fırtınası | Yelpaze salvo |
 | Mezar Yarıcı | Mezar Hükmü | Delici atış | Kemik Kasırgası | Dönen bıçak alanı |
 | Yemin Mızrağı | Gök Mızrağı | Güdümlü mermi | Fırtına Salvosu | Yelpaze salvo |
-| Kor Zincirleri | Kor Delgisi | Delici atış | Cehennem Ağı | Gecikmeli mühür patlaması |
+| Kor Zincirleri | Kor Delgisi | Delici atış | Cehennem Ağı | Yelpaze salvo |
 | Kış Halkaları | Buz Hükmü | Yönlü kesiş | Mutlak Siper | Savunma titreşimi |
 | Diken Tohumu | Veba Havanı | Gecikmeli havan | Diken Yağmuru | Yelpaze salvo |
-| Ruh Feneri | Kayıp Avcısı | Güdümlü mermi | Ruh Zinciri | Zincir yıldırım |
-| Kan Tezgâhı | Kızıl İğne | Delici atış | Kan Ağı | Zincir yıldırım |
-| Fırtına Camı | Fırtına Mızrağı | Delici atış | Gök Gürültüsü | Zincir yıldırım |
+| Ruh Feneri | Ruh Mızrağı | Delici atış | Ruh Fırtınası | Yelpaze salvo |
+| Kan Tezgâhı | Kızıl İğne | Delici atış | Kan Ağı | Yaşam bağı |
+| Fırtına Camı | Fırtına Mızrağı | Delici atış | Gök Gürültüsü | Güdümlü mermi |
 | Demir Çan | Çan Hükmü | Yönlü kesiş | Muhafız Halkası | Dönen savunma alanı |
-| Rün Havanı | Kara Mühür Havanı | Gecikmeli mühür | Magma Çiçeği | Gecikmeli alan patlaması |
-| Tutulma Mührü | Tutulma Havanı | Gecikmeli havan | Kara Güneş Çiçeği | Gecikmeli alan patlaması |
+| Rün Havanı | Kara Mühür Havanı | Gecikmeli havan | Magma Çiçeği | Gecikmeli alan patlaması |
+| Tutulma Mührü | Tutulma Havanı | Gecikmeli havan | Kara Güneş Çiçeği | Gecikmeli mühür patlaması |
 
-The evolution catalog stores stable IDs, branch IDs, player-facing names/descriptions, and the actual attack behavior key. The same Phaser attack executor handles these routes; no parallel combat implementation is introduced. Existing crafted Yayılım variants continue to add their modifiers to the selected branch before its evolution. A weapon with no chosen branch retains its pre-existing default evolution behavior and name.
+The evolution catalog stores stable IDs, branch IDs, player-facing names/descriptions, and the actual attack behavior key. The same Phaser attack executor handles these routes; no parallel combat implementation is introduced. Existing passive synergies are retained across the alternate attack paths: projectile-linked effects run on impact, direct-attack effects remain attached to their matching attack families, and delayed area effects are shared by the evolved area variants. Existing crafted Yayılım variants continue to add their modifiers to the selected branch before its evolution. A weapon with no chosen branch retains its pre-existing default evolution behavior and name.

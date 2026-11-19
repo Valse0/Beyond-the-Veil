@@ -29,7 +29,7 @@ const defaultEvolutionBehaviors:Record<string,string>={
 const branchEvolutionPaths:Record<string,WeaponEvolutionPath[]>={
  'veil-bolt':[
   {id:'veil-bolt-focus-evolution',branchId:'veil-bolt-branch-focus',name:'Ruh Mızrağı',description:'Odak dalı, tek hedefi delen yoğun bir ruh atışına dönüşür.',behaviorChange:'piercing-thrust'},
-  {id:'veil-bolt-spread-evolution',branchId:'veil-bolt-branch-spread',name:'Ruh Fırtınası',description:'Yayılım dalı, hedefler arasında sıçrayan ruh yıldırımlarına dönüşür.',behaviorChange:'chain-lightning'}
+  {id:'veil-bolt-spread-evolution',branchId:'veil-bolt-branch-spread',name:'Ruh Fırtınası',description:'Yayılım dalı, geniş açıya yayılan çoklu ruh atışlarına dönüşür.',behaviorChange:'fan-volley'}
  ],
  'gravecleaver':[
   {id:'gravecleaver-focus-evolution',branchId:'gravecleaver-branch-focus',name:'Mezar Hükmü',description:'Odak dalı, ileri hatta yoğunlaştırılmış delici bir kesişe dönüşür.',behaviorChange:'piercing-thrust'},
@@ -41,7 +41,7 @@ const branchEvolutionPaths:Record<string,WeaponEvolutionPath[]>={
  ],
  'ember-chains':[
   {id:'ember-chains-focus-evolution',branchId:'ember-chains-branch-focus',name:'Kor Delgisi',description:'Odak dalı, düşman hattını delen yoğun bir kor mızrağına dönüşür.',behaviorChange:'piercing-thrust'},
-  {id:'ember-chains-spread-evolution',branchId:'ember-chains-branch-spread',name:'Cehennem Ağı',description:'Yayılım dalı, gecikmeli patlayan geniş bir ateş mührü kurar.',behaviorChange:'delayed-sigil'}
+  {id:'ember-chains-spread-evolution',branchId:'ember-chains-branch-spread',name:'Cehennem Ağı',description:'Yayılım dalı, geniş açıya yayılan çoklu kor atışlarına dönüşür.',behaviorChange:'fan-volley'}
  ],
  'winter-orbit':[
   {id:'winter-orbit-focus-evolution',branchId:'winter-orbit-branch-focus',name:'Buz Hükmü',description:'Odak dalı, hedef yönünde keskin bir buz yayı oluşturur.',behaviorChange:'cleaving-arc'},
@@ -52,28 +52,28 @@ const branchEvolutionPaths:Record<string,WeaponEvolutionPath[]>={
   {id:'briar-seed-spread-evolution',branchId:'briar-seed-branch-spread',name:'Diken Yağmuru',description:'Yayılım dalı, geniş bir yelpazeye çoklu zehir tohumları saçar.',behaviorChange:'fan-volley'}
  ],
  'soul-lantern':[
-  {id:'soul-lantern-focus-evolution',branchId:'soul-lantern-branch-focus',name:'Kayıp Avcısı',description:'Odak dalı, en uzak ruh izini takip eden güdümlü bir küreye dönüşür.',behaviorChange:'homing-projectile'},
-  {id:'soul-lantern-spread-evolution',branchId:'soul-lantern-branch-spread',name:'Ruh Zinciri',description:'Yayılım dalı, hedefler arasında sıçrayan bir ruh zinciri açar.',behaviorChange:'chain-lightning'}
+  {id:'soul-lantern-focus-evolution',branchId:'soul-lantern-branch-focus',name:'Ruh Mızrağı',description:'Odak dalı, tek hedefi delen yoğun bir ruh atışına dönüşür.',behaviorChange:'piercing-thrust'},
+  {id:'soul-lantern-spread-evolution',branchId:'soul-lantern-branch-spread',name:'Ruh Fırtınası',description:'Yayılım dalı, geniş açıya yayılan çoklu ruh küreleri saçar.',behaviorChange:'fan-volley'}
  ],
  'blood-loom':[
   {id:'blood-loom-focus-evolution',branchId:'blood-loom-branch-focus',name:'Kızıl İğne',description:'Odak dalı, tek hedefi delen yoğun bir kan iğnesine dönüşür.',behaviorChange:'piercing-thrust'},
-  {id:'blood-loom-spread-evolution',branchId:'blood-loom-branch-spread',name:'Kan Ağı',description:'Yayılım dalı, yakındaki düşmanlara yayılan kan zinciri kurar.',behaviorChange:'chain-lightning'}
+  {id:'blood-loom-spread-evolution',branchId:'blood-loom-branch-spread',name:'Kan Ağı',description:'Yayılım dalı, yaşam bağını yakındaki hedeflere taşıyan kan zinciri kurar.',behaviorChange:'life-tether'}
  ],
  'stormglass':[
   {id:'stormglass-focus-evolution',branchId:'stormglass-branch-focus',name:'Fırtına Mızrağı',description:'Odak dalı, düşman hattını delen tekil yıldırım atışına dönüşür.',behaviorChange:'piercing-thrust'},
-  {id:'stormglass-spread-evolution',branchId:'stormglass-branch-spread',name:'Gök Gürültüsü',description:'Yayılım dalı, ilk hedeften çevresine yıldırım zinciri sıçratır.',behaviorChange:'chain-lightning'}
+  {id:'stormglass-spread-evolution',branchId:'stormglass-branch-spread',name:'Gök Gürültüsü',description:'Yayılım dalı, hedefleri izleyen çoklu yıldırım atışları gönderir.',behaviorChange:'homing-projectile'}
  ],
  'iron-bell':[
   {id:'iron-bell-focus-evolution',branchId:'iron-bell-branch-focus',name:'Çan Hükmü',description:'Odak dalı, önündeki düşmanları biçen ağır bir ses yayı oluşturur.',behaviorChange:'cleaving-arc'},
   {id:'iron-bell-spread-evolution',branchId:'iron-bell-branch-spread',name:'Muhafız Halkası',description:'Yayılım dalı, çevrede dönen savunma halkalarına dönüşür.',behaviorChange:'orbiting-blades'}
  ],
  'rune-mortar':[
-  {id:'rune-mortar-focus-evolution',branchId:'rune-mortar-branch-focus',name:'Kara Mühür Havanı',description:'Odak dalı, işaretli noktada gecikmeli karanlık patlaması açar.',behaviorChange:'delayed-sigil'},
+  {id:'rune-mortar-focus-evolution',branchId:'rune-mortar-branch-focus',name:'Kara Mühür Havanı',description:'Odak dalı, işaretli noktada gecikmeli ve yoğun bir havan patlaması açar.',behaviorChange:'delayed-mortar'},
   {id:'rune-mortar-spread-evolution',branchId:'rune-mortar-branch-spread',name:'Magma Çiçeği',description:'Yayılım dalı, hedefte genişleyen gecikmeli magma alanı oluşturur.',behaviorChange:'area-seed'}
  ],
  'eclipse-sigil':[
   {id:'eclipse-sigil-focus-evolution',branchId:'eclipse-sigil-branch-focus',name:'Tutulma Havanı',description:'Odak dalı, işaretli noktaya ağır bir gecikmeli patlama indirir.',behaviorChange:'delayed-mortar'},
-  {id:'eclipse-sigil-spread-evolution',branchId:'eclipse-sigil-branch-spread',name:'Kara Güneş Çiçeği',description:'Yayılım dalı, daha geniş alana yayılan gecikmeli mühürler bırakır.',behaviorChange:'area-seed'}
+  {id:'eclipse-sigil-spread-evolution',branchId:'eclipse-sigil-branch-spread',name:'Kara Güneş Çiçeği',description:'Yayılım dalı, geniş alana yayılan gecikmeli karanlık mühürler bırakır.',behaviorChange:'delayed-sigil'}
  ]
 };
 export const WEAPONS:readonly WeaponDefinition[]=specs.map((s)=>({

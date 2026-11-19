@@ -1078,8 +1078,7 @@ export class RunScene extends Phaser.Scene {
       if(distance>stats.range)continue;
       this.weaponReady[weapon.id]=time+stats.intervalMs/(this.currentBuildStats().attackSpeedMultiplier*this.relicStats.attackSpeedMultiplier*this.baseHasteMultiplier);
       const damage=stats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier*this.permanentUpgradeEffects.damageMultiplier*this.relicStats.damageMultiplier*getRelicDamageMultiplier(this.equippedRelicIds,this.character.id,weapon.element);
-      let behavior=stats.behavior;
-      if(weapon.id==='oath-pike'&&getActiveWeaponSynergies(weapon.id,this.build.passives.map(passive=>passive.passiveId)).some(item=>item.kind==='storm-lance'))behavior='chain-lightning';
+      const behavior=stats.behavior;
       this.executeWeapon(weapon,behavior,damage,stats.projectiles,stats.range,target,stats);
     }
   }
@@ -1099,7 +1098,7 @@ export class RunScene extends Phaser.Scene {
         this.damageEnemy(enemy,damage,element);
       }
       const aftershock=synergy('grave-aftershock');
-      if(behavior==='cleaving-arc'&&aftershock){
+      if((behavior==='cleaving-arc'||behavior==='orbiting-blades')&&aftershock){
         this.recordWeaponSynergy(aftershock.id);
         const radius=aftershock.radius??92;
         const pulse=this.add.circle(this.player.x,this.player.y,radius,0xb6a17b,.14).setDepth(6);
@@ -1107,14 +1106,14 @@ export class RunScene extends Phaser.Scene {
         this.damageTargetsInRadius(this.player.x,this.player.y,radius,damage*(aftershock.damageMultiplier??.42),element);
       }
       const ward=synergy('ward-pulse');
-      if(behavior==='defensive-pulse'&&ward){
+      if((behavior==='defensive-pulse'||behavior==='cleaving-arc'||behavior==='orbiting-blades')&&ward){
         this.recordWeaponSynergy(ward.id);
         this.weaponSynergyGuardUntil=Math.max(this.weaponSynergyGuardUntil,this.time.now+(ward.durationMs??700));
         this.weaponSynergyGuardReduction=ward.damageReduction??.28;
         this.showPassiveSpecialFeedback('MUHAFIZ ÇEMBERİ');
       }
       const frost=synergy('frost-ring');
-      if(behavior==='orbiting-blades'&&frost){
+      if((behavior==='orbiting-blades'||behavior==='cleaving-arc'||behavior==='defensive-pulse')&&frost){
         const state=target.getData('isBoss')?this.bossElementState:(this.elementStates.get(target)??{});
         if(isFrozenTarget(state.ice?.expiresAt,this.time.now)){
           this.recordWeaponSynergy(frost.id);
@@ -1133,6 +1132,8 @@ export class RunScene extends Phaser.Scene {
       if(ember&&hit.size>0){this.recordWeaponSynergy(ember.id);this.damageTargetsInRadius(lastTarget.x,lastTarget.y,ember.radius??72,damage*(ember.damageMultiplier??.45),'fire');}
       const storm=synergy('storm-lance');
       if(storm)this.recordWeaponSynergy(storm.id);
+      const blood=synergy('blood-thread');
+      if(blood){this.recordWeaponSynergy(blood.id);this.healPlayer(damage*(this.currentBuildStats().lifesteal+this.relicStats.lifestealBonus+(blood.damageMultiplier??.06)));}
       return;
     }
     if(behavior==='life-tether'){
@@ -1149,11 +1150,11 @@ export class RunScene extends Phaser.Scene {
           const impactRadius=Math.min(78,range*.3)*stats.areaMultiplier;
           this.damageTargetsInRadius(target.x,target.y,impactRadius,damage,element,weapon.id);
           const venom=synergy('venom-trail');
-          if(behavior==='area-seed'&&venom){this.recordWeaponSynergy(venom.id);this.spawnWeaponSynergyZone(target.x,target.y,venom.radius??84,venom.durationMs??1800,venom.tickMs??600,venom.damageMultiplier??.025,'poison');}
+          if((behavior==='area-seed'||behavior==='delayed-mortar')&&venom){this.recordWeaponSynergy(venom.id);this.spawnWeaponSynergyZone(target.x,target.y,venom.radius??84,venom.durationMs??1800,venom.tickMs??600,venom.damageMultiplier??.025,'poison');}
           const magma=synergy('magma-rift');
-          if(behavior==='delayed-mortar'&&magma){this.recordWeaponSynergy(magma.id);this.spawnWeaponSynergyZone(target.x,target.y,magma.radius??92,magma.durationMs??1800,magma.tickMs??600,magma.damageMultiplier??.025,'fire');}
+          if((behavior==='delayed-mortar'||behavior==='area-seed'||behavior==='delayed-sigil')&&magma){this.recordWeaponSynergy(magma.id);this.spawnWeaponSynergyZone(target.x,target.y,magma.radius??92,magma.durationMs??1800,magma.tickMs??600,magma.damageMultiplier??.025,'fire');}
           const curse=synergy('curse-sigil');
-          if(behavior==='delayed-sigil'&&curse){this.recordWeaponSynergy(curse.id);this.applyWeaponSynergyCurse(target.x,target.y,curse.radius??78,curse.stacks??1);}
+          if((behavior==='delayed-sigil'||behavior==='delayed-mortar'||behavior==='area-seed')&&curse){this.recordWeaponSynergy(curse.id);this.applyWeaponSynergyCurse(target.x,target.y,curse.radius??78,curse.stacks??1);}
         }
         marker.destroy();
       });return;
@@ -1214,6 +1215,23 @@ export class RunScene extends Phaser.Scene {
         chained++;this.recordWeaponSynergy(stormArc.id);this.damageEnemy(secondary,damage*(stormArc.damageMultiplier??.42),'lightning');
       }
     }
+    const aftershock=synergies.find(item=>item.kind==='grave-aftershock');
+    if(aftershock){this.recordWeaponSynergy(aftershock.id);this.damageTargetsInRadius(enemy.x,enemy.y,aftershock.radius??92,damage*(aftershock.damageMultiplier??.42),element);}
+    const stormLance=synergies.find(item=>item.kind==='storm-lance');
+    if(stormLance){
+      const nearby=this.activeTargets().filter(item=>item!==enemy).sort((a,b)=>Phaser.Math.Distance.Between(enemy.x,enemy.y,a.x,a.y)-Phaser.Math.Distance.Between(enemy.x,enemy.y,b.x,b.y));
+      let chained=0;
+      for(const secondary of nearby){
+        if(chained>=(stormLance.chainTargets??2)||Phaser.Math.Distance.Between(enemy.x,enemy.y,secondary.x,secondary.y)>190)break;
+        chained++;this.recordWeaponSynergy(stormLance.id);this.damageEnemy(secondary,damage*(1-chained*.16),'lightning');
+      }
+    }
+    const ember=synergies.find(item=>item.kind==='ember-burst');
+    if(ember){this.recordWeaponSynergy(ember.id);this.damageTargetsInRadius(enemy.x,enemy.y,ember.radius??72,damage*(ember.damageMultiplier??.45),'fire');}
+    const venom=synergies.find(item=>item.kind==='venom-trail');
+    if(venom){this.recordWeaponSynergy(venom.id);this.spawnWeaponSynergyZone(enemy.x,enemy.y,venom.radius??84,venom.durationMs??1800,venom.tickMs??600,venom.damageMultiplier??.025,'poison');}
+    const blood=synergies.find(item=>item.kind==='blood-thread');
+    if(blood){this.recordWeaponSynergy(blood.id);this.healPlayer(damage*(this.currentBuildStats().lifesteal+this.relicStats.lifestealBonus+(blood.damageMultiplier??.06)));}
     const pierce=Number(shot.getData('pierce')??1)-1;
     if(pierce>0)shot.setData('pierce',pierce);else shot.destroy();
   }
