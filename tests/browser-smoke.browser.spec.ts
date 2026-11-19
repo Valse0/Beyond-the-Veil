@@ -160,6 +160,7 @@ type BrowserRunSnapshot = {
   shotDiagnostics:{weaponId:string;damage:number}[];
   bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;finishTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null;sceneTime:{paused:boolean;now:number;active:boolean};playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
   controls:{rerollsRemaining:number;banishesRemaining:number;skipsRemaining:number;bannedChoiceIds:string[]};
+  savedPermanentUpgradeLevels:Record<string,number>;saveLoadStatus:string;
   runEvents:{selected:string[];active:{kind:string;progress:number;stage:number;status:string}|null;completed:string[];failed:string[]};
 };
 
@@ -437,6 +438,8 @@ test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls
   });
   await startBrowserTestRun(page);
   const initial = await readBrowserRunSnapshot(page);
+  expect(initial.saveLoadStatus).toBe('loaded');
+  expect(initial.savedPermanentUpgradeLevels).toEqual({ maxHealth: 2, attackPower: 2, moveSpeed: 1, armor: 3, xpBonus: 2, rerolls: 2 });
   expect(initial.maxHealth).toBe(130);
   expect(initial.health).toBe(130);
   expect(initial.permanentUpgradeEffects).toEqual({
