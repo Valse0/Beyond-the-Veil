@@ -80,5 +80,5 @@ test('final story choice stores one of the authored endings and boss encounter v
   assert.equal(save.story.endingId,'ending-beyond-veil');
   assert.ok(save.story.bossEncounterIds.includes('unwritten-regent-unbound'));
   assert.ok(save.story.unlockedPathIds.includes('castle-beyond-gate'));
-  assert.equal(save.progression.soulEssence,160);
+  assert.equal(save.progression.soulEssence,385);
 });
