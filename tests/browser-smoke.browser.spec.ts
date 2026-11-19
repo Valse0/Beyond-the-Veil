@@ -547,7 +547,7 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
 test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
-      schemaVersion: 8,
+      schemaVersion: 9,
       profile: { createdAt: '2026-11-19T00:00:00.000Z', updatedAt: '2026-11-19T00:00:00.000Z' },
       progression: {
         soulEssence: 0, completedRuns: 0,
@@ -557,6 +557,7 @@ test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls
         equippedRelicIds: [], equipmentProfiles: {}, activeEquipmentProfileIds: {}
       },
       collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [], achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] },
+      story: { quests: {}, npcFates: {}, regionAtmospheres: {}, unlockedPathIds: [], bossEncounterIds: [], unlockedRewardIds: [], unlockedAlternateQuestIds: [], endingId: null, appliedOutcomeIds: [] },
       settings: {}
     }));
   });
