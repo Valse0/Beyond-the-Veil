@@ -12,7 +12,7 @@ import { findNearestTarget } from '../../gameplay/combat/combat-rules.js';
 import { advanceRun, applyUpgrade, createRunState, gainExperience, receiveDamage, recordKill } from '../../gameplay/run/run-model.js';
 import { stepEnemyAI, type EnemyActorState } from '../../gameplay/enemies/enemy-runtime.js';
 import { applyElementHit, tickElementStatuses, type ElementState } from '../../gameplay/elements/element-runtime.js';
-import { addPassive, addWeapon, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState } from '../../gameplay/weapons/build-runtime.js';
+import { addPassive, addWeapon, chooseWeaponBranch, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState } from '../../gameplay/weapons/build-runtime.js';
 import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState } from '../../gameplay/bosses/boss-runtime.js';
 import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent } from '../../gameplay/regions/region-runtime.js';
 import { applyRunResult } from '../../gameplay/run/run-results.js';
@@ -32,7 +32,7 @@ const BASE_CHOICES: { id: UpgradeId; title: string; detail: string }[] = [
   { id: 'vitality', title: 'Kara Yaşam', detail: 'Azami can +20' },
   { id: 'magnet', title: 'Ruh Mıknatısı', detail: 'XP çekim alanı +65' }
 ];
-type LevelChoice = { id:string; title:string; detail:string; kind:'base'|'weapon-add'|'weapon-up'|'passive-add'|'passive-up'; contentId?:string };
+type LevelChoice = { id:string; title:string; detail:string; kind:'base'|'weapon-add'|'weapon-up'|'weapon-branch'|'passive-add'|'passive-up'; contentId?:string; branchId?:string };
 
 const elementTint:Record<ElementId,number>={fire:0xff8652,ice:0x8fdcff,poison:0x9ac65d,dark:0x9b78c8,spirit:0x73d7c8,lightning:0xf4dc74,blood:0xc84c60};
 
@@ -128,6 +128,8 @@ export class RunScene extends Phaser.Scene {
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string}[];
     runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
+    weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
+    shotDiagnostics:{weaponId:string;damage:number}[];
     bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;finishTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null;sceneTime:{paused:boolean;now:number;active:boolean};playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
     runEvents:{selected:RunEventKind[];active:{kind:RunEventKind;progress:number;stage:number;status:string}|null;completed:RunEventKind[];failed:RunEventKind[]};
     controls:LevelUpControlState;
@@ -138,7 +140,9 @@ export class RunScene extends Phaser.Scene {
       queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,paused:this.paused,bossSpawned:this.bossSpawned,
       bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
       evolvedWeaponIds:this.build.weapons.filter(weapon=>weapon.evolved).map(weapon=>weapon.weaponId),
-      choices:this.currentLevelChoices.map(({id,title})=>({id,title})),
+      choices:this.currentLevelChoices.map(({id,title,kind,contentId,branchId})=>({id,title,kind,contentId,branchId})),
+      weapons:this.build.weapons.map(progress=>{const definition=WEAPONS.find(item=>item.id===progress.weaponId);const stats=definition?weaponLevelStats(progress,definition):undefined;return {weaponId:progress.weaponId,level:progress.level,branchId:progress.branchId??null,evolved:progress.evolved,stats:stats?{damage:stats.damage,intervalMs:stats.intervalMs,range:stats.range,projectiles:stats.projectiles,pierce:stats.pierce,areaMultiplier:stats.areaMultiplier,chainTargetBonus:stats.chainTargetBonus,branchName:stats.branchName??null}:null};}),
+      shotDiagnostics:this.shots.getChildren().filter(child=>child.active&&child.getData('weaponId')).map(child=>({weaponId:String(child.getData('weaponId')),damage:Number(child.getData('damage'))})), 
       runSoulEssence:this.runSoulEssence,kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
       bossHealth:this.bossState?.health??null,
       bossChestDiagnostics:(()=>{
@@ -185,6 +189,31 @@ export class RunScene extends Phaser.Scene {
     if(!definition)throw new Error('Unknown test enemy: '+enemyId);
     const enemy=this.createEnemy(this.player.x+30,this.player.y,definition,1);
     this.damageEnemy(enemy,Number(enemy.getData('health'))*100);
+  }
+
+  browserTestPrepareWeaponBranch(weaponId:string):void {
+    this.assertBrowserTestMode();
+    const weapon=WEAPONS.find(item=>item.id===weaponId);
+    if(!weapon)throw new Error('Unknown test weapon: '+weaponId);
+    this.build={weapons:[{weaponId:weapon.id,level:3,evolved:false}],passives:[]};
+    this.queuedLevels=1;
+    this.pauseRunWorld();
+    this.currentLevelChoices=this.buildChoices().filter(choice=>choice.kind==='weapon-branch'&&choice.contentId===weapon.id);
+    if(this.currentLevelChoices.length!==2)throw new Error('Expected exactly two branch choices for '+weapon.id+'.');
+    this.renderLevelUpChoices();
+  }
+
+  browserTestFireSelectedWeapon():{shotCount:number;damages:number[]} {
+    this.assertBrowserTestMode();
+    const progress=this.build.weapons[0];
+    const weapon=progress?WEAPONS.find(item=>item.id===progress.weaponId):undefined;
+    const targetDefinition=ENEMIES.find(item=>item.id===this.region.enemyIds[0]);
+    if(!progress||!weapon||!targetDefinition||!progress.branchId)throw new Error('A branched weapon is required before firing the test attack.');
+    this.createEnemy(this.player.x+50,this.player.y,targetDefinition,1);
+    this.weaponReady[weapon.id]=0;
+    this.fireWeapons(this.time.now+10_000);
+    const shots=this.shots.getChildren().filter(child=>child.active&&child.getData('weaponId')===weapon.id) as Phaser.Physics.Arcade.Sprite[];
+    return {shotCount:shots.length,damages:shots.map(shot=>Number(shot.getData('damage')))};
   }
 
   browserTestPrepareBossChestEvolution():void {
@@ -582,7 +611,7 @@ export class RunScene extends Phaser.Scene {
       this.weaponReady[weapon.id]=time+stats.intervalMs/(this.currentBuildStats().attackSpeedMultiplier*this.baseHasteMultiplier);
       const damage=stats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier;
       const behavior=progress.evolved?this.evolvedWeaponBehavior(weapon):weapon.behavior;
-      this.executeWeapon(weapon,behavior,damage,stats.projectiles,stats.range,target);
+      this.executeWeapon(weapon,behavior,damage,stats.projectiles,stats.range,target,stats);
     }
   }
 
@@ -596,11 +625,12 @@ export class RunScene extends Phaser.Scene {
     return evolved[weapon.id]??weapon.behavior;
   }
 
-  private executeWeapon(weapon:WeaponDefinition,behavior:string,damage:number,projectiles:number,range:number,target:Phaser.Physics.Arcade.Sprite):void {
+  private executeWeapon(weapon:WeaponDefinition,behavior:string,damage:number,projectiles:number,range:number,target:Phaser.Physics.Arcade.Sprite,stats:ReturnType<typeof weaponLevelStats>):void {
     const targets=this.activeTargets(),element=weapon.element;
     const angle=Phaser.Math.Angle.Between(this.player.x,this.player.y,target.x,target.y);
     if(behavior==='cleaving-arc'||behavior==='defensive-pulse'||behavior==='orbiting-blades'){
-      const radius=behavior==='cleaving-arc'?Math.min(150,range):behavior==='orbiting-blades'?Math.min(105,range):Math.min(135,range);
+      const baseRadius=behavior==='cleaving-arc'?Math.min(150,range):behavior==='orbiting-blades'?Math.min(105,range):Math.min(135,range);
+      const radius=Math.min(190,baseRadius*stats.areaMultiplier);
       for(const enemy of targets){const d=Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y);if(d>radius)continue;
         if(behavior==='cleaving-arc'){const a=Phaser.Math.Angle.Between(this.player.x,this.player.y,enemy.x,enemy.y);if(Math.abs(Phaser.Math.Angle.Wrap(a-angle))>1.15)continue;}
         this.damageEnemy(enemy,damage,element);
@@ -609,26 +639,30 @@ export class RunScene extends Phaser.Scene {
     }
     if(behavior==='chain-lightning'){
       let current=target;const hit=new Set<Phaser.Physics.Arcade.Sprite>();
-      for(let i=0;i<Math.min(3,projectiles+1);i++){if(hit.has(current))break;hit.add(current);this.damageEnemy(current,damage*(1-i*.16),element);
+      for(let i=0;i<Math.min(5,Math.min(3,projectiles+1)+stats.chainTargetBonus);i++){if(hit.has(current))break;hit.add(current);this.damageEnemy(current,damage*(1-i*.16),element);
         const next=targets.filter(t=>!hit.has(t)).sort((a,b)=>Phaser.Math.Distance.Between(current.x,current.y,a.x,a.y)-Phaser.Math.Distance.Between(current.x,current.y,b.x,b.y))[0];if(!next||Phaser.Math.Distance.Between(current.x,current.y,next.x,next.y)>170)break;current=next;}
       return;
     }
-    if(behavior==='life-tether'){this.damageEnemy(target,damage,element);this.healPlayer(damage*this.currentBuildStats().lifesteal);return;}
+    if(behavior==='life-tether'){
+      this.damageEnemy(target,damage,element);
+      if(stats.chainTargetBonus>0){const secondary=targets.filter(item=>item!==target).sort((a,b)=>Phaser.Math.Distance.Between(target.x,target.y,a.x,a.y)-Phaser.Math.Distance.Between(target.x,target.y,b.x,b.y))[0];if(secondary&&Phaser.Math.Distance.Between(target.x,target.y,secondary.x,secondary.y)<=170)this.damageEnemy(secondary,damage*.65,element);}
+      this.healPlayer(damage*this.currentBuildStats().lifesteal);return;
+    }
     if(behavior==='delayed-mortar'||behavior==='delayed-sigil'||behavior==='area-seed'){
-      const marker=this.add.graphics().setDepth(7);marker.lineStyle(2,elementTint[element],.9);marker.strokeCircle(target.x,target.y,Math.min(72,range*.28));
-      this.time.delayedCall(behavior==='area-seed'?450:650,()=>{if(!this.runFinished){this.damageTargetsInRadius(target.x,target.y,Math.min(78,range*.3),damage,element);}marker.destroy();});return;
+      const marker=this.add.graphics().setDepth(7);marker.lineStyle(2,elementTint[element],.9);marker.strokeCircle(target.x,target.y,Math.min(72,range*.28)*stats.areaMultiplier);
+      this.time.delayedCall(behavior==='area-seed'?450:650,()=>{if(!this.runFinished){this.damageTargetsInRadius(target.x,target.y,Math.min(78,range*.3)*stats.areaMultiplier,damage,element);}marker.destroy();});return;
     }
     const count=behavior==='fan-volley'?Math.max(3,projectiles):projectiles;
     for(let i=0;i<count;i++){
       const spread=count>1?(i-(count-1)/2)*.22:0;
-      this.createProjectile(weapon,damage,element,angle+spread,behavior==='homing-projectile'||behavior==='spirit-seeker',behavior==='piercing-thrust'?2:1,target);
+      this.createProjectile(weapon,damage,element,angle+spread,behavior==='homing-projectile'||behavior==='spirit-seeker',stats.pierce,target,stats.areaMultiplier);
     }
   }
 
-  private createProjectile(weapon:WeaponDefinition,damage:number,element:ElementId,angle:number,homing:boolean,pierce:number,target:Phaser.Physics.Arcade.Sprite):void {
+  private createProjectile(weapon:WeaponDefinition,damage:number,element:ElementId,angle:number,homing:boolean,pierce:number,target:Phaser.Physics.Arcade.Sprite,areaMultiplier=1):void {
     const shot=this.shots.create(this.player.x,this.player.y,'shot') as Phaser.Physics.Arcade.Sprite;
     shot.setDepth(5).setCircle(5).setTint(elementTint[element]).setData('damage',damage).setData('element',element).setData('expires',this.time.now+1900)
-      .setData('weaponId',weapon.id).setData('homing',homing).setData('target',target).setData('pierce',pierce).setData('area',weapon.behavior==='area-seed'?70:0);
+      .setData('weaponId',weapon.id).setData('homing',homing).setData('target',target).setData('pierce',pierce).setData('area',weapon.behavior==='area-seed'?70*areaMultiplier:0);
     shot.setVelocity(Math.cos(angle)*Math.max(180,weapon.projectileSpeed),Math.sin(angle)*Math.max(180,weapon.projectileSpeed));
   }
 
@@ -1056,8 +1090,10 @@ export class RunScene extends Phaser.Scene {
     const choices:LevelChoice[]=BASE_CHOICES.map(c=>({...c,kind:'base'}));
     for(const weapon of WEAPONS){
       const owned=this.build.weapons.find(w=>w.weaponId===weapon.id);
-      if(owned&&owned.level<weapon.maxLevel)choices.push({id:'weapon-up:'+weapon.id,title:weapon.name+' +',detail:'Silah seviyesi '+(owned.level+1),kind:'weapon-up',contentId:weapon.id});
-      else if(!owned&&this.build.weapons.length<6)choices.push({id:'weapon-add:'+weapon.id,title:weapon.name,detail:weapon.category+' silahını kuşan',kind:'weapon-add',contentId:weapon.id});
+      if(owned){
+        if(owned.level<weapon.maxLevel)choices.push({id:'weapon-up:'+weapon.id,title:weapon.name+' +',detail:'Silah seviyesi '+(owned.level+1),kind:'weapon-up',contentId:weapon.id});
+        if(owned.level>=3&&!owned.branchId)for(const branch of weapon.branches)choices.push({id:'weapon-branch:'+weapon.id+':'+branch.id,title:weapon.name+' — '+branch.name,detail:branch.effect,kind:'weapon-branch',contentId:weapon.id,branchId:branch.id});
+      }else if(this.build.weapons.length<6)choices.push({id:'weapon-add:'+weapon.id,title:weapon.name,detail:weapon.category+' silahını kuşan',kind:'weapon-add',contentId:weapon.id});
     }
     for(const passive of PASSIVES){
       const owned=this.build.passives.find(p=>p.passiveId===passive.id);
@@ -1189,6 +1225,7 @@ export class RunScene extends Phaser.Scene {
     }
     if(choice.kind==='weapon-add'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def)this.build=addWeapon(this.build,def);}
     if(choice.kind==='weapon-up'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def)this.build=upgradeWeapon(this.build,def);}
+    if(choice.kind==='weapon-branch'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def&&choice.branchId)this.build=chooseWeaponBranch(this.build,def,choice.branchId);}
     if(choice.kind==='passive-add'){const def=PASSIVES.find(p=>p.id===choice.contentId);if(def)this.build=addPassive(this.build,def);}
     if(choice.kind==='passive-up'){const def=PASSIVES.find(p=>p.id===choice.contentId);if(def)this.build=upgradePassive(this.build,def);}
     this.refreshBuildStats();this.queuedLevels=Math.max(0,this.queuedLevels-1);this.clearOverlay();this.refreshHud();
