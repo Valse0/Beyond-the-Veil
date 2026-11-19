@@ -1014,7 +1014,7 @@ test('uncompleted treasure hunt cannot grant an exploration relic', async ({ pag
 
 
 type BossArenaSnapshot={
-  bossId:string;bossVariantId:string|null;phaseIndex:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
+  bossId:string;bossVariantId:string|null;phaseIndex:number;phaseName:string;phaseAttackIds:string[];phaseAttackShapes:string[];phaseAddEnemyIds:string[];phaseDamageMultiplier:number;phaseMovementMultiplier:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
   objects:{id:string;kind:string;health:number;active:boolean;disabledUntil:number;revealed:boolean;isTrue:boolean;safe:boolean}[];
 };
 
@@ -1043,14 +1043,23 @@ test('all ten story boss variants are selected and applied in live Phaser boss e
     ['cursed-castle','unwritten-regent','unwritten-regent-unbound']
   ] as const;
   await startBrowserTestRun(page);
+  const phaseSignatures=new Set<string>();
   for(const [region,boss,encounterId] of cases){
     await callBossArena(page,'browserTestSpawnBossForRegion',[region,[encounterId]]);
     const snapshot=await callBossArena(page,'browserTestArenaSnapshot') as BossArenaSnapshot;
     expect(snapshot.bossId).toBe(boss);
     expect(snapshot.bossVariantId).toBe(encounterId);
     expect(snapshot.phaseIndex).toBe(0);
+    expect(snapshot.phaseName.length).toBeGreaterThan(0);
+    expect(snapshot.phaseAttackIds).toHaveLength(2);
+    expect(snapshot.phaseAttackShapes).toHaveLength(2);
+    expect(snapshot.phaseAddEnemyIds.length).toBeGreaterThan(0);
+    expect(snapshot.phaseDamageMultiplier).toBeGreaterThan(0);
+    expect(snapshot.phaseMovementMultiplier).toBeGreaterThan(0);
+    phaseSignatures.add([snapshot.phaseName,snapshot.phaseAttackShapes.join(','),snapshot.phaseAddEnemyIds.join(','),snapshot.phaseDamageMultiplier,snapshot.phaseMovementMultiplier].join('|'));
     expect(snapshot.objects.length).toBeGreaterThan(0);
   }
+  expect(phaseSignatures.size).toBe(10);
   await callBossArena(page,'browserTestSpawnBossForRegion',['cursed-forest',[]]);
   const fallback=await callBossArena(page,'browserTestArenaSnapshot') as BossArenaSnapshot;
   expect(fallback.bossId).toBe('thorn-matriarch');
