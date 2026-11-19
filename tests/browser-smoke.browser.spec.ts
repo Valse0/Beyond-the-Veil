@@ -506,12 +506,16 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
   const dialog = await canvas.screenshot();
   expect(dialog.length).toBeGreaterThan(1_000);
   await page.keyboard.press('Escape');
+  const hubAfterCancel = await canvas.screenshot();
+  expect(hubAfterCancel.equals(dialog)).toBe(false);
   await expect.poll(async () => page.evaluate(() => {
     const save = JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!);
-    return save.progression.permanentUpgrades;
-  })).toEqual(before.progression.permanentUpgrades);
+    return { essence: save.progression.soulEssence, upgrades: save.progression.permanentUpgrades };
+  })).toEqual({ essence: before.progression.soulEssence, upgrades: before.progression.permanentUpgrades });
 
   await page.mouse.click(1110, 660);
+  const pointerDialog = await canvas.screenshot();
+  expect(pointerDialog.equals(hubAfterCancel)).toBe(false);
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter');
   await expect.poll(async () => page.evaluate(() => {
