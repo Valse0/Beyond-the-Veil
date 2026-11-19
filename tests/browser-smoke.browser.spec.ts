@@ -153,8 +153,10 @@ test('region selection reads unlocked regions from the persisted profile', async
 
 type BrowserRunSnapshot = {
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
-  paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string}[];
+  paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
   runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
+  weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
+  shotDiagnostics:{weaponId:string;damage:number}[];
   bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;finishTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null;sceneTime:{paused:boolean;now:number;active:boolean};playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
   controls:{rerollsRemaining:number;banishesRemaining:number;skipsRemaining:number;bannedChoiceIds:string[]};
   runEvents:{selected:string[];active:{kind:string;progress:number;stage:number;status:string}|null;completed:string[];failed:string[]};
@@ -204,6 +206,22 @@ async function defeatBrowserTestEnemy(page: import('@playwright/test').Page,enem
     if(!game)throw new Error('Development browser test bridge is not available.');
     game.scene.getScene('run').browserTestSpawnAndDefeatEnemy(id);
   },enemyId);
+}
+
+async function prepareBrowserTestWeaponBranch(page: import('@playwright/test').Page,weaponId:string): Promise<void> {
+  await page.evaluate(id => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestPrepareWeaponBranch:(value:string)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestPrepareWeaponBranch(id);
+  },weaponId);
+}
+
+async function fireBrowserTestSelectedWeapon(page: import('@playwright/test').Page): Promise<{shotCount:number;damages:number[]}> {
+  return page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestFireSelectedWeapon:()=>{shotCount:number;damages:number[]}}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run').browserTestFireSelectedWeapon();
+  });
 }
 
 async function prepareBrowserTestBossChestEvolution(page: import('@playwright/test').Page): Promise<void> {
@@ -307,6 +325,40 @@ test('real level-up overlay supports XP, two rerolls, banish and one skip', asyn
   const restarted=await readBrowserRunSnapshot(page);
   expect(restarted.level).toBe(1);
   expect(restarted.controls).toEqual({rerollsRemaining:2,banishesRemaining:1,skipsRemaining:1,bannedChoiceIds:[]});
+  expect(pageErrors).toEqual([]);
+});
+
+test('weapon level-three branch selection changes real Phaser attack output', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  const canvas=await startBrowserTestRun(page);
+  await prepareBrowserTestWeaponBranch(page,'veil-bolt');
+
+  const available=await readBrowserRunSnapshot(page);
+  expect(available.paused).toBe(true);
+  expect(available.weapons).toHaveLength(1);
+  expect(available.weapons[0]?.level).toBe(3);
+  expect(available.weapons[0]?.branchId).toBeNull();
+  expect(available.choices.filter(choice=>choice.kind==='weapon-branch')).toHaveLength(2);
+  const spreadChoice=available.choices.find(choice=>choice.branchId?.endsWith('-branch-spread'));
+  expect(spreadChoice).toBeDefined();
+
+  // Select the right-hand branch card through the real Phaser canvas UI.
+  await canvas.click({position:{x:530,y:382}});
+  const selected=await readBrowserRunSnapshot(page);
+  expect(selected.paused).toBe(false);
+  expect(selected.weapons[0]?.branchId).toBe(spreadChoice?.branchId);
+  expect(selected.weapons[0]?.stats?.projectiles).toBe(3);
+  expect(selected.weapons[0]?.stats?.areaMultiplier).toBe(1.25);
+  expect(selected.weapons[0]?.stats?.chainTargetBonus).toBe(1);
+
+  // Fire through the live weapon scheduler; the branch must change actual projectile count.
+  const fired=await fireBrowserTestSelectedWeapon(page);
+  expect(fired.shotCount).toBe(3);
+  expect(fired.damages).toHaveLength(3);
+  expect(fired.damages.every(damage=>damage===selected.weapons[0]?.stats?.damage)).toBe(true);
+  const afterFire=await readBrowserRunSnapshot(page);
+  expect(afterFire.shotDiagnostics.filter(shot=>shot.weaponId==='veil-bolt')).toHaveLength(3);
   expect(pageErrors).toEqual([]);
 });
 
