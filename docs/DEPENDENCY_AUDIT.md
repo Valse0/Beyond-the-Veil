@@ -10,8 +10,8 @@ A committed `package-lock.json` is now present. CI installs from the committed d
 
 ## Verification
 
-- Last confirmed full dependency audit: GitHub Actions run #211 (`44431152624`) — `npm audit --audit-level=moderate` PASS, 0 vulnerabilities.
-- Current stabilization work has passed TypeScript, unit tests and production build in recent runs, but the latest full workflow is still being re-run after browser-test corrections. The workflow's audit step is skipped when the browser suite fails, so no newer audit result is claimed here.
+- Latest confirmed full dependency audit: GitHub Actions run #240 (`44555203202`) — `npm audit --audit-level=moderate` PASS, 0 vulnerabilities.
+- The same run passed TypeScript, all 106 unit tests, production build and all 14 Chromium browser tests. Later fixture-hardening commits are undergoing a fresh branch-head workflow; the #240 result is evidence for its exact commit.
 
 References: GHSA-67mh-4wv8-2f99 (esbuild development-server request exposure), GHSA-587h-7wmj-h5pm (Vite/launch-editor Windows path handling), and GHSA-8g5g-mxqh-grgj (Vite 6.4.4 server.fs.deny query bypass; fixed in 6.4.5). Vite 6.4.6 is used rather than forcing an unnecessary jump to Vite 8.
 
