@@ -71,7 +71,7 @@ test('character mastery persists on defeat, awards kill bonuses, and unlocks mil
   const second = applyRunResult(first, { regionId: 'cursed-forest', won: true, soulEssenceEarned: 0, characterId: 'cursed-hunter', kills: 90 });
   assert.equal(second.collections.characterMastery['cursed-hunter'], 27);
   assert.deepEqual(second.collections.unlockedMasteryRewardIds, ['hunter-title']);
-  assert.deepEqual(second.collections.unlockedCosmeticIds, []);
+  assert.deepEqual(second.collections.unlockedCosmeticIds, ['ashen-hunter']);
   assert.equal(save.collections.characterMastery['cursed-hunter'], undefined);
 });
 
@@ -81,13 +81,13 @@ test('mastery grants the boss victory bonus and unlocks level-five and level-ten
   const result = applyRunResult(save, { regionId: 'cursed-forest', won: true, soulEssenceEarned: 0, characterId: 'black-knight', kills: 0 });
   assert.equal(result.collections.characterMastery['black-knight'], 112);
   assert.deepEqual(result.collections.unlockedMasteryRewardIds, ['knight-title', 'aegis-alt']);
-  assert.deepEqual(result.collections.unlockedCosmeticIds, []);
+  assert.deepEqual(result.collections.unlockedCosmeticIds, ['ashen-hunter']);
   const final = applyRunResult({ ...result, collections: { ...result.collections, characterMastery: { ...result.collections.characterMastery, 'black-knight': 249 } } }, {
     regionId: 'cursed-forest', won: false, soulEssenceEarned: 0, characterId: 'black-knight', kills: 0
   });
   assert.equal(final.collections.characterMastery['black-knight'], 252);
   assert.deepEqual(final.collections.unlockedMasteryRewardIds, ['knight-title', 'aegis-alt', 'iron-oath-skin']);
-  assert.deepEqual(final.collections.unlockedCosmeticIds, ['iron-oath-skin']);
+  assert.deepEqual(final.collections.unlockedCosmeticIds, ['ashen-hunter', 'iron-oath-skin']);
 });
 
 test('run results grant achievements and keep rewards after defeat', () => {

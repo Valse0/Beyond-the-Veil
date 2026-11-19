@@ -47,7 +47,7 @@ export function applyRunResult(save: SaveData, result: RunResultInput): SaveData
     : achievementBase;
   return {
     ...save,
-    collections: { ...save.collections, ...mastery, ...achievements, relicIds: [...relicIds], craftingMaterials: grantCraftingMaterials(save.collections.craftingMaterials, validMaterials) },
+    collections: { ...save.collections, ...mastery, ...achievements, relicIds: [...new Set([...relicIds, ...achievements.relicIds])], craftingMaterials: grantCraftingMaterials(save.collections.craftingMaterials, validMaterials) },
     progression: {
       ...save.progression,
       soulEssence: save.progression.soulEssence + reward,
