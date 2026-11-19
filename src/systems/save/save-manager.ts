@@ -2,7 +2,8 @@ import { CHARACTERS } from '../../data/characters.js';
 import { REGIONS } from '../../data/regions.js';
 import { SAVE_BACKUP_KEY, SAVE_STORAGE_KEY } from './save-storage.js';
 import type { JsonObject, JsonValue, SaveData, SaveLoadResult, SaveStorage } from './save-types.js';
-import { getPermanentUpgradeCost, getPermanentUpgradeDefinition, isValidPermanentUpgradeRecord } from '../../gameplay/progression/permanent-upgrades.js';
+import { calculatePermanentUpgradeRespec, getPermanentUpgradeCost, getPermanentUpgradeDefinition, isValidPermanentUpgradeRecord } from '../../gameplay/progression/permanent-upgrades.js';
+import type { PermanentUpgradeRespecQuote } from '../../gameplay/progression/permanent-upgrades.js';
 
 const CURRENT_SCHEMA_VERSION = 2;
 
@@ -212,6 +213,31 @@ export class SaveManager {
     data.progression.permanentUpgrades[upgradeId] = currentLevel + 1;
     this.save(data);
     return true;
+  }
+
+  getPermanentUpgradeRespecQuote(): PermanentUpgradeRespecQuote | null {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return null;
+    return calculatePermanentUpgradeRespec(result.data.progression.permanentUpgrades);
+  }
+
+  respecPermanentUpgrades(): boolean {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return false;
+
+    const data = result.data;
+    const quote = calculatePermanentUpgradeRespec(data.progression.permanentUpgrades);
+    if (quote.totalInvested <= 0 || data.progression.soulEssence < quote.fee) return false;
+
+    data.progression.soulEssence += quote.refund;
+    data.progression.permanentUpgrades = {};
+    try {
+      this.save(data);
+      return true;
+    } catch {
+      // save() keeps the previous primary intact if a storage write fails.
+      return false;
+    }
   }
 
   private decode(raw: string): SaveLoadResult {
