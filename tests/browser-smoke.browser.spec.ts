@@ -475,6 +475,9 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
   const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
   await page.addInitScript(() => {
+    // addInitScript runs again after page.reload(); preserve the respec result on reload.
+    if (window.sessionStorage.getItem('bv-respec-fixture-seeded') === '1') return;
+    window.sessionStorage.setItem('bv-respec-fixture-seeded', '1');
     window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
       schemaVersion: 2,
       profile: { createdAt: '2026-11-19T00:00:00.000Z', updatedAt: '2026-11-19T00:00:00.000Z' },
