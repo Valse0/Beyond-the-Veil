@@ -482,3 +482,11 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Added unit coverage for both authored endings, invalid/mismatched choices, defeat, wrong boss/region and idempotency; added migration coverage and a live Phaser final-boss victory/reload browser test.
 - Final-scene UI, dialogue, animation, final art/audio and physical-device/natural-run validation remain later work.
 - CI #382 (run `44630060065`), tested commit `ee16762ecabf54d4a21a5d963c27cb845afa757d`: TypeScript PASS; 201/201 unit tests PASS; production build PASS; Chromium Playwright 32/32 PASS; npm audit 0 vulnerabilities.
+
+## Boss Arena Environmental Traces v1 implementation pass (2026-11-19)
+
+- Added a stable catalog of 15 environmental traces: three non-interactive traces for each of the five existing bosses. Each boss uses its own motif family: Thorn Matriarch root shrine, Ossuary King grave epitaph, Furnace Colossus forge mark, Mire Oracle oracle rings, and Unwritten Regent veil fracture.
+- Integrated the traces into the live Phaser boss arena as temporary vector placeholder compositions with Turkish captions. Trace objects are presentation-only: they have no Arcade bodies and do not change save data, boss combat rules, phases, rewards or collision behavior.
+- Added catalog tests for all five bosses, 15 unique stable IDs, motif mapping, names, colors and offsets. Extended the all-five-boss live Phaser browser test to assert all three traces are present with the expected motif.
+- CI #390 (run `44637221261`), tested commit `28c6943272762087152609e637c3117fe108b84f`: TypeScript PASS; unit tests PASS; production build PASS; Chromium Playwright 33/33 PASS; npm audit 0 vulnerabilities.
+- No save migration, dependency, final art, lore archive UI, backend, ads or paid services were added. WORLD-01 remains IN_PROGRESS: final environment art, broader lore/archive presentation, natural-run validation and physical-device validation remain outstanding.
