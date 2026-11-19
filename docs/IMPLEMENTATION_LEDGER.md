@@ -311,5 +311,5 @@ Playwright Chromium smoke coverage on `full-game-development`:
 
 - Added test-first browser coverage for Main Menu keyboard selection, opening the Hunter Hub, returning with Escape, starting New Run, and preserving pointer access to the Hub.
 - Implemented visible selected-item styling and two-way directional selection. Keyboard arrows choose between New Run and Hunter Hub; Enter/Space activate the current choice. Gamepad D-pad and left stick navigate; A and Start activate the selected choice. Pointer hover updates the selected item and pointer click behavior remains intact.
-- Test commit: e54f8ea5b290ddc21da0dfe251f19686328c3dd6. Implementation commit: 19e88ac7e3b7c6e35ad871a2f5da94581eaaed0c.
+- Test commit: e54f8ea5b290ddc21da0dfe251f19686328c3dd6. Implementation commits: 19e88ac7e3b7c6e35ad871a2f5da94581eaaed0c (menu behavior) and 1df39915b34215c57f2fe501016c325313e1939f (Phaser-normalized D-pad properties).
 - CI verification is pending. No new destinations, dependencies, assets, backend or engine changes. Physical controller and smart-TV remote testing remain unverified.
