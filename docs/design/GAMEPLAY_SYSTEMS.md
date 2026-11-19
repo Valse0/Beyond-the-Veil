@@ -154,4 +154,4 @@ All five bosses now spawn their own interactive arena objects into the Phaser Ar
 
 The arena runtime owns state and calculations without importing Phaser. RunScene owns the Arcade sprites, projectile/player overlaps, visual state, poison ticking, boss healing and boss damage integration. The test-only scene bridge can spawn each boss independently and inspect arena state; it is disabled unless browser-test mode is enabled.
 
-Balance values are initial tuning defaults. Browser tests verify actual projectile/player overlap and phase changes; natural-run balance, mobile/TV device behavior, final art, animation and audio remain outstanding.
+CI #341 (44600229323) passes TypeScript, 169/169 unit tests, production build, Chromium Playwright 24/24 and npm audit with zero vulnerabilities. The new browser probe verifies actual projectile/player overlaps and phase changes for all five arenas. Balance values are initial tuning defaults; natural-run balance, mobile/TV device behavior, final art, animation and audio remain outstanding.
