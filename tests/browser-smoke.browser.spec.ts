@@ -1202,3 +1202,42 @@ test('live enemy and boss defeats advance the active quest and persist across de
   expect(reloaded.story.quests['forest-root-oath'].objectiveProgress['silence-root-corruption']).toBe(1);
   expect(errors).toEqual([]);
 });
+
+
+test('real Phaser exploration overlaps persist lore and secret paths on defeat and do not respawn after reload',async({page})=>{
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.addInitScript(()=>window.localStorage.removeItem('beyond-the-veil.save'));
+  await startBrowserTestRun(page);
+  const move=(kind:'lore'|'secret')=>page.evaluate((value)=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestMoveToExplorationPoint:(kind:'lore'|'secret')=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestMoveToExplorationPoint(value);
+  },kind);
+  await move('lore');
+  await expect.poll(()=>page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestSnapshot:()=>{discoveredLoreIds:string[]}}}}}).__BEYOND_VEIL_GAME__;
+    return game?.scene.getScene('run').browserTestSnapshot().discoveredLoreIds.length??0;
+  })).toBe(1);
+  await move('secret');
+  await expect.poll(()=>page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestSnapshot:()=>{discoveredPathIds:string[]}}}}}).__BEYOND_VEIL_GAME__;
+    return game?.scene.getScene('run').browserTestSnapshot().discoveredPathIds.length??0;
+  })).toBe(1);
+  await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestFinishRun:()=>void}}}}).__BEYOND_VEIL_GAME__;
+    game!.scene.getScene('run').browserTestFinishRun();
+  });
+  const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(saved.collections.discoveredLoreIds).toContain('cursed-forest-lore');
+  expect(saved.story.unlockedPathIds).toContain('cursed-forest-secret');
+  await page.reload();
+  await startBrowserTestRun(page);
+  const snapshot=await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestSnapshot:()=>{discoveredLoreIds:string[];discoveredPathIds:string[]}}}}}).__BEYOND_VEIL_GAME__;
+    return game!.scene.getScene('run').browserTestSnapshot();
+  });
+  expect(snapshot.discoveredLoreIds).toEqual([]);
+  expect(snapshot.discoveredPathIds).toEqual([]);
+  expect(errors).toEqual([]);
+});

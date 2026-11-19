@@ -440,3 +440,12 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Added runtime coverage for automatic quest activation, event matching, region isolation, event-kind filtering and immutable updates. Added a live Phaser browser test that defeats enemies and a boss, ends the run in defeat, reloads, and verifies persisted quest progress.
 - CI #359 (44613105396), tested final code commit `d02d2a5f58bd4915df2fb59e036a13c915bce9bf`: TypeScript PASS; 185/185 unit tests PASS; production build PASS; Chromium Playwright 28/28 PASS; npm audit 0 vulnerabilities.
 - No UI, final art, dependency, backend, ads or paid service changes. Quest journal/dialogue and branch-choice presentation, actual world-path/boss-variant/ending consumption, and physical-device/natural-run validation remain outstanding.
+
+
+## Region Exploration Points v1 implementation pass (2026-11-19)
+
+- Added two live exploration markers per region using the existing region exploration-point IDs: one story trace and one hidden-passage marker. Markers are positioned in deterministic, separated areas around the arena start and use temporary replaceable Phaser shapes.
+- The existing player/event-object Arcade overlap handles discovery; no extra button or input binding is introduced. Labels and markers are destroyed immediately on discovery.
+- Existing Story Archive collection persistence now receives only story IDs actually discovered during the run, rather than granting the first lore record automatically on every victory. Discovered story records and secret-path IDs persist on both victory and defeat.
+- Secret-path persistence validates that the submitted ID is the second exploration point belonging to the current region. Duplicate IDs are naturally idempotent. Already discovered points are omitted from future runs.
+- Save schema remains v9; no migration or new dependencies. Real path geometry remains a future world-integration task; marker visuals are placeholders, not final art.

@@ -197,3 +197,8 @@ CI #347 (44605954212) verifies all 24 alternate evolution paths: TypeScript, 175
 ## Quest event integration v1
 
 Quest objectives now declare the gameplay event that advances them: ordinary enemy defeats, elite defeats, boss defeats, or completed run events (optionally filtered to a specific event kind). The Phaser run scene starts currently available quests for the active region, records these events through the quest runtime, and merges persistent quest progress into the normal run-result save. Progress survives defeat and reload; it is not tied to a single run. Branch selection, journal/dialogue UI, world-path consumption, boss-variant consumption and ending scenes remain separate future work.
+
+
+## Region exploration points v1
+
+Each region places two discoverable markers in the live Phaser arena: a story trace that unlocks its existing Story Archive record, and a hidden-passage marker that records the region's stable secret-path ID. Walking into a marker is sufficient; no extra interaction button is required. Already discovered markers are not spawned again. Both discoveries are recorded at run end and persist on defeat as well as victory. Hidden-path IDs are recorded only for the matching region; opening path geometry and final art remain separate future work.

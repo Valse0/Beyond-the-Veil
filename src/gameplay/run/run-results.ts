@@ -22,6 +22,11 @@ export interface RunResultInput {
   enemyIdsEarned?: readonly string[];
   weaponIdsEarned?: readonly string[];
   loreIdsEarned?: readonly string[];
+  discoveredPathIdsEarned?: readonly string[];
+}
+
+function thisRegionSecretPath(regionId:RegionId):string|undefined {
+  return REGIONS.find(region=>region.id===regionId)?.explorationPoints[1]?.id;
 }
 
 export function applyRunResult(save: SaveData, result: RunResultInput): SaveData {
@@ -67,9 +72,13 @@ export function applyRunResult(save: SaveData, result: RunResultInput): SaveData
   // Achievement relic rewards are owned relics too, so refresh collection completion after rewards.
   const refreshedCollections = applyCollectionProgress(runProgress, {});
   const achievements = applyAchievementCollectionProgress(refreshedCollections);
+  const discoveredPathId=thisRegionSecretPath(result.regionId);
+  const unlockedPathIds=new Set(save.story.unlockedPathIds);
+  if(discoveredPathId&&(result.discoveredPathIdsEarned??[]).includes(discoveredPathId))unlockedPathIds.add(discoveredPathId);
   return {
     ...save,
     collections: { ...save.collections, ...mastery, ...achievements, relicIds: [...new Set(achievements.relicIds)], craftingMaterials: grantCraftingMaterials(save.collections.craftingMaterials, validMaterials) },
+    story: { ...save.story, unlockedPathIds: [...unlockedPathIds] },
     progression: {
       ...save.progression,
       soulEssence: save.progression.soulEssence + reward,

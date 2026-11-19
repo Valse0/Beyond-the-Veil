@@ -155,3 +155,33 @@ test('relic acquisition rejects cross-region and wrong-source IDs even with comp
   });
   assert.deepEqual(result.collections.relicIds, ['matriarch-seed', 'forest-heart']);
 });
+
+
+test('lore and secret-path discoveries persist on defeat and are idempotent', () => {
+  const save = createInitialSaveData();
+  const discovered = applyRunResult(save, {
+    regionId: 'cursed-forest', won: false, soulEssenceEarned: 0,
+    loreIdsEarned: ['cursed-forest-lore'],
+    discoveredPathIdsEarned: ['cursed-forest-secret']
+  });
+  assert.deepEqual(discovered.collections.discoveredLoreIds, ['cursed-forest-lore']);
+  assert.deepEqual(discovered.story.unlockedPathIds, ['cursed-forest-secret']);
+  const repeated = applyRunResult(discovered, {
+    regionId: 'cursed-forest', won: false, soulEssenceEarned: 0,
+    loreIdsEarned: ['cursed-forest-lore', 'cursed-forest-lore'],
+    discoveredPathIdsEarned: ['cursed-forest-secret', 'cursed-forest-secret']
+  });
+  assert.deepEqual(repeated.collections.discoveredLoreIds, ['cursed-forest-lore']);
+  assert.deepEqual(repeated.story.unlockedPathIds, ['cursed-forest-secret']);
+  assert.deepEqual(save.collections.discoveredLoreIds, []);
+  assert.deepEqual(save.story.unlockedPathIds, []);
+});
+
+test('secret-path discovery rejects IDs belonging to another region or unknown paths', () => {
+  const save = createInitialSaveData();
+  const result = applyRunResult(save, {
+    regionId: 'cursed-forest', won: false, soulEssenceEarned: 0,
+    discoveredPathIdsEarned: ['forgotten-graveyard-secret', 'made-up-secret']
+  });
+  assert.deepEqual(result.story.unlockedPathIds, []);
+});
