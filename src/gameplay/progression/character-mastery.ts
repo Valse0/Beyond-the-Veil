@@ -19,7 +19,7 @@ export function calculateRunMasteryPoints(kills: number, won: boolean): number {
 
 export function getCharacterMasteryLevel(points: number): number {
   const validPoints = Number.isFinite(points) ? Math.max(0, Math.floor(points)) : 0;
-  return 1 + CHARACTER_MASTERY_THRESHOLDS.filter(item => validPoints >= item.points).length;
+  return CHARACTER_MASTERY_THRESHOLDS.reduce((level, item) => validPoints >= item.points ? item.level : level, 1);
 }
 
 export function applyCharacterMastery(collections: CharacterMasteryCollections, characterId: string, earnedPoints: number): CharacterMasteryCollections {
