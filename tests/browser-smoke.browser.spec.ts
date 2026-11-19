@@ -1080,3 +1080,27 @@ test('all five boss arenas interact with real Phaser overlaps, elements and phas
   }
   expect(errors).toEqual([]);
 });
+ 
+test('enemy support fields affect ally movement and soul-snipe fades after its shot in live Phaser',async({page})=>{
+ const pageErrors:string[]=[];
+ page.on('pageerror',error=>pageErrors.push(error.message));
+ await startBrowserTestRun(page);
+ const support=await page.evaluate(()=>{
+  const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestEnemySupportProbe:()=>{hexSpeedMultiplier:number;webEnemySlowMultiplier:number;webPlayerSlowMultiplier:number}}}}}).__BEYOND_VEIL_GAME__;
+  if(!game)throw new Error('Development browser test bridge is not available.');
+  return game.scene.getScene('run').browserTestEnemySupportProbe();
+ });
+ expect(support.hexSpeedMultiplier).toBeCloseTo(1.15,1);
+ expect(support.webEnemySlowMultiplier).toBeCloseTo(.5,1);
+ expect(support.webPlayerSlowMultiplier).toBeCloseTo(.5,1);
+
+ const fade=await page.evaluate(()=>{
+  const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestSoulSnipeFadeProbe:()=>Promise<{before:number;after:number;alpha:number}>}}}}).__BEYOND_VEIL_GAME__;
+  if(!game)throw new Error('Development browser test bridge is not available.');
+  return game.scene.getScene('run').browserTestSoulSnipeFadeProbe();
+ });
+ expect(fade.before).toBe(0);
+ expect(fade.after).toBeGreaterThan(0);
+ expect(fade.alpha).toBeLessThan(1);
+ expect(pageErrors).toEqual([]);
+});

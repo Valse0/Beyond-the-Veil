@@ -131,7 +131,7 @@ export class RunScene extends Phaser.Scene {
   private baseHasteMultiplier=1;
   private playerSlowUntil=0;
   private playerSlowMultiplier=1;
-  private enemyZones:{x:number;y:number;radius:number;expiresAt:number;nextTickAt:number;damage:number;slow:number;marker:Phaser.GameObjects.Graphics}[]=[];
+  private enemyZones:{x:number;y:number;radius:number;expiresAt:number;nextTickAt:number;damage:number;slow:number;affectsEnemies:boolean;marker:Phaser.GameObjects.Graphics}[]=[];
   private passiveZones:{x:number;y:number;radius:number;expiresAt:number;nextTickAt:number;damage:number;tickMs:number;marker:Phaser.GameObjects.Graphics}[]=[];
   private passiveSpecialState:PassiveSpecialRuntimeState=createPassiveSpecialRuntimeState();
   private passiveSpecialFeedback?:Phaser.GameObjects.Text;
@@ -358,6 +358,47 @@ export class RunScene extends Phaser.Scene {
     if(!definition)throw new Error('Unknown test enemy: '+enemyId);
     const enemy=this.createEnemy(this.player.x+30,this.player.y,definition,1);
     this.damageEnemy(enemy,Number(enemy.getData('health'))*100);
+  }
+
+  browserTestEnemySupportProbe():{hexSpeedMultiplier:number;webEnemySlowMultiplier:number;webPlayerSlowMultiplier:number} {
+    this.assertBrowserTestMode();
+    this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};
+    for(const child of [...this.enemies.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
+    this.enemyZones.forEach(zone=>zone.marker.destroy());this.enemyZones=[];
+    const witch=ENEMIES.find(enemy=>enemy.behavior==='hex-caster');
+    const husk=ENEMIES.find(enemy=>enemy.behavior==='pursue');
+    if(!witch||!husk)throw new Error('Hex support probe requires its authored enemy definitions.');
+    const caster=this.createEnemy(this.player.x+240,this.player.y,witch,1);
+    const ally=this.createEnemy(this.player.x+270,this.player.y,husk,1);
+    this.applyEnemySpecial(caster,witch,{kind:'hex',targetX:caster.x,targetY:caster.y,radius:145,durationMs:4200,amount:.15,count:0});
+    this.moveEnemies(this.time.now+16);
+    const hexSpeedMultiplier=(ally.body as Phaser.Physics.Arcade.Body).velocity.length()/husk.speed;
+
+    for(const child of [...this.enemies.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
+    this.enemyZones.forEach(zone=>zone.marker.destroy());this.enemyZones=[];
+    const webAlly=this.createEnemy(this.player.x+80,this.player.y,husk,1);
+    this.createEnemyZone(this.player.x+40,this.player.y,155,2600,0,0x83c6c9,.5,true);
+    const zoneTime=this.time.now+32;
+    this.updateEnemyZones(zoneTime);
+    this.moveEnemies(zoneTime+16);
+    const webEnemySlowMultiplier=(webAlly.body as Phaser.Physics.Arcade.Body).velocity.length()/husk.speed;
+    return {hexSpeedMultiplier,webEnemySlowMultiplier,webPlayerSlowMultiplier:this.playerSlowMultiplier};
+  }
+
+  browserTestSoulSnipeFadeProbe():Promise<{before:number;after:number;alpha:number}> {
+    this.assertBrowserTestMode();
+    for(const child of [...this.enemies.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
+    const wispDefinition=ENEMIES.find(enemy=>enemy.behavior==='soul-snipe');
+    if(!wispDefinition)throw new Error('Soul-snipe probe requires its authored enemy definition.');
+    const wisp=this.createEnemy(this.player.x-120,this.player.y,wispDefinition,1);
+    (wisp.body as Phaser.Physics.Arcade.Body).enable=false;
+    const before=Number(wisp.getData('untargetableUntil')??0);
+    this.telegraphAttack(wisp,wispDefinition,this.player.x+120,this.player.y,1,0,'line',46);
+    return new Promise(resolve=>this.time.delayedCall(100,()=>resolve({
+      before,
+      after:Number(wisp.getData('untargetableUntil')??0),
+      alpha:wisp.alpha
+    })));
   }
 
   browserTestPreparePassiveSpecial(passiveId:string):void {
@@ -742,6 +783,9 @@ export class RunScene extends Phaser.Scene {
         const pack=this.activeTargets().filter(other=>other!==enemy&&this.enemyDefinition(other)?.behavior==='swarm'&&Phaser.Math.Distance.Between(enemy.x,enemy.y,other.x,other.y)<115).length;
         const packBoost=1+Math.min(.45,pack*.12);vx*=packBoost;vy*=packBoost;
       }
+      const enemySlow=Number(enemy.getData('enemySlowUntil')??0)>time?Number(enemy.getData('enemySlowMultiplier')??1):1;
+      const moveBuff=Number(enemy.getData('moveSpeedBuffUntil')??0)>time?Number(enemy.getData('moveSpeedBuff')??1):1;
+      vx*=enemySlow*moveBuff;vy*=enemySlow*moveBuff;
       enemy.setVelocity(effects.stunned||effects.frozen?0:vx,effects.stunned||effects.frozen?0:vy);
       if(effects.damage>0)this.damageEnemy(enemy,effects.damage);
       const concealed=intent.state.burrowed||Number(enemy.getData('untargetableUntil')??0)>time;
@@ -758,7 +802,6 @@ export class RunScene extends Phaser.Scene {
           for(let strike=0;strike<3;strike++)this.time.delayedCall(strike*850,()=>{if(enemy.active)this.telegraphAttack(enemy,def,intent.attack!.targetX,intent.attack!.targetY,damage,Math.min(520,intent.attack!.telegraphMs),def.attack.telegraph.shape,46);});
           if((intent.state.attackCount??0)%3===0)this.enemyStates.set(enemy,{...intent.state,exposedUntil:time+1150});
         }else this.telegraphAttack(enemy,def,intent.attack.targetX,intent.attack.targetY,damage,intent.attack.telegraphMs,def.attack.telegraph.shape,46);
-        if(def.behavior==='soul-snipe')enemy.setData('untargetableUntil',time+650);
       }
     }
   }
@@ -789,6 +832,7 @@ export class RunScene extends Phaser.Scene {
     draw();
     this.time.delayedCall(Math.max(0,warning),()=>{
       if(!source.active||this.runFinished){marker.destroy();return;}
+      if(def?.behavior==='soul-snipe')source.setData('untargetableUntil',this.time.now+520);
       marker.clear();marker.lineStyle(2,0xe65d63,.95);marker.fillStyle(0xe65d63,.22);
       if(shape==='line'){marker.lineBetween(source.x,source.y,x,y);}
       else if(shape==='cross'){marker.lineBetween(x-radius,y,x+radius,y);marker.lineBetween(x,y-radius,x,y+radius);}
@@ -1550,7 +1594,8 @@ export class RunScene extends Phaser.Scene {
       const status=this.elementStates.get(enemy);if(!status)continue;
       const tick=tickElementStatuses(status,time);this.elementStates.set(enemy,tick.state);
       if(tick.damage>0)this.damageEnemy(enemy,tick.damage);
-      enemy.setAlpha(tick.slowed||tick.frozen||Boolean(this.enemyStates.get(enemy)?.burrowed)? .58:1);
+      const concealed=Boolean(this.enemyStates.get(enemy)?.burrowed)||Number(enemy.getData('untargetableUntil')??0)>time;
+      enemy.setAlpha(concealed ? .28 : (tick.slowed||tick.frozen) ? .58 : 1);
     }
     if(this.bossState&&this.bossSprite?.active){const tick=tickElementStatuses(this.bossElementState,time);this.bossElementState=tick.state;if(tick.damage>0)this.damageBossTarget(this.bossSprite,tick.damage);}
   }
@@ -1607,7 +1652,7 @@ export class RunScene extends Phaser.Scene {
     if(special.kind==='hex'){
       for(const child of this.enemies.getChildren()){
         const ally=child as Phaser.Physics.Arcade.Sprite;if(!ally.active||ally===enemy)continue;
-        if(Phaser.Math.Distance.Between(enemy.x,enemy.y,ally.x,ally.y)<=special.radius)ally.setData('damageBuffUntil',this.time.now+special.durationMs).setData('damageBuff',1+special.amount);
+        if(Phaser.Math.Distance.Between(enemy.x,enemy.y,ally.x,ally.y)<=special.radius)ally.setData('moveSpeedBuffUntil',this.time.now+special.durationMs).setData('moveSpeedBuff',1+special.amount);
       }
       this.createEnemyZone(special.targetX,special.targetY,special.radius,special.durationMs,0,0x9b78c8,0);
       return;
@@ -1617,7 +1662,7 @@ export class RunScene extends Phaser.Scene {
       const slow=special.kind==='web'?.5:0;
       const color=special.kind==='web'?0x83c6c9:0x9ac65d;
       const warning=this.add.graphics().setDepth(6);warning.lineStyle(3,color,.9);warning.strokeCircle(special.targetX,special.targetY,special.radius);warning.fillStyle(color,.12);warning.fillCircle(special.targetX,special.targetY,special.radius);
-      this.time.delayedCall(680,()=>{warning.destroy();if(!this.runFinished)this.createEnemyZone(special.targetX,special.targetY,special.radius,special.durationMs,damage,color,slow);});
+      this.time.delayedCall(680,()=>{warning.destroy();if(!this.runFinished)this.createEnemyZone(special.targetX,special.targetY,special.radius,special.durationMs,damage,color,slow,special.kind==='web');});
       return;
     }
     if(special.kind==='frost-trail'){
@@ -1625,10 +1670,10 @@ export class RunScene extends Phaser.Scene {
     }
   }
 
-  private createEnemyZone(x:number,y:number,radius:number,durationMs:number,damage:number,color:number,slow:number):void {
+  private createEnemyZone(x:number,y:number,radius:number,durationMs:number,damage:number,color:number,slow:number,affectsEnemies=false):void {
     const marker=this.add.graphics().setDepth(6);
     marker.fillStyle(color,.2);marker.lineStyle(2,color,.8);marker.fillCircle(x,y,radius);marker.strokeCircle(x,y,radius);
-    this.enemyZones.push({x,y,radius,expiresAt:this.time.now+durationMs,nextTickAt:this.time.now+350,damage,slow,marker});
+    this.enemyZones.push({x,y,radius,expiresAt:this.time.now+durationMs,nextTickAt:this.time.now+350,damage,slow,affectsEnemies,marker});
   }
 
   private updateEnemyZones(time:number):void {
@@ -1636,6 +1681,17 @@ export class RunScene extends Phaser.Scene {
       if(time>=zone.expiresAt){zone.marker.destroy();return false;}
       const inside=Phaser.Math.Distance.Between(this.player.x,this.player.y,zone.x,zone.y)<=zone.radius+12;
       if(inside&&zone.slow>0){this.playerSlowUntil=time+220;this.playerSlowMultiplier=zone.slow;}
+      if(zone.affectsEnemies&&zone.slow>0){
+        for(const child of this.enemies.getChildren()){
+          const enemy=child as Phaser.Physics.Arcade.Sprite;
+          if(!enemy.active||enemy.getData('isBoss'))continue;
+          const def=this.enemyDefinition(enemy);
+          if(Phaser.Math.Distance.Between(enemy.x,enemy.y,zone.x,zone.y)>zone.radius+(def?.radius??12))continue;
+          const previousUntil=Number(enemy.getData('enemySlowUntil')??0);
+          const previousMultiplier=previousUntil>time?Number(enemy.getData('enemySlowMultiplier')??1):1;
+          enemy.setData('enemySlowUntil',time+100).setData('enemySlowMultiplier',Math.min(previousMultiplier,zone.slow));
+        }
+      }
       if(inside&&zone.damage>0&&time>=zone.nextTickAt){this.receiveCombatDamage(zone.damage);zone.nextTickAt=time+850;}
       return true;
     });

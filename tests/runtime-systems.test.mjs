@@ -90,6 +90,13 @@ test('mimics conceal themselves at range while phase stalkers use timed vanish w
  assert.equal(stepEnemyAI(mimic,{...actor,exposedUntil:9000},{x:300,y:0},5000,16).state.burrowed,false);
  assert.equal(stepEnemyAI(stalker,actor,{x:100,y:0},3200,16).state.burrowed,true);
 });
+test('witch and web-weaver authored counters stay explicit',()=>{
+ const witch=ENEMIES.find(enemy=>enemy.behavior==='hex-caster');
+ const web=ENEMIES.find(enemy=>enemy.behavior==='web-control');
+ assert.match(witch.specialRule,/hız/i);
+ assert.match(web.specialRule,/düşmanları da yavaşlatır/i);
+});
+
 test('enemy attack counters advance only when a telegraphed attack is issued',()=>{
  const enemy=ENEMIES.find(e=>e.id==='rootbound-husk');
  const actor={x:0,y:0,health:100,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false,attackCount:2};

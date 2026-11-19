@@ -60,7 +60,7 @@ The run scene now applies authored enemy-specific combat rules rather than relyi
 | Bataklık Pusu Avcısı | First ambush strike deals increased damage |
 | Bataklık Sülüğü | Recovers health when its drain attack connects |
 | Çürük Gaz Kesesi | Death explosion; radius/damage depend on whether it was primed |
-| Çamur Cadısı | Hex field buffs nearby enemy attack damage |
+| Çamur Cadısı | Hex field grants nearby enemies a 15% movement-speed buff |
 | Sis Ağ Örücüsü | Telegraph then deploys a player-slowing web field |
 | Perde Avcısı | Periodic short vanish windows |
 | Mühür Tazısı | Leaves temporary frost patches that slow the player |
