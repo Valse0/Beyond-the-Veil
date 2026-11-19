@@ -481,4 +481,4 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Save schema v10 adds the nullable completed-ending ID. Schema-v9 migration preserves all existing story choices/progress and initializes the new field to null; earlier migrations continue to converge on the current schema.
 - Added unit coverage for both authored endings, invalid/mismatched choices, defeat, wrong boss/region and idempotency; added migration coverage and a live Phaser final-boss victory/reload browser test.
 - Final-scene UI, dialogue, animation, final art/audio and physical-device/natural-run validation remain later work.
-- CI evidence: pending.
+- CI #382 (run `44630060065`), tested commit `ee16762ecabf54d4a21a5d963c27cb845afa757d`: TypeScript PASS; 201/201 unit tests PASS; production build PASS; Chromium Playwright 32/32 PASS; npm audit 0 vulnerabilities.
