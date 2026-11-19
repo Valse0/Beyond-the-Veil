@@ -12,7 +12,20 @@ export interface WeaponLevel { level:number;damage:number;intervalMs:number;rang
 export interface WeaponBranchModifiers { damageMultiplier:number;intervalMultiplier:number;rangeMultiplier:number;projectileBonus:number;pierceBonus:number;areaMultiplier:number;chainTargetBonus:number }
 export interface WeaponBranch { id:string;name:string;effect:string;modifiers:WeaponBranchModifiers }
 export interface WeaponDefinition { id:string;name:string;category:string;description:string;behavior:string;element:ElementId;baseDamage:number;intervalMs:number;range:number;projectileSpeed:number;maxLevel:number;levels:WeaponLevel[];branches:WeaponBranch[];evolution:{id:string;name:string;requiredPassiveId:string;behaviorChange:string};characterSynergies:string[];assetId:string }
-export interface PassiveDefinition { id:string;name:string;category:string;description:string;maxLevel:number;element?:ElementId;effects:{level:number;stat:string;value:number;unit:string}[];specialUpgrade:{id:string;name:string;effect:string};transformsWeaponIds:string[];transformsCharacterIds:string[];assetId:string }
+export type PassiveSpecialMechanic =
+  | {kind:'fire-explosion';radius:number;damageMultiplier:number;cooldownMs:number}
+  | {kind:'ice-shatter';minimumHitDamage:number;damageMultiplier:number}
+  | {kind:'poison-spores';radius:number;damageMultiplier:number;durationMs:number;tickMs:number;cooldownMs:number}
+  | {kind:'critical-curse';bonusStacks:number;criticalMultiplier:number}
+  | {kind:'boss-essence';fragmentCount:number;essencePerFragment:number}
+  | {kind:'lightning-field';radius:number;damageMultiplier:number;durationMs:number;tickMs:number}
+  | {kind:'low-health-lifesteal';healthThreshold:number;bonus:number}
+  | {kind:'sealed-plate';intervalMs:number}
+  | {kind:'ghost-step';immunityMs:number}
+  | {kind:'free-reroll';count:number}
+  | {kind:'last-ward';healthRemaining:number}
+  | {kind:'crown-weaken';radius:number;damageMultiplier:number;durationMs:number};
+export interface PassiveDefinition { id:string;name:string;category:string;description:string;maxLevel:number;element?:ElementId;effects:{level:number;stat:string;value:number;unit:string}[];specialUpgrade:{id:string;name:string;effect:string;mechanic:PassiveSpecialMechanic};transformsWeaponIds:string[];transformsCharacterIds:string[];assetId:string }
 export interface ElementDefinition { id:ElementId;name:string;statusName:string;buildupPerHit:number;threshold:number;durationMs:number;resistanceCap:number;statusEffect:string;reactions:{id:string;with:ElementId;name:string;effect:string;damageMultiplier:number;durationMs:number}[];assetId:string }
 export interface RegionDefinition { id:RegionId;name:string;subtitle:string;atmosphere:string;palette:string[];enemyIds:string[];bossId:string;hazards:{id:string;name:string;trigger:string;telegraphMs:number;effect:string;counter:string}[];explorationPoints:{id:string;name:string;discovery:string;reward:string}[];elite:{id:string;name:string;behavior:string;reward:string};musicId:string;rewardId:string;storyFragment:string;map:{width:number;height:number;landmarks:number;proceduralSites:number;secretPassages:number};assetId:string }
 export interface AssetRecord { id:string;role:AssetRole;contentId:string;path:null;status:'placeholder'|'final'|'blocked';width:number;height:number;anchor:string;filtering:'nearest';requiredStates:string[];source:{kind:string;creator:string;license:string;attribution:string};nativeScaleReviewed:boolean;inEngineReviewed:boolean;technicalChecksPassed:boolean }
