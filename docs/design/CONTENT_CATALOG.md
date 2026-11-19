@@ -108,3 +108,8 @@ All five hunters use the same initial progression curve: 25 accumulated mastery 
 | Kan Rahibesi | `priestess-title` | `rite-alt` | `scarlet-regalia` |
 
 The reward IDs are sourced from each hunter's `mastery` data. Earned reward IDs are stored separately from per-hunter mastery-point totals. Level-ten cosmetic rewards are also added to the persistent cosmetic collection. This package implements progression and persistence only; reward presentation and alternate-ability selection remain later player-facing progression work.
+
+
+## Equipment profile rules
+
+Equipment profiles are character-specific save data, not catalog content. Each unlocked hunter may save up to five named profiles. A profile selects any catalog weapon and passive as its starting build and up to three unique relics from the owned relic collection. The active profile is stored per hunter. Without an active profile, the hunter's authored starting weapon/passive and the existing globally equipped relics remain the run defaults. Profile management and build comparison are reserved for the Run Preparation / Loadout UI.

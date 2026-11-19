@@ -1,8 +1,10 @@
+import type { EquipmentProfile } from '../../gameplay/progression/equipment-profiles.js';
+
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
 
 export interface SaveData {
-  schemaVersion: 5;
+  schemaVersion: 6;
   profile: { createdAt: string; updatedAt: string };
   progression: {
     soulEssence: number;
@@ -12,6 +14,8 @@ export interface SaveData {
     completedDifficulties: Record<string, string[]>;
     permanentUpgrades: Record<string, number>;
     equippedRelicIds: string[];
+    equipmentProfiles: Record<string, EquipmentProfile[]>;
+    activeEquipmentProfileIds: Record<string, string>;
   };
   collections: {
     characterMastery: Record<string, number>;

@@ -9,8 +9,9 @@ import { SAVE_BACKUP_KEY, SAVE_STORAGE_KEY } from './save-storage.js';
 import type { JsonObject, JsonValue, SaveData, SaveLoadResult, SaveStorage } from './save-types.js';
 import { calculatePermanentUpgradeRespec, getPermanentUpgradeCost, getPermanentUpgradeDefinition, isValidPermanentUpgradeRecord } from '../../gameplay/progression/permanent-upgrades.js';
 import type { PermanentUpgradeRespecQuote } from '../../gameplay/progression/permanent-upgrades.js';
+import { buildEquipmentProfile, getActiveEquipmentProfile, isActiveEquipmentProfileRecord, isEquipmentProfilesRecord, MAX_EQUIPMENT_PROFILES_PER_CHARACTER, type EquipmentProfile, type EquipmentProfileDraft } from '../../gameplay/progression/equipment-profiles.js';
 
-const CURRENT_SCHEMA_VERSION = 5;
+const CURRENT_SCHEMA_VERSION = 6;
 const RELIC_IDS = new Set(RELICS.map(relic => relic.id));
 const MATERIAL_IDS = new Set(CRAFTING_MATERIALS.map(material => material.id));
 const WEAPON_VARIANT_IDS = new Set(WEAPONS.flatMap(weapon => weapon.branches.flatMap(branch => branch.variant ? [branch.variant.id] : [])));
@@ -55,6 +56,8 @@ function isSaveData(value: unknown): value is SaveData {
   const craftingMaterials = isObject(collections) ? collections.craftingMaterials : undefined;
   const unlockedWeaponVariantIds = isObject(collections) ? collections.unlockedWeaponVariantIds : undefined;
   const unlockedMasteryRewardIds = isObject(collections) ? collections.unlockedMasteryRewardIds : undefined;
+  const equipmentProfiles = isObject(progression) ? progression.equipmentProfiles : undefined;
+  const activeEquipmentProfileIds = isObject(progression) ? progression.activeEquipmentProfileIds : undefined;
   return isObject(profile)
     && typeof profile.createdAt === 'string'
     && typeof profile.updatedAt === 'string'
@@ -83,6 +86,8 @@ function isSaveData(value: unknown): value is SaveData {
     && isStringArray(unlockedMasteryRewardIds)
     && new Set(unlockedMasteryRewardIds).size === unlockedMasteryRewardIds.length
     && equippedRelicIds.every(id => ownedRelicIds.includes(id))
+    && isEquipmentProfilesRecord(equipmentProfiles, ownedRelicIds)
+    && isActiveEquipmentProfileRecord(activeEquipmentProfileIds, equipmentProfiles)
     && isJsonObject(value.settings);
 }
 function parseSave(raw: string): unknown {
@@ -100,7 +105,9 @@ export function createInitialSaveData(now = new Date().toISOString()): SaveData 
       unlockedRegionIds: [REGIONS[0]!.id],
       completedDifficulties: {},
       permanentUpgrades: {},
-      equippedRelicIds: []
+      equippedRelicIds: [],
+      equipmentProfiles: {},
+      activeEquipmentProfileIds: {}
     },
     collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [] },
     settings: {}
@@ -129,7 +136,9 @@ function migrateV0(value: Record<string, unknown>, now: string): SaveData {
         ? progression.completedDifficulties : defaults.progression.completedDifficulties,
       permanentUpgrades: isValidPermanentUpgradeRecord(progression.permanentUpgrades)
         ? progression.permanentUpgrades : defaults.progression.permanentUpgrades,
-      equippedRelicIds: []
+      equippedRelicIds: [],
+      equipmentProfiles: {},
+      activeEquipmentProfileIds: {}
     },
     collections: {
       characterMastery: isNumberRecord(collections.characterMastery) ? collections.characterMastery : defaults.collections.characterMastery,
@@ -154,7 +163,7 @@ function migrateV1(value: Record<string, unknown>): SaveData {
   const candidate: unknown = {
     ...value,
     schemaVersion: CURRENT_SCHEMA_VERSION,
-    progression: { ...progression, permanentUpgrades: upgrades, equippedRelicIds: [] },
+    progression: { ...progression, permanentUpgrades: upgrades, equippedRelicIds: [], equipmentProfiles: {}, activeEquipmentProfileIds: {} },
     collections: { ...collections, relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [] }
   };
   if (!isSaveData(candidate)) throw new Error('Legacy version-one save contains invalid values.');
@@ -167,7 +176,7 @@ function migrateV2(value: Record<string, unknown>): SaveData {
   const candidate: unknown = {
     ...value,
     schemaVersion: CURRENT_SCHEMA_VERSION,
-    progression: { ...progression, equippedRelicIds: [] },
+    progression: { ...progression, equippedRelicIds: [], equipmentProfiles: {}, activeEquipmentProfileIds: {} },
     collections: { ...collections, relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [] }
   };
   if (!isSaveData(candidate)) throw new Error('Legacy version-two save contains invalid values.');
@@ -176,9 +185,11 @@ function migrateV2(value: Record<string, unknown>): SaveData {
 
 function migrateV3(value: Record<string, unknown>): SaveData {
   const collections = isObject(value.collections) ? value.collections : {};
+  const progression = isObject(value.progression) ? value.progression : {};
   const candidate: unknown = {
     ...value,
     schemaVersion: CURRENT_SCHEMA_VERSION,
+    progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} },
     collections: { ...collections, craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [] }
   };
   if (!isSaveData(candidate)) throw new Error('Legacy version-three save contains invalid values.');
@@ -187,8 +198,16 @@ function migrateV3(value: Record<string, unknown>): SaveData {
 
 function migrateV4(value: Record<string, unknown>): SaveData {
   const collections = isObject(value.collections) ? value.collections : {};
-  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION, collections: { ...collections, unlockedMasteryRewardIds: [] } };
+  const progression = isObject(value.progression) ? value.progression : {};
+  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION, collections: { ...collections, unlockedMasteryRewardIds: [] }, progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} } };
   if (!isSaveData(candidate)) throw new Error('Legacy version-four save contains invalid values.');
+  return candidate;
+}
+
+function migrateV5(value: Record<string, unknown>): SaveData {
+  const progression = isObject(value.progression) ? value.progression : {};
+  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION, progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} } };
+  if (!isSaveData(candidate)) throw new Error('Legacy version-five save contains invalid values.');
   return candidate;
 }
 
@@ -260,6 +279,83 @@ export class SaveManager {
   reset(): void {
     this.storage.removeItem(SAVE_STORAGE_KEY);
     this.storage.removeItem(SAVE_BACKUP_KEY);
+  }
+
+  getEquipmentProfiles(characterId: string): EquipmentProfile[] {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return [];
+    return (result.data.progression.equipmentProfiles[characterId] ?? []).map(profile => ({ ...profile, relicIds: [...profile.relicIds] }));
+  }
+
+  getActiveEquipmentProfile(characterId: string): EquipmentProfile | null {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return null;
+    const profile = getActiveEquipmentProfile(result.data.progression, characterId);
+    return profile ? { ...profile, relicIds: [...profile.relicIds] } : null;
+  }
+
+  createEquipmentProfile(characterId: string, draft: EquipmentProfileDraft): string | null {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return null;
+    const data = result.data;
+    if (!CHARACTERS.some(character => character.id === characterId) || !data.progression.unlockedCharacterIds.includes(characterId)) return null;
+    const profiles = data.progression.equipmentProfiles[characterId] ?? [];
+    if (profiles.length >= MAX_EQUIPMENT_PROFILES_PER_CHARACTER) return null;
+    const normalizedName = draft.name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('en');
+    if (profiles.some(profile => profile.name.toLocaleLowerCase('en') === normalizedName)) return null;
+    const timestamp = this.now().replace(/[^a-zA-Z0-9]/g, '').slice(0, 24) || 'profile';
+    let id = '';
+    for (let suffix = 1; suffix <= MAX_EQUIPMENT_PROFILES_PER_CHARACTER + 1; suffix++) {
+      id = 'equipment-' + characterId + '-' + timestamp + '-' + suffix;
+      if (!Object.values(data.progression.equipmentProfiles).flat().some(profile => profile.id === id)) break;
+    }
+    const profile = buildEquipmentProfile(id, characterId, draft, data.collections.relicIds);
+    if (!profile) return null;
+    data.progression.equipmentProfiles[characterId] = [...profiles, profile];
+    try { this.save(data); return id; } catch { return null; }
+  }
+
+  updateEquipmentProfile(characterId: string, profileId: string, changes: Partial<EquipmentProfileDraft>): boolean {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return false;
+    const data = result.data;
+    const profiles = data.progression.equipmentProfiles[characterId];
+    const index = profiles?.findIndex(profile => profile.id === profileId) ?? -1;
+    if (!profiles || index < 0) return false;
+    const current = profiles[index]!;
+    const draft: EquipmentProfileDraft = {
+      name: changes.name ?? current.name,
+      startingWeaponId: changes.startingWeaponId ?? current.startingWeaponId,
+      startingPassiveId: changes.startingPassiveId ?? current.startingPassiveId,
+      relicIds: changes.relicIds ?? current.relicIds
+    };
+    const normalizedName = draft.name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('en');
+    if (profiles.some((profile, profileIndex) => profileIndex !== index && profile.name.toLocaleLowerCase('en') === normalizedName)) return false;
+    const updated = buildEquipmentProfile(profileId, characterId, draft, data.collections.relicIds);
+    if (!updated) return false;
+    profiles[index] = updated;
+    try { this.save(data); return true; } catch { return false; }
+  }
+
+  deleteEquipmentProfile(characterId: string, profileId: string): boolean {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return false;
+    const data = result.data;
+    const profiles = data.progression.equipmentProfiles[characterId];
+    if (!profiles?.some(profile => profile.id === profileId)) return false;
+    data.progression.equipmentProfiles[characterId] = profiles.filter(profile => profile.id !== profileId);
+    if (data.progression.activeEquipmentProfileIds[characterId] === profileId) delete data.progression.activeEquipmentProfileIds[characterId];
+    if (data.progression.equipmentProfiles[characterId].length === 0) delete data.progression.equipmentProfiles[characterId];
+    try { this.save(data); return true; } catch { return false; }
+  }
+
+  activateEquipmentProfile(characterId: string, profileId: string): boolean {
+    const result = this.load();
+    if (result.status === 'unsupported' || result.status === 'corrupt') return false;
+    const data = result.data;
+    if (!data.progression.equipmentProfiles[characterId]?.some(profile => profile.id === profileId)) return false;
+    data.progression.activeEquipmentProfileIds[characterId] = profileId;
+    try { this.save(data); return true; } catch { return false; }
   }
 
   getPermanentUpgradeLevel(upgradeId: string): number {
@@ -369,6 +465,7 @@ export class SaveManager {
       if (version === 2) return { status: 'migrated', data: migrateV2(value) };
       if (version === 3) return { status: 'migrated', data: migrateV3(value) };
       if (version === 4) return { status: 'migrated', data: migrateV4(value) };
+      if (version === 5) return { status: 'migrated', data: migrateV5(value) };
       if (!isSaveData(value)) return { status: 'corrupt', message: 'Save data failed validation.' };
       return { status: 'loaded', data: value };
     } catch (error) {

@@ -13,7 +13,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
     const raw = window.localStorage.getItem('beyond-the-veil.save');
     return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string }; progression: { unlockedCharacterIds: string[]; unlockedRegionIds: string[] } } : null;
   });
-  expect(firstSave?.schemaVersion).toBe(5);
+  expect(firstSave?.schemaVersion).toBe(6);
   expect(firstSave?.progression.unlockedCharacterIds).toContain('cursed-hunter');
   expect(firstSave?.progression.unlockedRegionIds).toContain('cursed-forest');
 
@@ -24,7 +24,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
     const raw = window.localStorage.getItem('beyond-the-veil.save');
     return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string } } : null;
   });
-  expect(reloadedSave?.schemaVersion).toBe(5);
+  expect(reloadedSave?.schemaVersion).toBe(6);
   expect(reloadedSave?.profile.createdAt).toBe(firstSave?.profile.createdAt);
   const dimensions = await canvas.evaluate((element: HTMLCanvasElement) => ({
     width: element.width,
@@ -204,7 +204,7 @@ test('region selection reads unlocked regions from the persisted profile', async
 type BrowserRunSnapshot = {
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
-  runSoulEssence:number;runRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
+  runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
   health:number;maxHealth:number;damage:number;moveSpeed:number;permanentUpgradeEffects:{maxHealthBonus:number;damageMultiplier:number;moveSpeedMultiplier:number;armorBonus:number;xpGainMultiplier:number;extraRerolls:number};passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
   weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
   shotDiagnostics:{weaponId:string;damage:number}[];
@@ -809,7 +809,7 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   expect(victory.lastRunSaved).toBe(true);
 
   const savedVictory=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(savedVictory.schemaVersion).toBe(5);
+  expect(savedVictory.schemaVersion).toBe(6);
   expect(savedVictory.collections.relicIds).toContain('matriarch-seed');
   expect(savedVictory.progression.soulEssence).toBe(victory.runSoulEssence);
   expect(savedVictory.progression.completedRuns).toBe(1);
@@ -892,7 +892,7 @@ test('completed treasure hunt grants and persists its regional crafting material
   });
   await expect.poll(async()=>page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!).collections.craftingMaterials['living-root'])).toBe(1);
   const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(saved.schemaVersion).toBe(5);
+  expect(saved.schemaVersion).toBe(6);
   expect(saved.collections.craftingMaterials).toEqual({ 'living-root': 1 });
   expect(pageErrors).toEqual([]);
 });
@@ -904,9 +904,46 @@ test('defeat preserves the selected hunter mastery baseline in the profile save'
   await startBrowserTestRun(page);
   await finishBrowserTestRun(page);
   const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(saved.schemaVersion).toBe(5);
+  expect(saved.schemaVersion).toBe(6);
   expect(saved.progression.completedRuns).toBe(1);
   expect(saved.collections.characterMastery['cursed-hunter']).toBe(3);
   expect(saved.collections.unlockedMasteryRewardIds).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+
+test('active equipment profile overrides the selected hunter loadout when a run begins', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
+      schemaVersion: 6,
+      profile: { createdAt: '2026-11-19T00:00:00.000Z', updatedAt: '2026-11-19T00:00:00.000Z' },
+      progression: {
+        soulEssence: 0, completedRuns: 0,
+        unlockedCharacterIds: ['cursed-hunter'], unlockedRegionIds: ['cursed-forest'],
+        completedDifficulties: {}, permanentUpgrades: {}, equippedRelicIds: [],
+        equipmentProfiles: {
+          'cursed-hunter': [{
+            id: 'profile-browser-check', characterId: 'cursed-hunter', name: 'Grave test',
+            startingWeaponId: 'gravecleaver', startingPassiveId: 'graveplate',
+            relicIds: ['matriarch-seed']
+          }]
+        },
+        activeEquipmentProfileIds: { 'cursed-hunter': 'profile-browser-check' }
+      },
+      collections: {
+        characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [],
+        relicIds: ['matriarch-seed'], craftingMaterials: {},
+        unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: []
+      },
+      settings: {}
+    }));
+  });
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  const snapshot = await readBrowserRunSnapshot(page);
+  expect(snapshot.weapons[0]?.weaponId).toBe('gravecleaver');
+  expect(snapshot.passives[0]?.passiveId).toBe('graveplate');
+  expect(snapshot.equippedRelicIds).toEqual(['matriarch-seed']);
   expect(pageErrors).toEqual([]);
 });

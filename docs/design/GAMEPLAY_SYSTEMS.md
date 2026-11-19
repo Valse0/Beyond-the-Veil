@@ -95,4 +95,13 @@ Crafted variants enhance the corresponding weapon's Yayılım branch when that b
 
 Each hunter has an independent persistent mastery-point total. Every completed run grants 3 baseline points, plus 1 point per full 10 kills, and a further 10 points for a boss victory. Defeat never removes earned mastery. The first authored thresholds are 25 points (mastery level 2), 100 points (level 5) and 250 points (level 10); the displayed level is derived from the accumulated points.
 
-Each character's existing data-driven mastery reward IDs are granted once their matching milestone is reached. Level 2 grants the character title, level 5 unlocks the alternate active-ability variant, and level 10 unlocks the authored cosmetic reward. Reward IDs and cosmetic IDs persist independently of the current scene; no mastery UI or alternate-ability selection screen is introduced in this runtime package. Save schema v5 adds the permanent mastery-reward collection and migrates schema 0–4 without discarding mastery points, cosmetics, relics, materials or weapon variants.
+Each character's existing data-driven mastery reward IDs are granted once their matching milestone is reached. Level 2 grants the character title, level 5 unlocks the alternate active-ability variant, and level 10 unlocks the authored cosmetic reward. Reward IDs and cosmetic IDs persist independently of the current scene; no mastery UI or alternate-ability selection screen is introduced in this runtime package. Save schema v5 adds the permanent mastery-reward collection and migrates schema 0–4 without discarding mastery points, cosmetics, relics, materials or weapon variants. Save schema v6 adds named character-specific equipment profiles and active-profile selection while preserving all earlier progression.
+
+
+## Equipment profiles v1
+
+Each unlocked hunter can own up to five named equipment profiles. A profile stores a starting weapon ID, starting passive ID and up to three unique relic IDs. Weapon and passive IDs must exist in the authored catalogs; relics must already be owned. Names are trimmed, normalized and unique within that hunter.
+
+The active profile is remembered independently for each hunter. At run creation, its starting weapon, passive and relic loadout replace that hunter's default starting pair and the globally equipped relic loadout for that run. If the hunter has no active profile, the existing character defaults and globally equipped relics are used unchanged. Profile data is stored as IDs only; profile presentation, comparison and one-touch selection remain part of the later loadout UI.
+
+Save schema v6 adds progression.equipmentProfiles and progression.activeEquipmentProfileIds. Migrations from schema 0–5 initialize empty profile collections and preserve existing progression.

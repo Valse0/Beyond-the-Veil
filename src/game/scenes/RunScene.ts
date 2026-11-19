@@ -26,6 +26,7 @@ import type { SaveManager } from '../../systems/save/save-manager.js';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
 import { createLevelUpControlState, drawLevelUpChoices as drawChoicesFromPool, spendLevelUpBanish, spendLevelUpReroll, spendLevelUpSkip, type LevelUpControlState } from '../../gameplay/level-up/level-up-controls.js';
 import { derivePermanentUpgradeEffects, type PermanentUpgradeEffects } from '../../gameplay/progression/permanent-upgrades.js';
+import { getActiveEquipmentProfile } from '../../gameplay/progression/equipment-profiles.js';
 import { deriveRelicStats, getRelicDamageMultiplier, type RelicStats } from '../../gameplay/relics/relic-runtime.js';
 
 const RUN_MS = 900000;
@@ -148,7 +149,7 @@ export class RunScene extends Phaser.Scene {
   browserTestSnapshot():{
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
-    runSoulEssence:number;runRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
+    runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
     passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
     weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
     shotDiagnostics:{weaponId:string;damage:number}[];
@@ -167,7 +168,7 @@ export class RunScene extends Phaser.Scene {
       activeWeaponSynergyIds:this.build.weapons.flatMap(weapon=>getActiveWeaponSynergies(weapon.weaponId,this.build.passives.map(passive=>passive.passiveId)).map(synergy=>synergy.id)),weaponSynergyTriggers:[...this.weaponSynergyTriggers],
       weapons:this.build.weapons.map(progress=>{const definition=WEAPONS.find(item=>item.id===progress.weaponId);const stats=definition?weaponLevelStats(progress,definition,this.unlockedWeaponVariantIds):undefined;return {weaponId:progress.weaponId,level:progress.level,branchId:progress.branchId??null,evolved:progress.evolved,stats:stats?{damage:stats.damage,intervalMs:stats.intervalMs,range:stats.range,projectiles:stats.projectiles,pierce:stats.pierce,areaMultiplier:stats.areaMultiplier,chainTargetBonus:stats.chainTargetBonus,branchName:stats.branchName??null}:null};}),
       shotDiagnostics:this.shots.getChildren().filter(child=>child.active&&child.getData('weaponId')).map(child=>({weaponId:String(child.getData('weaponId')),damage:Number(child.getData('damage'))})), 
-      runSoulEssence:this.runSoulEssence,runRelicIds:[...this.runRelicIds],runCraftingMaterials:{...this.runCraftingMaterials},kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
+      runSoulEssence:this.runSoulEssence,runRelicIds:[...this.runRelicIds],equippedRelicIds:[...this.equippedRelicIds],runCraftingMaterials:{...this.runCraftingMaterials},kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
       bossHealth:this.bossState?.health??null,health:this.state.health,maxHealth:this.state.maxHealth,damage:this.state.damage,moveSpeed:this.state.moveSpeed,
       bossChestDiagnostics:(()=>{
         const playerBody=this.player.body as Phaser.Physics.Arcade.Body;
@@ -431,14 +432,15 @@ export class RunScene extends Phaser.Scene {
     const saveManager=this.registry.get('saveManager') as SaveManager|undefined;
     const loadedSave=saveManager?.load();
     this.permanentUpgradeEffects=derivePermanentUpgradeEffects(loadedSave&&'data' in loadedSave?loadedSave.data.progression.permanentUpgrades:undefined);
-    this.equippedRelicIds=loadedSave&&'data' in loadedSave?[...loadedSave.data.progression.equippedRelicIds]:[];
+    const activeEquipmentProfile=loadedSave&&'data' in loadedSave?getActiveEquipmentProfile(loadedSave.data.progression,this.character.id):null;
+    this.equippedRelicIds=activeEquipmentProfile?[...activeEquipmentProfile.relicIds]:loadedSave&&'data' in loadedSave?[...loadedSave.data.progression.equippedRelicIds]:[];
     this.unlockedWeaponVariantIds=loadedSave&&'data' in loadedSave?[...loadedSave.data.collections.unlockedWeaponVariantIds]:[];
     this.relicStats=deriveRelicStats(this.equippedRelicIds,this.character.id);
     const maxHealth=this.character.health+this.permanentUpgradeEffects.maxHealthBonus+this.relicStats.maxHealthBonus;
     this.state={...createRunState(),health:maxHealth,maxHealth,moveSpeed:this.character.moveSpeed*this.permanentUpgradeEffects.moveSpeedMultiplier*this.relicStats.moveSpeedMultiplier,damage:18*this.character.stats.damageMultiplier*this.permanentUpgradeEffects.damageMultiplier,attackIntervalMs:720};
     this.build=EMPTY_BUILD;
-    const startingWeapon=WEAPONS.find(w=>w.id===this.character.startingWeaponId)??WEAPONS[0]!;
-    const startingPassive=PASSIVES.find(p=>p.id===this.character.startingPassiveId)??PASSIVES[0]!;
+    const startingWeapon=WEAPONS.find(w=>w.id===(activeEquipmentProfile?.startingWeaponId??this.character.startingWeaponId))??WEAPONS[0]!;
+    const startingPassive=PASSIVES.find(p=>p.id===(activeEquipmentProfile?.startingPassiveId??this.character.startingPassiveId))??PASSIVES[0]!;
     this.build=addWeapon(this.build,startingWeapon);this.build=addPassive(this.build,startingPassive);
     this.paused=false;this.queuedLevels=0;this.levelUpControls=createLevelUpControlState(this.permanentUpgradeEffects.extraRerolls);this.currentLevelChoices=[];this.banishMode=false;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;
     this.previousGamepadFrame=EMPTY_GAMEPAD_FRAME;this.gamepadMoveX=0;this.gamepadMoveY=0;this.clearOverlay();
