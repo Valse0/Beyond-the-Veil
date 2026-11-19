@@ -822,7 +822,7 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   const savedVictory=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(savedVictory.schemaVersion).toBe(9);
   expect(savedVictory.collections.relicIds).toContain('matriarch-seed');
-  expect(savedVictory.collections.discoveredLoreIds).toContain('cursed-forest-lore');
+  expect(savedVictory.collections.discoveredLoreIds).not.toContain('cursed-forest-lore'); // Story Archive records now require an actual in-run discovery.
   expect(savedVictory.progression.soulEssence).toBe(victory.runSoulEssence);
   expect(savedVictory.progression.completedRuns).toBe(1);
   expect(savedVictory.collections.characterMastery['cursed-hunter']).toBeGreaterThanOrEqual(13);

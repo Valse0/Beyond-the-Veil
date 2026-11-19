@@ -2044,7 +2044,7 @@ export class RunScene extends Phaser.Scene {
       const loaded=manager.load();
       if(!('data' in loaded))return false;
       const runResult=applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,bossChestOpened:this.bossChestOpened,completedTreasureHunt:this.completedTreasureHunt,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length,enemyIdsEarned:this.runDiscoveredEnemyIds,weaponIdsEarned:this.runDiscoveredWeaponIds,loreIdsEarned:this.runDiscoveredLoreIds,discoveredPathIdsEarned:this.runDiscoveredPathIds});
-      manager.save({...runResult,story:this.questSaveData?.story??runResult.story});
+      manager.save({...runResult,story:{...runResult.story,...(this.questSaveData?.story??{}),unlockedPathIds:[...new Set([...runResult.story.unlockedPathIds,...(this.questSaveData?.story.unlockedPathIds??[])])]}});
       return true;
     } catch {
       return false;
