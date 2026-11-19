@@ -149,3 +149,62 @@ test('permanent upgrade purchase fails if insufficient funds or max level reache
 
   assert.equal(manager.purchasePermanentUpgrade('attackPower', 10, 1), false);
 });
+
+
+test('migrates an existing schema-v1 save without losing progression or settings', () => {
+  const storage = new MemoryStorage();
+  const legacy = createInitialSaveData(fixedNow());
+  const v1 = { ...legacy, schemaVersion: 1 };
+  delete v1.progression.permanentUpgrades;
+  v1.progression.soulEssence = 275;
+  v1.progression.completedRuns = 8;
+  v1.progression.unlockedRegionIds = ['cursed-forest', 'forgotten-graveyard'];
+  v1.collections.characterMastery['cursed-hunter'] = 3;
+  v1.settings.musicVolume = 0.35;
+  storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(v1));
+
+  const result = new SaveManager(storage, fixedNow).load();
+  assert.equal(result.status, 'migrated');
+  assert.equal(result.data.schemaVersion, 2);
+  assert.equal(result.data.progression.soulEssence, 275);
+  assert.equal(result.data.progression.completedRuns, 8);
+  assert.deepEqual(result.data.progression.unlockedRegionIds, ['cursed-forest', 'forgotten-graveyard']);
+  assert.equal(result.data.collections.characterMastery['cursed-hunter'], 3);
+  assert.equal(result.data.settings.musicVolume, 0.35);
+  assert.deepEqual(result.data.progression.permanentUpgrades, {});
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 2);
+});
+
+test('migrates a schema-v1 backup when the primary save is corrupt', () => {
+  const storage = new MemoryStorage();
+  const legacy = createInitialSaveData(fixedNow());
+  const v1 = { ...legacy, schemaVersion: 1 };
+  delete v1.progression.permanentUpgrades;
+  v1.progression.soulEssence = 91;
+  storage.setItem(SAVE_STORAGE_KEY, '{bad');
+  storage.setItem(SAVE_BACKUP_KEY, JSON.stringify(v1));
+
+  const result = new SaveManager(storage, fixedNow).load();
+  assert.equal(result.status, 'recovered');
+  assert.equal(result.data.schemaVersion, 2);
+  assert.equal(result.data.progression.soulEssence, 91);
+  assert.deepEqual(result.data.progression.permanentUpgrades, {});
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 2);
+});
+
+test('rejects negative, non-finite, fractional, mismatched and unknown permanent upgrade purchases', () => {
+  const storage = new MemoryStorage();
+  const manager = new SaveManager(storage, fixedNow);
+  const data = createInitialSaveData(fixedNow());
+  data.progression.soulEssence = 500;
+  manager.save(data);
+  const before = storage.getItem(SAVE_STORAGE_KEY);
+
+  assert.equal(manager.purchasePermanentUpgrade('maxHealth', -1, 5), false);
+  assert.equal(manager.purchasePermanentUpgrade('maxHealth', Number.NaN, 5), false);
+  assert.equal(manager.purchasePermanentUpgrade('maxHealth', 50.5, 5), false);
+  assert.equal(manager.purchasePermanentUpgrade('maxHealth', 51, 5), false);
+  assert.equal(manager.purchasePermanentUpgrade('unknown-upgrade', 1, 5), false);
+  assert.equal(storage.getItem(SAVE_STORAGE_KEY), before);
+  assert.equal(manager.load().data.progression.soulEssence, 500);
+});
