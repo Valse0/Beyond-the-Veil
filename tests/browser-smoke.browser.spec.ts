@@ -1260,6 +1260,14 @@ test('real Phaser exploration overlaps persist lore and secret paths on defeat a
   page.on('pageerror',error=>errors.push(error.message));
   await page.addInitScript(()=>window.localStorage.removeItem('beyond-the-veil.save'));
   await startBrowserTestRun(page);
+  const initial=await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestSnapshot:()=>{explorationLandmarks:{id:string;name:string;description:string;motif:string;decorationVisible:boolean}[]}}}}}).__BEYOND_VEIL_GAME__;
+    return game!.scene.getScene('run').browserTestSnapshot().explorationLandmarks;
+  });
+  expect(initial).toHaveLength(2);
+  expect(initial.map(item=>item.id)).toEqual(['cursed-forest-lore','cursed-forest-secret']);
+  expect(initial.every(item=>item.name.length>0&&item.description.length>20&&item.decorationVisible)).toBe(true);
+  expect(new Set(initial.map(item=>item.motif))).toEqual(new Set(['forest-camp']));
   const move=(kind:'lore'|'secret')=>page.evaluate((value)=>{
     const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestMoveToExplorationPoint:(kind:'lore'|'secret')=>void}}}}).__BEYOND_VEIL_GAME__;
     if(!game)throw new Error('Development browser test bridge is not available.');
@@ -1285,11 +1293,12 @@ test('real Phaser exploration overlaps persist lore and secret paths on defeat a
   await page.reload();
   await startBrowserTestRun(page);
   const snapshot=await page.evaluate(()=>{
-    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestSnapshot:()=>{discoveredLoreIds:string[];discoveredPathIds:string[]}}}}}).__BEYOND_VEIL_GAME__;
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestSnapshot:()=>{discoveredLoreIds:string[];discoveredPathIds:string[];explorationLandmarks:{id:string}[]}}}}}).__BEYOND_VEIL_GAME__;
     return game!.scene.getScene('run').browserTestSnapshot();
   });
   expect(snapshot.discoveredLoreIds).toEqual([]);
   expect(snapshot.discoveredPathIds).toEqual([]);
+  expect(snapshot.explorationLandmarks).toEqual([]);
   expect(errors).toEqual([]);
 });
 

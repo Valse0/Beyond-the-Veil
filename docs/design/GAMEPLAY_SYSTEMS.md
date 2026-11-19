@@ -235,3 +235,8 @@ The five main-region quest NPCs now appear as environmental figures when the hun
 All thirteen authored regional atmosphere outcomes are consumed from the profile save. A region-specific environmental aura and short label/description make the current story state visible without introducing an interaction prompt or changing combat. Unknown or cross-region save values are ignored and fall back to the neutral NPC state or the region's base atmosphere.
 
 The resolver is engine-independent and keeps the catalog separate from Phaser presentation. The scene uses temporary replaceable shapes and text only; no save migration, dialogue, NPC interaction, final art/audio, new input, combat change or dependency is included. Organic multi-room geography and final environmental art remain future work.
+
+
+## Environmental lore landmarks
+
+Each region uses its existing two exploration-point IDs for a themed story landmark and a hidden-passage trace. The catalog in `src/data/environmental-lore.ts` supplies the name, short environmental clue, motif and replaceable palette; `RunScene` renders temporary Phaser shapes for the forest camp, grave inscriptions, dungeon workshop, swamp altar and castle seal. The existing Arcade overlap remains the only discovery trigger. Discovery still feeds the existing lore and secret-path save fields, and already discovered landmarks do not respawn. These shapes are placeholders, not final environment art.

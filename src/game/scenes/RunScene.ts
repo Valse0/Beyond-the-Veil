@@ -10,6 +10,7 @@ import { RELICS } from '../../data/relics.js';
 import { CRAFTING_MATERIALS } from '../../data/crafting.js';
 import { ELEMENTS } from '../../data/elements.js';
 import { REGIONS } from '../../data/regions.js';
+import { getEnvironmentalLoreLandmark, type EnvironmentalLoreLandmark } from '../../data/environmental-lore.js';
 import { resolveUnlockedRegionPaths } from '../../gameplay/world/region-path-runtime.js';
 import { resolveStoryWorldState } from '../../gameplay/world/story-world-state.js';
 import { resolveBossVariant } from '../../gameplay/bosses/boss-variant-runtime.js';
@@ -180,7 +181,7 @@ export class RunScene extends Phaser.Scene {
     paused:boolean;bossSpawned:boolean;bossVariantId:string|null;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
     runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
     questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
-    discoveredLoreIds:string[];discoveredPathIds:string[];availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
+    discoveredLoreIds:string[];discoveredPathIds:string[];explorationLandmarks:{id:string;kind:string;name:string;description:string;motif:string;decorationVisible:boolean}[];availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
     storyWorldState:{npcId:string|null;npcName:string|null;npcFateId:string|null;npcFateLabel:string|null;atmosphereId:string|null;atmosphereName:string|null;renderedObjectCount:number};
     passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
     weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
@@ -202,7 +203,7 @@ export class RunScene extends Phaser.Scene {
       runSoulEssence:this.runSoulEssence,runRelicIds:[...this.runRelicIds],equippedRelicIds:[...this.equippedRelicIds],runCraftingMaterials:{...this.runCraftingMaterials},kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
       bossHealth:this.bossState?.health??null,health:this.state.health,maxHealth:this.state.maxHealth,damage:this.state.damage,moveSpeed:this.state.moveSpeed,
       questProgress:Object.fromEntries(Object.entries(this.questSaveData?.story.quests??{}).map(([id,progress])=>[id,{status:progress.status,objectiveProgress:{...progress.objectiveProgress}}])),
-      discoveredLoreIds:[...this.runDiscoveredLoreIds],discoveredPathIds:[...this.runDiscoveredPathIds],availableStoryPathIds:this.activeStoryPaths.map(path=>path.id),lastTraversedStoryPathId:this.lastTraversedStoryPathId,
+      discoveredLoreIds:[...this.runDiscoveredLoreIds],discoveredPathIds:[...this.runDiscoveredPathIds],explorationLandmarks:this.eventObjects.getChildren().filter(object=>object.getData('eventObjectType')==='exploration-lore'||object.getData('eventObjectType')==='exploration-secret').map(object=>({id:String(object.getData('explorationPointId')),kind:String(object.getData('eventObjectType')),name:String(object.getData('explorationName')),description:String(object.getData('explorationDescription')),motif:String(object.getData('explorationMotif')),decorationVisible:Boolean((object.getData('eventObjectDecoration') as Phaser.GameObjects.GameObject|undefined)?.active)})),availableStoryPathIds:this.activeStoryPaths.map(path=>path.id),lastTraversedStoryPathId:this.lastTraversedStoryPathId,
       storyWorldState:{npcId:this.activeStoryWorldState?.npc?.definition.id??null,npcName:this.activeStoryWorldState?.npc?.definition.name??null,npcFateId:this.activeStoryWorldState?.npc?.fateId??null,npcFateLabel:this.activeStoryWorldState?.npc?.fate.label??null,atmosphereId:this.activeStoryWorldState?.atmosphere?.id??null,atmosphereName:this.activeStoryWorldState?.atmosphere?.name??null,renderedObjectCount:this.storyWorldObjectCount},
       bossChestDiagnostics:(()=>{
         const playerBody=this.player.body as Phaser.Physics.Arcade.Body;
@@ -1508,8 +1509,10 @@ export class RunScene extends Phaser.Scene {
     const knownLore=new Set(save?.collections.discoveredLoreIds??[]);
     const knownPaths=new Set(save?.story.unlockedPathIds??[]);
     const [lore,secret]=this.region.explorationPoints;
-    if(lore&&!knownLore.has(lore.id))this.createExplorationPoint(WORLD_W/2-330,WORLD_H/2-220,'exploration-lore',lore.id);
-    if(secret&&!knownPaths.has(secret.id))this.createExplorationPoint(WORLD_W/2+330,WORLD_H/2+220,'exploration-secret',secret.id);
+    const loreLandmark=getEnvironmentalLoreLandmark(this.region.id,'lore');
+    const secretLandmark=getEnvironmentalLoreLandmark(this.region.id,'secret');
+    if(lore&&loreLandmark&&!knownLore.has(lore.id))this.createExplorationPoint(WORLD_W/2-330,WORLD_H/2-220,'exploration-lore',lore.id,loreLandmark);
+    if(secret&&secretLandmark&&!knownPaths.has(secret.id))this.createExplorationPoint(WORLD_W/2+330,WORLD_H/2+220,'exploration-secret',secret.id,secretLandmark);
   }
 
   private spawnUnlockedStoryPaths(save?:SaveData):void {
@@ -1560,15 +1563,44 @@ export class RunScene extends Phaser.Scene {
     this.add.text(path.destination.x,path.destination.y-38,'GEÇİT SONU',{fontSize:'10px',fontStyle:'bold',color:'#d7c1ef',stroke:'#17131a',strokeThickness:3}).setOrigin(.5).setDepth(2);
   }
 
-  private createExplorationPoint(x:number,y:number,type:'exploration-lore'|'exploration-secret',pointId:string):void {
+  private createExplorationPoint(x:number,y:number,type:'exploration-lore'|'exploration-secret',pointId:string,landmark:EnvironmentalLoreLandmark):void {
     const secret=type==='exploration-secret';
-    const marker=this.add.circle(x,y,secret?17:15,secret?0x8062a6:0xd4ad65,.92).setStrokeStyle(3,secret?0xe0c4ff:0xffe6a8).setDepth(5);
+    const decoration=this.add.graphics().setPosition(x,y).setDepth(2);
+    const primary=landmark.primaryColor,accent=landmark.accentColor;
+    decoration.lineStyle(4,primary,.9);
+    if(landmark.motif==='forest-camp'){
+      decoration.lineBetween(-34,18,-34,-14);decoration.lineBetween(-34,-14,0,-35);decoration.lineBetween(0,-35,34,-14);decoration.lineBetween(34,-14,34,18);
+      decoration.lineBetween(-34,-14,0,18);decoration.lineBetween(34,-14,0,18);decoration.strokeCircle(0,28,9);
+      decoration.fillStyle(accent,.9);decoration.fillCircle(0,28,5);
+      decoration.lineStyle(3,accent,.75);decoration.lineBetween(-46,27,-30,21);decoration.lineBetween(30,21,46,27);
+    }else if(landmark.motif==='grave-etching'){
+      decoration.strokeRoundedRect(-22,-31,44,62,8);decoration.lineStyle(3,accent,.95);
+      decoration.lineBetween(-12,-9,12,-9);decoration.lineBetween(-12,1,12,1);decoration.lineBetween(-9,12,9,12);
+      decoration.strokeCircle(0,-19,5);decoration.lineBetween(-35,35,35,35);
+    }else if(landmark.motif==='dungeon-workshop'){
+      decoration.strokeCircle(0,0,25);decoration.strokeCircle(0,0,11);
+      for(let i=0;i<8;i++){const a=i*Math.PI/4;decoration.lineBetween(Math.cos(a)*13,Math.sin(a)*13,Math.cos(a)*34,Math.sin(a)*34);}
+      decoration.lineStyle(4,accent,.9);decoration.strokeRect(-39,26,78,13);decoration.lineBetween(-25,26,-25,40);decoration.lineBetween(25,26,25,40);
+    }else if(landmark.motif==='swamp-altar'){
+      decoration.strokeCircle(0,0,34);decoration.strokeCircle(0,0,23);decoration.fillStyle(primary,.3);decoration.fillRoundedRect(-16,-19,32,40,5);
+      decoration.lineStyle(3,accent,.95);decoration.lineBetween(0,-15,0,15);decoration.lineBetween(-10,0,10,0);
+      decoration.strokeCircle(-38,27,8);decoration.strokeCircle(38,27,8);
+    }else{
+      decoration.strokeCircle(0,0,36);decoration.strokeCircle(0,0,24);decoration.strokeCircle(0,0,10);
+      decoration.lineStyle(4,accent,.95);decoration.lineBetween(0,-42,0,-18);decoration.lineBetween(0,18,0,42);
+      decoration.lineBetween(-42,0,-18,0);decoration.lineBetween(18,0,42,0);
+      decoration.strokeRect(-14,-14,28,28);
+    }
+    const marker=this.add.circle(x,y,secret?17:15,primary,.08).setStrokeStyle(2,accent,.8).setDepth(5);
     this.physics.add.existing(marker);
     const body=marker.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);body.setImmovable(true);body.setCircle(secret?18:16);
-    marker.setData('eventObjectType',type).setData('explorationPointId',pointId);
-    const label=this.add.text(x,y-30,secret?'GİZLİ GEÇİT':'HİKÂYE İZİ',{fontSize:'11px',fontStyle:'bold',color:secret?'#e2caff':'#ffe8b5',stroke:'#17131a',strokeThickness:3}).setOrigin(.5).setDepth(7);
-    marker.setData('eventObjectLabel',label);
+    marker.setData('eventObjectType',type).setData('explorationPointId',pointId)
+      .setData('explorationMotif',landmark.motif).setData('explorationName',landmark.name)
+      .setData('explorationDescription',landmark.description).setData('eventObjectDecoration',decoration);
+    const label=this.add.text(x,y-54,landmark.name.toLocaleUpperCase('tr-TR'),{fontFamily:'Georgia',fontSize:'11px',fontStyle:'bold',color:'#f0dfbd',stroke:'#17131a',strokeThickness:4,align:'center',wordWrap:{width:220}}).setOrigin(.5).setDepth(7);
+    const description=this.add.text(x,y+48,landmark.description,{fontSize:'10px',color:'#d1c5b5',stroke:'#17131a',strokeThickness:3,align:'center',wordWrap:{width:250}}).setOrigin(.5).setDepth(7);
+    marker.setData('eventObjectLabel',label).setData('eventObjectDescription',description);
     this.eventObjects.add(marker);
   }
 
@@ -1615,11 +1647,13 @@ export class RunScene extends Phaser.Scene {
     if(type==='exploration-lore'||type==='exploration-secret'){
       const pointId=String(object.getData('explorationPointId')??'');
       const label=object.getData('eventObjectLabel') as Phaser.GameObjects.GameObject|undefined;
+      const description=object.getData('eventObjectDescription') as Phaser.GameObjects.GameObject|undefined;
+      const decoration=object.getData('eventObjectDecoration') as Phaser.GameObjects.GameObject|undefined;
       if(type==='exploration-lore'&&!this.runDiscoveredLoreIds.includes(pointId)){
-        this.runDiscoveredLoreIds.push(pointId);label?.destroy();object.destroy();
+        this.runDiscoveredLoreIds.push(pointId);label?.destroy();description?.destroy();decoration?.destroy();object.destroy();
         this.eventHud?.setText('HİKÂYE ARŞİVİ KEŞFEDİLDİ').setVisible(true);
       }else if(type==='exploration-secret'&&!this.runDiscoveredPathIds.includes(pointId)){
-        this.runDiscoveredPathIds.push(pointId);label?.destroy();object.destroy();
+        this.runDiscoveredPathIds.push(pointId);label?.destroy();description?.destroy();decoration?.destroy();object.destroy();
         this.eventHud?.setText('GİZLİ GEÇİT KEŞFEDİLDİ').setVisible(true);
       }
       return;
