@@ -404,7 +404,7 @@ Playwright Chromium smoke coverage on `full-game-development`:
 
 ## Element Reaction System v1 implementation pass (2026-11-19)
 
-- Replaced generic bonus-damage-only reactions with seven typed elemental pair reactions and explicit effect payloads: burst, spread, shatter, soul chain, conductive chain, siphon and rupture.
+- Replaced generic bonus-damage-only reactions with eight typed elemental pair reactions and explicit effect payloads: burst, spread, shatter, soul chain, conductive chain, siphon and rupture.
 - Added bounded stack/status timing, short threshold freeze, poison vulnerability, and a common reaction resolver shared by normal enemy and boss hit paths. Normal enemies and bosses continue to use the same elemental status tick runtime.
 - Expanded runtime tests for all eight reaction pairs, unique/symmetric pair definitions, timed freeze, poison vulnerability and stack bounds. Added a real Phaser browser probe that applies the same fire/ice sequence to a normal enemy and a boss and verifies matching reaction IDs and freeze timing.
 - CI #327 (44589192686), tested commit `8a6e872100da9fe1f5d9e04ffc24240a2b7b66ce`: TypeScript PASS; 164/164 unit tests PASS; production build PASS; Chromium Playwright 22/22 PASS; npm audit 0 vulnerabilities.
