@@ -561,6 +561,7 @@ export class RunScene extends Phaser.Scene {
   browserTestArenaSnapshot():{
     bossId:string;bossVariantId:string|null;phaseIndex:number;phaseName:string;phaseAttackIds:string[];phaseAttackShapes:string[];phaseAddEnemyIds:string[];phaseDamageMultiplier:number;phaseMovementMultiplier:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
     objects:{id:string;kind:string;health:number;active:boolean;disabledUntil:number;revealed:boolean;isTrue:boolean;safe:boolean}[];
+    traces:{id:string;motif:string;name:string}[];
   } {
     this.assertBrowserTestMode();
     if(!this.bossArenaState||!this.bossState)throw new Error('No boss arena is active.');
