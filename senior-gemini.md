@@ -54,4 +54,4 @@ The #247 workflow includes the final synergy-fixture isolation changes and verif
 - Superpowers is pinned as submodule `.agents/superpowers` at `22f0b463e7a5e579904dd6211a520321035526f7`. Repository presence is not proof of Gemini CLI activation; verify initialization and activation in that terminal.
 - Do not begin final asset production until the user is notified that the project is ready for the asset phase.
 
-**Engineering conclusion:** Core systems are increasingly testable and CI #240 is green, but this is a development checkpoint, not a release-readiness sign-off.
+**Engineering conclusion:** Core systems are increasingly testable and CI #247 is green, but this is a development checkpoint, not a release-readiness sign-off.
