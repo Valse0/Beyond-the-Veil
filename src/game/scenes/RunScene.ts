@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { ElementId, RegionId, EnemyDefinition, BossDefinition, CharacterDefinition, WeaponDefinition } from '../../core/types/content.js';
+import type { ElementId, RegionId, EnemyDefinition, BossDefinition, CharacterDefinition, WeaponDefinition, PassiveSpecialMechanic } from '../../core/types/content.js';
 import type { RunState, UpgradeId } from '../../core/types/game.js';
 import { CHARACTERS, STARTING_CHARACTER } from '../../data/characters.js';
 import { ENEMIES } from '../../data/enemies.js';
@@ -12,7 +12,8 @@ import { findNearestTarget } from '../../gameplay/combat/combat-rules.js';
 import { advanceRun, applyUpgrade, createRunState, gainExperience, receiveDamage, recordKill } from '../../gameplay/run/run-model.js';
 import { stepEnemyAI, type EnemyActorState } from '../../gameplay/enemies/enemy-runtime.js';
 import { applyElementHit, tickElementStatuses, type ElementState } from '../../gameplay/elements/element-runtime.js';
-import { addPassive, addWeapon, chooseWeaponBranch, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState } from '../../gameplay/weapons/build-runtime.js';
+import { addPassive, addWeapon, choosePassiveSpecial, chooseWeaponBranch, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState } from '../../gameplay/weapons/build-runtime.js';
+import { addCurseStack, createPassiveSpecialRuntimeState, getLowHealthLifestealBonus, getWeakenedDamageMultiplier, grantFreeReroll, isFrozenTarget, isPassiveSpecialActive, isPoisonBloomReady, resolveCriticalHit, resolveLastWard, resolveSealedPlate, tryPassiveCooldown, type PassiveSpecialRuntimeState } from '../../gameplay/passives/passive-runtime.js';
 import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState } from '../../gameplay/bosses/boss-runtime.js';
 import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent } from '../../gameplay/regions/region-runtime.js';
 import { applyRunResult } from '../../gameplay/run/run-results.js';
@@ -32,7 +33,7 @@ const BASE_CHOICES: { id: UpgradeId; title: string; detail: string }[] = [
   { id: 'vitality', title: 'Kara Yaşam', detail: 'Azami can +20' },
   { id: 'magnet', title: 'Ruh Mıknatısı', detail: 'XP çekim alanı +65' }
 ];
-type LevelChoice = { id:string; title:string; detail:string; kind:'base'|'weapon-add'|'weapon-up'|'weapon-branch'|'passive-add'|'passive-up'; contentId?:string; branchId?:string };
+type LevelChoice = { id:string; title:string; detail:string; kind:'base'|'weapon-add'|'weapon-up'|'weapon-branch'|'passive-add'|'passive-up'|'passive-special'; contentId?:string; branchId?:string };
 
 const elementTint:Record<ElementId,number>={fire:0xff8652,ice:0x8fdcff,poison:0x9ac65d,dark:0x9b78c8,spirit:0x73d7c8,lightning:0xf4dc74,blood:0xc84c60};
 
@@ -116,6 +117,9 @@ export class RunScene extends Phaser.Scene {
   private playerSlowUntil=0;
   private playerSlowMultiplier=1;
   private enemyZones:{x:number;y:number;radius:number;expiresAt:number;nextTickAt:number;damage:number;slow:number;marker:Phaser.GameObjects.Graphics}[]=[];
+  private passiveZones:{x:number;y:number;radius:number;expiresAt:number;nextTickAt:number;damage:number;tickMs:number;marker:Phaser.GameObjects.Graphics}[]=[];
+  private passiveSpecialState:PassiveSpecialRuntimeState=createPassiveSpecialRuntimeState();
+  private passiveSpecialFeedback?:Phaser.GameObjects.Text;
 
   constructor(){super('run');}
 
@@ -128,6 +132,7 @@ export class RunScene extends Phaser.Scene {
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string}[];
     runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
+    passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];
     weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
     shotDiagnostics:{weaponId:string;damage:number}[];
     bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;finishTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null;sceneTime:{paused:boolean;now:number;active:boolean};playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
@@ -141,6 +146,7 @@ export class RunScene extends Phaser.Scene {
       bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
       evolvedWeaponIds:this.build.weapons.filter(weapon=>weapon.evolved).map(weapon=>weapon.weaponId),
       choices:this.currentLevelChoices.map(({id,title,kind,contentId,branchId})=>({id,title,kind,contentId,branchId})),
+      passives:this.build.passives.map(item=>({...item})),activePassiveSpecialIds:this.build.passives.filter(item=>item.special).map(item=>item.passiveId),
       weapons:this.build.weapons.map(progress=>{const definition=WEAPONS.find(item=>item.id===progress.weaponId);const stats=definition?weaponLevelStats(progress,definition):undefined;return {weaponId:progress.weaponId,level:progress.level,branchId:progress.branchId??null,evolved:progress.evolved,stats:stats?{damage:stats.damage,intervalMs:stats.intervalMs,range:stats.range,projectiles:stats.projectiles,pierce:stats.pierce,areaMultiplier:stats.areaMultiplier,chainTargetBonus:stats.chainTargetBonus,branchName:stats.branchName??null}:null};}),
       shotDiagnostics:this.shots.getChildren().filter(child=>child.active&&child.getData('weaponId')).map(child=>({weaponId:String(child.getData('weaponId')),damage:Number(child.getData('damage'))})), 
       runSoulEssence:this.runSoulEssence,kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
@@ -189,6 +195,20 @@ export class RunScene extends Phaser.Scene {
     if(!definition)throw new Error('Unknown test enemy: '+enemyId);
     const enemy=this.createEnemy(this.player.x+30,this.player.y,definition,1);
     this.damageEnemy(enemy,Number(enemy.getData('health'))*100);
+  }
+
+  browserTestPreparePassiveSpecial(passiveId:string):void {
+    this.assertBrowserTestMode();
+    const passive=PASSIVES.find(item=>item.id===passiveId);
+    if(!passive)throw new Error('Unknown test passive: '+passiveId);
+    this.build={weapons:[],passives:[{passiveId:passive.id,level:5,special:false}]};
+    this.queuedLevels=1;this.showLevelUp();
+    if(!this.currentLevelChoices.some(choice=>choice.kind==='passive-special'&&choice.contentId===passiveId))throw new Error('Expected special upgrade choice for '+passiveId+'.');
+  }
+
+  browserTestReceiveDamage(amount:number):void {
+    this.assertBrowserTestMode();
+    this.receiveCombatDamage(amount);
   }
 
   browserTestPrepareWeaponBranch(weaponId:string):void {
@@ -289,7 +309,7 @@ export class RunScene extends Phaser.Scene {
     if(this.runSeed===0)this.runSeed=1;
     this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
-    this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];
+    this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;
     this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.lastRunSaved=null;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
@@ -369,7 +389,7 @@ export class RunScene extends Phaser.Scene {
     if(gamepad.westPressed)this.useAbility();
     if(gamepad.startPressed){this.openPause();return;}
     this.state=advanceRun(this.state,delta);this.updateRunEvent(time);
-    this.move(time);if(this.paused)return;this.moveEnemies(time);this.updateEnemyZones(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
+    this.move(time);if(this.paused)return;this.moveEnemies(time);this.updateEnemyZones(time);this.updatePassiveZones(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
     this.expireShots(time);this.magnetize();this.updateElementStatuses(time);this.updateRegionHazard(time);
     if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
     if(this.state.elapsedMs>=RUN_MS&&!this.bossState&&!this.bossSpawned)this.spawnBoss();
@@ -404,7 +424,8 @@ export class RunScene extends Phaser.Scene {
     if(this.time.now<this.dashReady||this.paused)return;
     const velocity=(this.player.body as Phaser.Physics.Arcade.Body).velocity.clone();
     const dir=velocity.length()?velocity.normalize():new Phaser.Math.Vector2(1,0);
-    this.dashUntil=this.time.now+190;this.dashReady=this.time.now+1150;
+    const ghostStep=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='ghost-step')?.specialUpgrade.mechanic;
+    this.dashUntil=this.time.now+190+(isPassiveSpecialActive(this.build,'hunters-greaves')&&ghostStep?.kind==='ghost-step'?ghostStep.immunityMs:0);this.dashReady=this.time.now+1150;
     this.player.setVelocity(dir.x*this.state.moveSpeed*2.8,dir.y*this.state.moveSpeed*2.8);this.cameras.main.shake(75,.0018);
   }
 
@@ -513,7 +534,8 @@ export class RunScene extends Phaser.Scene {
       else if(shape==='cone'){const angle=Phaser.Math.Angle.Between(source.x,source.y,x,y);marker.fillTriangle(source.x,source.y,source.x+Math.cos(angle-.48)*radius*2,source.y+Math.sin(angle-.48)*radius*2,source.x+Math.cos(angle+.48)*radius*2,source.y+Math.sin(angle+.48)*radius*2);}
       else{marker.strokeCircle(x,y,radius);marker.fillCircle(x,y,radius);}
       if(this.isInsideTelegraph(shape,source,x,y,radius)){
-        this.receiveCombatDamage(damage);
+        const weaken=Number(source.getData('weakenedUntil')??0)>this.time.now?Number(source.getData('weakenedMultiplier')??1):1;
+        this.receiveCombatDamage(damage*weaken);
         if(def?.behavior==='blood-drain'&&source.active){const hp=Number(source.getData('health'))+damage*.35;source.setData('health',Math.min(Number(source.getData('maxHealth')),hp));}
         if(def?.behavior==='soul-snipe'&&source.active)source.setData('untargetableUntil',this.time.now+520);
       }
@@ -716,10 +738,16 @@ export class RunScene extends Phaser.Scene {
       const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier};
       const hit=applyElementHit(existing,tuned,damage,def.resistances[element]??0,this.time.now,ELEMENTS);
       this.elementStates.set(enemy,hit.state);damage=hit.damage+(hit.reaction?.damage??0);
+      if(isPassiveSpecialActive(this.build,'venom-vial')&&isPoisonBloomReady(hit.state.poison?.stacks??0,5)){const bloom=PASSIVES.find(item=>item.id==='venom-vial')!.specialUpgrade.mechanic;if(bloom.kind==='poison-spores'){const ready=tryPassiveCooldown(this.passiveSpecialState,'toxic-bloom',this.time.now,bloom.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)this.spawnPassiveZone(enemy.x,enemy.y,bloom);}}
       if(hit.triggered&&element==='spirit')this.healPlayer(Math.max(1,this.state.maxHealth*.025));
-      if(hit.triggered&&element==='blood')this.healPlayer(damage*(.03+this.currentBuildStats().lifesteal));
+      if(hit.triggered&&element==='blood'){const sacrament=PASSIVES.find(item=>item.id==='blood-reliquary')!.specialUpgrade.mechanic;const bonus=sacrament.kind==='low-health-lifesteal'&&isPassiveSpecialActive(this.build,'blood-reliquary')?getLowHealthLifestealBonus(this.state.health,this.state.maxHealth,sacrament):0;this.healPlayer(damage*(.03+this.currentBuildStats().lifesteal+bonus));}
       if(hit.triggered&&element==='lightning')this.chainLightningFrom(enemy,damage*.4);
     }
+    const critChance=this.currentBuildStats().criticalChance;
+    const crit=resolveCriticalHit(damage,critChance,Math.random(),1.5);damage=crit.damage;
+    if(crit.critical&&isPassiveSpecialActive(this.build,'veil-thread')){const curseStatus=this.elementStates.get(enemy)??{};const current=curseStatus.dark;const darkDef=ELEMENTS.find(item=>item.id==='dark')!;this.elementStates.set(enemy,{...curseStatus,dark:{buildup:0,stacks:addCurseStack(current&&current.expiresAt>this.time.now?current.stacks:0,1),expiresAt:this.time.now+darkDef.durationMs,nextTickAt:this.time.now+1000}});}
+    if(element==='fire'&&isPassiveSpecialActive(this.build,'ashen-heart')){const fire=PASSIVES.find(item=>item.id==='ashen-heart')!.specialUpgrade.mechanic;if(fire.kind==='fire-explosion'){const ready=tryPassiveCooldown(this.passiveSpecialState,'ember-core',this.time.now,fire.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)for(const nearby of this.activeTargets()){if(nearby!==enemy&&Phaser.Math.Distance.Between(enemy.x,enemy.y,nearby.x,nearby.y)<=fire.radius)this.damageEnemy(nearby,damage*fire.damageMultiplier);}}}
+    if(isPassiveSpecialActive(this.build,'frostbound-sigil')&&baseDamage>=38&&isFrozenTarget(existing.ice?.expiresAt,this.time.now)&&Number(enemy.getData('iceShatteredUntil')??0)<(existing.ice?.expiresAt??0)){const ice=PASSIVES.find(item=>item.id==='frostbound-sigil')!.specialUpgrade.mechanic;if(ice.kind==='ice-shatter'){damage+=baseDamage*ice.damageMultiplier;enemy.setData('iceShatteredUntil',existing.ice!.expiresAt);}}
     const hp=Number(enemy.getData('health'))-damage;enemy.setData('health',hp).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(enemy.active){if(enemy.getData('isElite'))enemy.setTint(enemy.getData('eliteEnraged')?0xf2a85c:0xd9ad5c);else enemy.clearTint();}});
     if(hp>0)return;
@@ -731,11 +759,14 @@ export class RunScene extends Phaser.Scene {
     const experience=Number(enemy.getData('experience'));
     this.recordRunEventEnemyDefeat(enemy);
     this.runSoulEssence+=Math.floor(Math.max(0,experience)/2)+(enemy.getData('isElite')?35:0);
+    if(enemy.getData('isElite')&&isPassiveSpecialActive(this.build,'hollow-crown'))this.applyCrownOfAshes(enemy);
     const eliteMarker=enemy.getData('eliteMarker') as Phaser.GameObjects.GameObject|undefined;eliteMarker?.destroy();
     this.dropExperience(enemy,experience);this.state=recordKill(this.state);enemy.destroy();
   }
 
   private chainLightningFrom(source:Phaser.Physics.Arcade.Sprite,damage:number):void {
+    const field=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='lightning-field')?.specialUpgrade.mechanic;
+    if(field?.kind==='lightning-field'&&isPassiveSpecialActive(this.build,'storm-conductor'))this.spawnPassiveZone(source.x,source.y,field);
     const next=this.activeTargets().filter(target=>target!==source)
       .sort((a,b)=>Phaser.Math.Distance.Between(source.x,source.y,a.x,a.y)-Phaser.Math.Distance.Between(source.x,source.y,b.x,b.y))[0];
     if(next&&Phaser.Math.Distance.Between(source.x,source.y,next.x,next.y)<=190)this.damageEnemy(next,damage);
@@ -766,6 +797,8 @@ export class RunScene extends Phaser.Scene {
 
   private defeatBoss(boss:Phaser.Physics.Arcade.Sprite):void {
     this.dropExperience(boss,80);this.runSoulEssence+=this.bossDefinition?.reward.soulEssence??0;
+    const vessel=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='boss-essence')?.specialUpgrade.mechanic;
+    if(vessel?.kind==='boss-essence'&&isPassiveSpecialActive(this.build,'soul-vessel'))for(let i=0;i<vessel.fragmentCount;i++){const angle=(Math.PI*2*i)/vessel.fragmentCount;this.createRunEventObject(boss.x+Math.cos(angle)*48,boss.y+Math.sin(angle)*48,'essence-fragment',vessel.essencePerFragment);}
     this.bossVictoryPending=true;this.createRunEventObject(boss.x,boss.y,'boss-chest');
     boss.destroy();this.bossSprite=undefined;this.bossHud?.setText('BOSS YENİLDİ');this.bossPhaseText?.setText('Boss sandığına ulaş ve aç');
     this.eventHud?.setText('BOSS SANDIĞI  •  YAKLAŞARAK AÇ').setVisible(true);
@@ -838,18 +871,19 @@ export class RunScene extends Phaser.Scene {
     this.eventHud?.setText(getRunEventName(active.kind)+' başladı').setVisible(true);
   }
 
-  private createRunEventObject(x:number,y:number,type:'spirit-fragment'|'treasure-chest'|'boss-chest'):void {
+  private createRunEventObject(x:number,y:number,type:'spirit-fragment'|'treasure-chest'|'boss-chest'|'essence-fragment',essenceValue=0):void {
     const bossChest=type==='boss-chest';
+    const essence=type==='essence-fragment';
     const chest=type==='treasure-chest'||bossChest;
     const object=bossChest
       ?this.physics.add.sprite(x,y,'boss-chest').setDepth(5)
       :chest
         ?this.add.rectangle(x,y,28,24,0x9a7041).setStrokeStyle(3,0xe6c77f).setDepth(5)
-        :this.add.circle(x,y,10,0x74d9cf).setStrokeStyle(3,0xd8fff1).setDepth(5);
+        :this.add.circle(x,y,essence?8:10,essence?0xe4c16c:0x74d9cf).setStrokeStyle(3,essence?0xffedb1:0xd8fff1).setDepth(5);
     this.eventObjects.add(object);
     const body=object.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);body.setImmovable(true);body.setSize(bossChest?40:chest?30:22,bossChest?34:chest?26:22);
-    object.setData('eventObjectType',type);
+    object.setData('eventObjectType',type).setData('essenceValue',essenceValue);
     if(bossChest){
       const label=this.add.text(x,y-30,'BOSS SANDIĞI',{fontSize:'12px',fontStyle:'bold',color:'#ffe7a8',stroke:'#21170b',strokeThickness:3}).setOrigin(.5).setDepth(7);
       object.setData('eventObjectLabel',label);
@@ -897,6 +931,7 @@ export class RunScene extends Phaser.Scene {
     }
     if(type==='boss-chest')this.bossChestCollectOutcome='not-pending';
     const active=this.runEventState.activeEvent;
+    if(type==='essence-fragment'){const value=Number(object.getData('essenceValue')??0);this.runSoulEssence+=value;object.destroy();this.eventHud?.setText('RUH ÖZÜ  •  +'+value).setVisible(true);return;}
     if(!active||active.status!=='active')return;
     if(type==='spirit-fragment'&&active.kind==='spirit-storm'){
       object.destroy();this.applyRunEventAction('collect');
@@ -946,18 +981,54 @@ export class RunScene extends Phaser.Scene {
 
   private contactDamage(enemy:Phaser.Physics.Arcade.Sprite):void {
     if(this.time.now<this.nextDamage||this.time.now<this.dashUntil||!enemy.active)return;
-    const def=this.enemyDefinition(enemy);const actor=this.enemyStates.get(enemy);if(actor?.burrowed||Number(enemy.getData('untargetableUntil')??0)>this.time.now)return;const damage=enemy.getData('isBoss')?(this.bossDefinition?.contactDamage??24):(def?.contactDamage??9)*(enemy.getData('isElite')?1.4:1);
+    const def=this.enemyDefinition(enemy);const actor=this.enemyStates.get(enemy);if(actor?.burrowed||Number(enemy.getData('untargetableUntil')??0)>this.time.now)return;
+    const base=enemy.getData('isBoss')?(this.bossDefinition?.contactDamage??24):(def?.contactDamage??9)*(enemy.getData('isElite')?1.4:1);
+    const damage=base*getWeakenedDamageMultiplier(Number(enemy.getData('weakenedUntil')??0),this.time.now,Number(enemy.getData('weakenedMultiplier')??1));
     this.nextDamage=this.time.now+650;this.receiveCombatDamage(damage);
   }
 
   private receiveCombatDamage(amount:number):void {
+    const sealed=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='sealed-plate')?.specialUpgrade.mechanic;
+    if(sealed?.kind==='sealed-plate'){
+      const result=resolveSealedPlate(this.passiveSpecialState,this.time.now,isPassiveSpecialActive(this.build,'graveplate'),sealed.intervalMs);
+      this.passiveSpecialState=result.state;
+      if(result.blocked){this.showPassiveSpecialFeedback('MÜHÜRLÜ PLAKA  •  HASAR ENGELLENDİ');return;}
+    }
     const armor=this.currentBuildStats().armor+this.character.stats.armor;
     const reduced=Math.max(1,amount*(1-armor/(armor+100)));
-    this.state=receiveDamage(this.state,reduced);this.cameras.main.shake(90,.002);this.refreshHud();
+    const ward=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='last-ward')?.specialUpgrade.mechanic;
+    const protectedHit=resolveLastWard(this.state.health,reduced,this.passiveSpecialState.used.includes('last-ward'),isPassiveSpecialActive(this.build,'wardens-knot'),ward?.kind==='last-ward'?ward.healthRemaining:1);
+    if(protectedHit.triggered)this.passiveSpecialState={...this.passiveSpecialState,used:[...this.passiveSpecialState.used,'last-ward']};
+    this.state={...this.state,health:protectedHit.health};this.cameras.main.shake(90,.002);this.refreshHud();
     if(this.state.health<=0)this.finishRun(false);
   }
 
   private healPlayer(amount:number):void {this.state={...this.state,health:Math.min(this.state.maxHealth,this.state.health+Math.max(0,amount))};}
+
+  private showPassiveSpecialFeedback(message:string):void {
+    this.passiveSpecialFeedback?.destroy();
+    this.passiveSpecialFeedback=this.add.text(this.scale.width/2,this.scale.height*.22,message,{fontFamily:'Georgia',fontSize:'17px',color:'#f2d69a',stroke:'#201820',strokeThickness:4,backgroundColor:'#241b20',padding:{x:10,y:6}}).setOrigin(.5).setScrollFactor(0).setDepth(230);
+    this.time.delayedCall(1050,()=>{this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;});
+  }
+
+  private spawnPassiveZone(x:number,y:number,mechanic:Extract<PassiveSpecialMechanic,{kind:'poison-spores'|'lightning-field'}>):void {
+    const marker=this.add.graphics().setDepth(6);
+    const poison=mechanic.kind==='poison-spores';
+    marker.lineStyle(3,poison?0x9ac65d:0xf4dc74,.9);marker.fillStyle(poison?0x9ac65d:0xf4dc74,.13);marker.strokeCircle(x,y,mechanic.radius);marker.fillCircle(x,y,mechanic.radius);
+    this.passiveZones.push({x,y,radius:mechanic.radius,expiresAt:this.time.now+mechanic.durationMs,nextTickAt:this.time.now+mechanic.tickMs,damage:mechanic.damageMultiplier,tickMs:mechanic.tickMs,marker});
+  }
+
+  private updatePassiveZones(time:number):void {
+    this.passiveZones=this.passiveZones.filter(zone=>{
+      if(time>=zone.expiresAt){zone.marker.destroy();return false;}
+      if(time>=zone.nextTickAt){
+        const targets=this.activeTargets().filter(enemy=>Phaser.Math.Distance.Between(zone.x,zone.y,enemy.x,enemy.y)<=zone.radius);
+        for(const enemy of targets){const definition=this.enemyDefinition(enemy);const damage=definition?Math.max(1,definition.health*zone.damage):zone.damage;this.damageEnemy(enemy,damage);}
+        zone.nextTickAt=time+zone.tickMs;
+      }
+      return true;
+    });
+  }
 
   private updateElementStatuses(time:number):void {
     for(const child of this.enemies.getChildren()){
@@ -1098,6 +1169,7 @@ export class RunScene extends Phaser.Scene {
     for(const passive of PASSIVES){
       const owned=this.build.passives.find(p=>p.passiveId===passive.id);
       if(owned&&owned.level<passive.maxLevel)choices.push({id:'passive-up:'+passive.id,title:passive.name+' +',detail:'Pasif seviyesi '+(owned.level+1),kind:'passive-up',contentId:passive.id});
+      else if(owned&&owned.level>=passive.maxLevel&&!owned.special)choices.push({id:'passive-special:'+passive.id,title:passive.name+' — '+passive.specialUpgrade.name,detail:passive.specialUpgrade.effect,kind:'passive-special',contentId:passive.id});
       else if(!owned&&this.build.passives.length<6)choices.push({id:'passive-add:'+passive.id,title:passive.name,detail:passive.category+' pasifini kuşan',kind:'passive-add',contentId:passive.id});
     }
     return choices;
@@ -1106,6 +1178,8 @@ export class RunScene extends Phaser.Scene {
   private drawLevelUpChoices(excludedIds:readonly string[]=[],controlState:LevelUpControlState=this.levelUpControls):LevelChoice[] {
     const pool=this.buildChoices();
     const unavailable=new Set([...excludedIds,...controlState.bannedChoiceIds]);
+    const specialChoice=pool.find(choice=>choice.kind==='passive-special'&&!unavailable.has(choice.id));
+    if(specialChoice){const regularPool=pool.filter(choice=>choice.kind!=='passive-special'&&choice.kind!=='weapon-branch');const fillers=drawChoicesFromPool(regularPool,controlState,()=>Phaser.Math.RND.frac(),excludedIds);return [specialChoice,...fillers.slice(0,3)];}
     const branchWeaponIds=[...new Set(pool.filter(choice=>choice.kind==='weapon-branch').map(choice=>choice.contentId).filter((id):id is string=>Boolean(id)))];
     for(const weaponId of branchWeaponIds){
       const pair=pool.filter(choice=>choice.kind==='weapon-branch'&&choice.contentId===weaponId&&!unavailable.has(choice.id));
@@ -1138,20 +1212,22 @@ export class RunScene extends Phaser.Scene {
       this.overlay.push(card,name,detail);
       this.registerOverlayOption(card,()=>this.banishMode?this.banishLevelChoice(choice):this.chooseUpgrade(choice));
     });
-    const status='Yenile: '+this.levelUpControls.rerollsRemaining+'   •   Mühürle: '+this.levelUpControls.banishesRemaining+'   •   Geç: '+this.levelUpControls.skipsRemaining;
+    const freeReroll=isPassiveSpecialActive(this.build,'scribes-lens')&&!this.passiveSpecialState.freeRerollUsed;
+    const status='Yenile: '+this.levelUpControls.rerollsRemaining+(freeReroll?' + ÜCRETSİZ':'')+'   •   Mühürle: '+this.levelUpControls.banishesRemaining+'   •   Geç: '+this.levelUpControls.skipsRemaining;
     this.overlay.push(this.add.text(w/2,h*.68,status,{fontSize:'14px',color:'#c9bda9'}).setOrigin(.5).setScrollFactor(0).setDepth(202));
-    this.createOverlayButton(w*.32,h*.79,190,48,'YENİLE ('+this.levelUpControls.rerollsRemaining+')',()=>this.rerollLevelChoices());
+    this.createOverlayButton(w*.32,h*.79,190,48,freeReroll?'YENİLE (ÜCRETSİZ)':'YENİLE ('+this.levelUpControls.rerollsRemaining+')',()=>this.rerollLevelChoices());
     this.createOverlayButton(w*.5,h*.79,190,48,this.banishMode?'VAZGEÇ ('+this.levelUpControls.banishesRemaining+')':'MÜHÜRLE ('+this.levelUpControls.banishesRemaining+')',()=>this.toggleBanishMode());
     this.createOverlayButton(w*.68,h*.79,190,48,'GEÇ ('+this.levelUpControls.skipsRemaining+')',()=>this.skipLevelChoice());
   }
 
   private rerollLevelChoices():void {
-    const nextState=spendLevelUpReroll(this.levelUpControls);
+    const free=grantFreeReroll(this.passiveSpecialState,isPassiveSpecialActive(this.build,'scribes-lens'));
+    const nextState=free.free?this.levelUpControls:spendLevelUpReroll(this.levelUpControls);
     if(!nextState)return;
     const visibleIds=this.currentLevelChoices.map(choice=>choice.id);
     const nextChoices=this.drawLevelUpChoices(visibleIds,nextState);
     if(nextChoices.length===0)return;
-    this.levelUpControls=nextState;this.currentLevelChoices=nextChoices;this.banishMode=false;
+    this.levelUpControls=nextState;this.passiveSpecialState=free.state;this.currentLevelChoices=nextChoices;this.banishMode=false;
     this.renderLevelUpChoices();
   }
 
@@ -1238,6 +1314,7 @@ export class RunScene extends Phaser.Scene {
     if(choice.kind==='weapon-branch'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def&&choice.branchId)this.build=chooseWeaponBranch(this.build,def,choice.branchId);}
     if(choice.kind==='passive-add'){const def=PASSIVES.find(p=>p.id===choice.contentId);if(def)this.build=addPassive(this.build,def);}
     if(choice.kind==='passive-up'){const def=PASSIVES.find(p=>p.id===choice.contentId);if(def)this.build=upgradePassive(this.build,def);}
+    if(choice.kind==='passive-special'){const def=PASSIVES.find(p=>p.id===choice.contentId);if(def){this.build=choosePassiveSpecial(this.build,def);this.showPassiveSpecialFeedback(def.specialUpgrade.name+' AKTİF');}}
     this.refreshBuildStats();this.queuedLevels=Math.max(0,this.queuedLevels-1);this.clearOverlay();this.refreshHud();
     if(this.queuedLevels>0)this.showLevelUp();else this.resumeRunWorld();
   }
