@@ -438,8 +438,11 @@ export class RunScene extends Phaser.Scene {
     this.bossArenaObjects.clear(true,true);this.bossArenaState=undefined;
     this.region=region;this.bossSpawned=false;this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.spawnBoss();
-    if(!this.bossSprite||!this.bossArenaState||!this.bossDefinition||!this.bossState)throw new Error('Boss arena failed to spawn for '+regionId);
-    this.bossState={...this.bossState,attackReadyAt:Object.fromEntries(this.bossDefinition.phases.flatMap(phase=>phase.attacks.map(attack=>[attack.id,Number.POSITIVE_INFINITY])))};
+    if(!this.bossSprite||!this.bossArenaState)throw new Error('Boss arena failed to spawn for '+regionId);
+    const definition=BOSSES.find(item=>item.id===region.bossId);
+    const encounter=this.bossState as BossEncounterState|undefined;
+    if(!definition||!encounter)throw new Error('Boss encounter state failed to initialize for '+regionId);
+    this.bossState={...encounter,attackReadyAt:Object.fromEntries(definition.phases.flatMap(phase=>phase.attacks.map(attack=>[attack.id,Number.POSITIVE_INFINITY])))};
   }
 
   browserTestArenaSnapshot():{
