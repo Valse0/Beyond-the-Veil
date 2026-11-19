@@ -92,10 +92,10 @@ export class MainMenuScene extends Phaser.Scene {
     if (confirm && !this.previousPadConfirm) this.activateSelectedItem();
     this.previousPadConfirm = confirm;
 
-    const dpadUp = Boolean(pad.buttons[12]?.pressed);
-    const dpadDown = Boolean(pad.buttons[13]?.pressed);
-    const dpadLeft = Boolean(pad.buttons[14]?.pressed);
-    const dpadRight = Boolean(pad.buttons[15]?.pressed);
+    const dpadUp = pad.up;
+    const dpadDown = pad.down;
+    const dpadLeft = pad.left;
+    const dpadRight = pad.right;
     const stickX = pad.leftStick.x;
     const stickY = pad.leftStick.y;
     const direction = dpadLeft || (!dpadUp && !dpadDown && !dpadRight && stickX < -0.5)
