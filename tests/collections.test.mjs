@@ -56,8 +56,8 @@ test('full collections complete once and grant six rewards plus the grand-comple
   let save = createInitialSaveData();
   for (const character of CHARACTERS) save.collections.characterMastery[character.id] = 249;
   const discoveries = {
-    enemyIds: ENEMIES.map(item => item.id),
-    weaponIds: WEAPONS.map(item => item.id),
+    enemyIdsEarned: ENEMIES.map(item => item.id),
+    weaponIdsEarned: WEAPONS.map(item => item.id),
     relicIdsEarned: RELICS.map(item => item.id),
     loreIdsEarned: REGIONS.map(item => item.explorationPoints[0].id)
   };
