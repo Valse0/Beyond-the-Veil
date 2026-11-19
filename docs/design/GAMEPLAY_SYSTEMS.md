@@ -202,3 +202,12 @@ Quest objectives now declare the gameplay event that advances them: ordinary ene
 ## Region exploration points v1
 
 Each region places two discoverable markers in the live Phaser arena: a story trace that unlocks its existing Story Archive record, and a hidden-passage marker that records the region's stable secret-path ID. Walking into a marker is sufficient; no extra interaction button is required. Already discovered markers are not spawned again. Both discoveries are recorded at run end and persist on defeat as well as victory. Hidden-path IDs are recorded only for the matching region; opening path geometry and final art remain separate future work.
+
+
+## Branching Boss Encounter Variants v1
+
+The five main-region quest outcomes unlock one of two authored boss encounter variants per region (10 total). At region entry, the run reads the saved `story.bossEncounterIds` once; the matching variant is resolved when the boss spawns and remains fixed for that encounter. A later story choice affects a subsequent entry, never a boss already in progress.
+
+Each variant replaces the boss's three phase names, attack telegraphs/damage/cooldowns, support enemy groups, and phase-specific boss damage/movement multipliers. The original boss identity, health thresholds, arena definition and mechanics, elemental weaknesses/resistances, rewards, and boss-chest flow are retained. If no matching story outcome exists, the original boss definition is used unchanged. Variant visuals continue using the existing boss placeholder asset; no final UI or art is included.
+
+The ten story links are: Thorn Matriarch (awakened/corrupted), Ossuary King (reckoning/warhost), Furnace Colossus (dormant/overheated), Mire Oracle (awakened/usurper), and Unwritten Regent (sealed/unbound). Automated unit and live Phaser browser checks cover every branch and the no-choice fallback. Natural-run difficulty and balance still require player testing.

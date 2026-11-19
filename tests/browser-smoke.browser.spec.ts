@@ -1014,7 +1014,7 @@ test('uncompleted treasure hunt cannot grant an exploration relic', async ({ pag
 
 
 type BossArenaSnapshot={
-  bossId:string;phaseIndex:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
+  bossId:string;bossVariantId:string|null;phaseIndex:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
   objects:{id:string;kind:string;health:number;active:boolean;disabledUntil:number;revealed:boolean;isTrue:boolean;safe:boolean}[];
 };
 
@@ -1028,6 +1028,34 @@ async function callBossArena(page:import('@playwright/test').Page,name:string,ar
     return action.apply(scene,values);
   },{method:name,values:args});
 }
+
+test('all ten story boss variants are selected and applied in live Phaser boss encounters',async({page})=>{
+  const cases=[
+    ['cursed-forest','thorn-matriarch','thorn-matriarch-awakened'],
+    ['cursed-forest','thorn-matriarch','thorn-matriarch-corrupted'],
+    ['forgotten-graveyard','ossuary-king','ossuary-king-reckoning'],
+    ['forgotten-graveyard','ossuary-king','ossuary-king-warhost'],
+    ['deep-dungeon','furnace-colossus','furnace-colossus-dormant'],
+    ['deep-dungeon','furnace-colossus','furnace-colossus-overheated'],
+    ['rotten-swamp','mire-oracle','mire-oracle-awakened'],
+    ['rotten-swamp','mire-oracle','mire-oracle-usurper'],
+    ['cursed-castle','unwritten-regent','unwritten-regent-sealed'],
+    ['cursed-castle','unwritten-regent','unwritten-regent-unbound']
+  ] as const;
+  await startBrowserTestRun(page);
+  for(const [region,boss,encounterId] of cases){
+    await callBossArena(page,'browserTestSpawnBossForRegion',[region,[encounterId]]);
+    const snapshot=await callBossArena(page,'browserTestArenaSnapshot') as BossArenaSnapshot;
+    expect(snapshot.bossId).toBe(boss);
+    expect(snapshot.bossVariantId).toBe(encounterId);
+    expect(snapshot.phaseIndex).toBe(0);
+    expect(snapshot.objects.length).toBeGreaterThan(0);
+  }
+  await callBossArena(page,'browserTestSpawnBossForRegion',['cursed-forest',[]]);
+  const fallback=await callBossArena(page,'browserTestArenaSnapshot') as BossArenaSnapshot;
+  expect(fallback.bossId).toBe('thorn-matriarch');
+  expect(fallback.bossVariantId).toBeNull();
+});
 
 test('all five boss arenas interact with real Phaser overlaps, elements and phase changes',async({page})=>{
   const errors:string[]=[];

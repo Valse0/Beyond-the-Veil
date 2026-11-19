@@ -10,6 +10,7 @@ import { RELICS } from '../../data/relics.js';
 import { CRAFTING_MATERIALS } from '../../data/crafting.js';
 import { ELEMENTS } from '../../data/elements.js';
 import { REGIONS } from '../../data/regions.js';
+import { resolveBossVariant } from '../../gameplay/bosses/boss-variant-runtime.js';
 import { findNearestTarget } from '../../gameplay/combat/combat-rules.js';
 import { advanceRun, applyUpgrade, createRunState, gainExperience, recordKill } from '../../gameplay/run/run-model.js';
 import { stepEnemyAI, type EnemyActorState } from '../../gameplay/enemies/enemy-runtime.js';
@@ -93,6 +94,8 @@ export class RunScene extends Phaser.Scene {
   private weaponReady:Record<string,number>={};
   private lastWeaponExecution?:{weaponId:string;behavior:string};
   private bossDefinition?:BossDefinition;
+  private bossEncounterIdsAtRegionEntry:string[]=[];
+  private activeBossVariantId:string|null=null;
   private bossState?:BossEncounterState;
   private bossSprite?:Phaser.Physics.Arcade.Sprite;
   private bossPhaseText?:Phaser.GameObjects.Text;
@@ -522,7 +525,7 @@ export class RunScene extends Phaser.Scene {
     this.refreshBuildStats();
   }
 
-  browserTestSpawnBossForRegion(regionId:RegionId):void {
+  browserTestSpawnBossForRegion(regionId:RegionId,encounterIds:string[]=[]):void {
     this.assertBrowserTestMode();
     const region=REGIONS.find(item=>item.id===regionId);
     if(!region)throw new Error('Unknown test boss region: '+regionId);
