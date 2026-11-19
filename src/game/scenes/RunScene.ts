@@ -1011,7 +1011,7 @@ export class RunScene extends Phaser.Scene {
   private receiveCombatDamage(amount:number):void {
     const sealed=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='sealed-plate')?.specialUpgrade.mechanic;
     if(sealed?.kind==='sealed-plate'){
-      const result=resolveSealedPlate(this.passiveSpecialState,this.time.now,isPassiveSpecialActive(this.build,'graveplate'),sealed.intervalMs);
+      const result=resolveSealedPlate(this.passiveSpecialState,this.state.elapsedMs,isPassiveSpecialActive(this.build,'graveplate'),sealed.intervalMs);
       this.passiveSpecialState=result.state;
       if(result.blocked){this.showPassiveSpecialFeedback('MÜHÜRLÜ PLAKA  •  HASAR ENGELLENDİ');return;}
     }
@@ -1168,6 +1168,13 @@ export class RunScene extends Phaser.Scene {
     for(const child of this.orbs.getChildren()){const orb=child as Phaser.Physics.Arcade.Sprite;if(!orb.active)continue;
       const d=Phaser.Math.Distance.Between(this.player.x,this.player.y,orb.x,orb.y);
       if(d<=radius){const a=Phaser.Math.Angle.Between(orb.x,orb.y,this.player.x,this.player.y);orb.setVelocity(Math.cos(a)*250,Math.sin(a)*250);}else orb.setVelocity(0,0);
+    }
+    for(const object of this.eventObjects.getChildren()){
+      if(object.getData('eventObjectType')!=='essence-fragment'||!object.active)continue;
+      const fragment=object as Phaser.GameObjects.GameObject&{x:number;y:number;body?:Phaser.Physics.Arcade.Body};
+      const body=fragment.body;if(!body)continue;
+      const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,fragment.x,fragment.y);
+      if(distance<=radius){const angle=Phaser.Math.Angle.Between(fragment.x,fragment.y,this.player.x,this.player.y);body.setVelocity(Math.cos(angle)*270,Math.sin(angle)*270);}else body.setVelocity(0,0);
     }
   }
 
