@@ -540,12 +540,13 @@ export class RunScene extends Phaser.Scene {
   }
 
   browserTestArenaSnapshot():{
-    bossId:string;bossVariantId:string|null;phaseIndex:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
+    bossId:string;bossVariantId:string|null;phaseIndex:number;phaseName:string;phaseAttackIds:string[];phaseAttackShapes:string[];phaseAddEnemyIds:string[];phaseDamageMultiplier:number;phaseMovementMultiplier:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
     objects:{id:string;kind:string;health:number;active:boolean;disabledUntil:number;revealed:boolean;isTrue:boolean;safe:boolean}[];
   } {
     this.assertBrowserTestMode();
     if(!this.bossArenaState||!this.bossState)throw new Error('No boss arena is active.');
-    return {bossId:this.bossArenaState.bossId,bossVariantId:this.activeBossVariantId,phaseIndex:this.bossArenaState.phaseIndex,bossHealth:this.bossState.health,bossMaxHealth:this.bossState.maxHealth,bossDamageMultiplier:getBossArenaDamageMultiplier(this.bossArenaState,this.time.now),playerPoisonStacks:this.playerPoisonStacks,timeNow:this.time.now,
+    const phase=this.bossDefinition?.phases[this.bossState.phaseIndex];
+     return {bossId:this.bossArenaState.bossId,bossVariantId:this.activeBossVariantId,phaseIndex:this.bossArenaState.phaseIndex,phaseName:phase?.name??'',phaseAttackIds:phase?.attacks.map(attack=>attack.id)??[],phaseAttackShapes:phase?.attacks.map(attack=>attack.telegraph.shape)??[],phaseAddEnemyIds:phase?[...phase.addEnemyIds]:[],phaseDamageMultiplier:phase?.bossDamageMultiplier??1,phaseMovementMultiplier:phase?.movementMultiplier??1,bossHealth:this.bossState.health,bossMaxHealth:this.bossState.maxHealth,bossDamageMultiplier:getBossArenaDamageMultiplier(this.bossArenaState,this.time.now),playerPoisonStacks:this.playerPoisonStacks,timeNow:this.time.now,
       objects:this.bossArenaState.objects.map(({id,kind,health,active,disabledUntil,revealed,isTrue,safe})=>({id,kind,health,active,disabledUntil,revealed,isTrue,safe}))};
   }
 
