@@ -227,7 +227,7 @@ export class SaveManager {
 
     const data = result.data;
     const quote = calculatePermanentUpgradeRespec(data.progression.permanentUpgrades);
-    if (quote.totalInvested <= 0 || data.progression.soulEssence < quote.fee) return false;
+    if (quote.totalInvested <= 0) return false;
 
     data.progression.soulEssence += quote.refund;
     data.progression.permanentUpgrades = {};
