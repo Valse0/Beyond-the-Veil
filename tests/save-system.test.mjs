@@ -240,22 +240,21 @@ test('respec refuses a profile without investments and does not change either sa
 
   assert.equal(manager.respecPermanentUpgrades(), false);
   assert.equal(storage.getItem(SAVE_STORAGE_KEY), beforePrimary);
-  assert.equal(storage.getItem(SAVE_BACKUP_KEY), beforeBackup);
+  assert.equal(storage.getItem(SAVE_BACKUP_KEY), beforePrimary);
 });
 
-test('respec refuses insufficient fee balance without changing saved data', () => {
+test('respec deducts its fee from the recovered investment, even with no loose essence', () => {
   const storage = new MemoryStorage();
   const manager = new SaveManager(storage, fixedNow);
   const data = createInitialSaveData(fixedNow());
-  data.progression.soulEssence = 4;
+  data.progression.soulEssence = 0;
   data.progression.permanentUpgrades = { maxHealth: 1 };
   manager.save(data);
-  const beforePrimary = storage.getItem(SAVE_STORAGE_KEY);
-  const beforeBackup = storage.getItem(SAVE_BACKUP_KEY);
 
-  assert.equal(manager.respecPermanentUpgrades(), false);
-  assert.equal(storage.getItem(SAVE_STORAGE_KEY), beforePrimary);
-  assert.equal(storage.getItem(SAVE_BACKUP_KEY), beforeBackup);
+  assert.equal(manager.respecPermanentUpgrades(), true);
+  const loaded = new SaveManager(storage, fixedNow).load();
+  assert.equal(loaded.data.progression.soulEssence, 45);
+  assert.deepEqual(loaded.data.progression.permanentUpgrades, {});
 });
 
 test('respec does not alter the current save if storage rejects the write', () => {
