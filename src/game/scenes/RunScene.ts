@@ -196,9 +196,11 @@ export class RunScene extends Phaser.Scene {
     // Keep every scenario independent: old targets and delayed zones must not leak into the next case.
     for(const child of [...this.enemies.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
     for(const child of [...this.shots.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
+    for(const child of [...this.orbs.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
     this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];
     this.clearOverlay();this.runFinished=false;this.paused=false;this.time.paused=false;this.physics.world.resume();
-    this.state={...this.state,health:this.state.maxHealth};
+    this.queuedLevels=0;this.currentLevelChoices=[];
+    this.state={...this.state,health:this.state.maxHealth,experience:0,experienceToNext:10,level:1};
     this.build={weapons:[{weaponId,level:1,evolved:false}],passives:[{passiveId,level:1,special:false}]};
     this.weaponSynergyTriggers=[];
 
