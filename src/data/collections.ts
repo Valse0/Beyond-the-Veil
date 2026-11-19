@@ -28,7 +28,14 @@ export const COLLECTIONS:readonly CollectionDefinition[]=[
 
 export const COLLECTION_IDS=new Set(COLLECTIONS.map(collection=>collection.id));
 export const COLLECTION_REWARD_IDS=new Set([...COLLECTIONS.map(collection=>collection.rewardId),'veil-archivist-regalia']);
-export const COLLECTION_ITEM_IDS:Record<CollectionId,ReadonlySet<string>>=Object.fromEntries(COLLECTIONS.map(collection=>[collection.id,new Set(collection.itemIds)])) as Record<CollectionId,ReadonlySet<string>>;
+export const COLLECTION_ITEM_IDS:Record<CollectionId,ReadonlySet<string>>={
+  bestiary:new Set(COLLECTIONS.find(collection=>collection.id==='bestiary')!.itemIds),
+  arsenal:new Set(COLLECTIONS.find(collection=>collection.id==='arsenal')!.itemIds),
+  'relic-vault':new Set(COLLECTIONS.find(collection=>collection.id==='relic-vault')!.itemIds),
+  'story-archive':new Set(COLLECTIONS.find(collection=>collection.id==='story-archive')!.itemIds),
+  'character-biographies':new Set(COLLECTIONS.find(collection=>collection.id==='character-biographies')!.itemIds),
+  'mastery-attire':new Set(COLLECTIONS.find(collection=>collection.id==='mastery-attire')!.itemIds)
+};
 export function isCollectionIdArray(value:unknown):value is CollectionId[]{return Array.isArray(value)&&value.every(id=>typeof id==='string'&&COLLECTION_IDS.has(id as CollectionId))&&new Set(value).size===value.length;}
 export function isCollectionRewardIdArray(value:unknown):value is string[]{return Array.isArray(value)&&value.every(id=>typeof id==='string'&&COLLECTION_REWARD_IDS.has(id))&&new Set(value).size===value.length;}
 export function isCollectionItemIdArray(collectionId:CollectionId,value:unknown):value is string[]{const valid=COLLECTION_ITEM_IDS[collectionId];return Array.isArray(value)&&value.every(id=>typeof id==='string'&&valid.has(id))&&new Set(value).size===value.length;}
