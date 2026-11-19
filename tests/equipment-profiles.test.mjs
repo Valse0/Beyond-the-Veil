@@ -128,7 +128,7 @@ test('active profiles remain independent per character and survive a reload', ()
   const reloaded = new SaveManager(storage, fixedNow);
   assert.equal(reloaded.getActiveEquipmentProfile('cursed-hunter').id, hunter);
   assert.equal(reloaded.getActiveEquipmentProfile('black-knight').id, knight);
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 9);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 10);
 });
 
 test('rejects invalid profile updates without changing the saved loadout', () => {
@@ -158,7 +158,7 @@ test('schema-v5 migration adds empty profile collections without losing existing
 
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'migrated');
-  assert.equal(result.data.schemaVersion, 9);
+  assert.equal(result.data.schemaVersion, 10);
   assert.equal(result.data.progression.soulEssence, 412);
   assert.deepEqual(result.data.progression.equippedRelicIds, ['matriarch-seed']);
   assert.deepEqual(result.data.collections.relicIds, ['matriarch-seed', 'forest-heart']);
