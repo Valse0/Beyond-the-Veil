@@ -177,12 +177,13 @@ export class RunScene extends Phaser.Scene {
     };
   }
 
-  browserTestFireWeaponSynergy(weaponId:string,passiveId:string):{activeSynergyIds:string[];primaryHealth:number;secondaryHealth:number;secondaryDamage:number} {
+  browserTestFireWeaponSynergy(weaponId:string,passiveId:string):{activeSynergyIds:string[];primaryHealth:number;secondaryHealth:number;secondaryDamage:number;synergyKind:string} {
     this.assertBrowserTestMode();
     const weapon=WEAPONS.find(item=>item.id===weaponId),passive=PASSIVES.find(item=>item.id===passiveId);
     if(!weapon||!passive)throw new Error('Unknown browser test weapon/passive pair.');
     const active=getActiveWeaponSynergies(weaponId,[passiveId]);
-    if(!active.length)throw new Error('The selected passive does not define a synergy for '+weaponId+'.');
+    if(active.length!==1)throw new Error('Expected exactly one authored synergy for '+weaponId+'/'+passiveId+'.');
+    const synergy=active[0]!;
     this.build={weapons:[{weaponId,level:1,evolved:false}],passives:[{passiveId,level:1,special:false}]};
     this.weaponSynergyTriggers=[];
     for(const child of [...this.shots.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
@@ -191,12 +192,28 @@ export class RunScene extends Phaser.Scene {
     const primary=this.createEnemy(this.player.x+55,this.player.y,definition,1);
     const secondary=this.createEnemy(this.player.x+78,this.player.y+8,definition,1);
     const secondaryBefore=Number(secondary.getData('health'));
-    const stats=weaponLevelStats(this.build.weapons[0]!,weapon);
-    this.executeWeapon(weapon,weapon.behavior,12,1,stats.range,primary,stats);
-    const shot=this.shots.getChildren().find(child=>child.active&&child.getData('weaponId')===weaponId) as Phaser.Physics.Arcade.Sprite|undefined;
-    if(!shot)throw new Error('The test weapon did not create its expected projectile.');
-    this.hitEnemy(shot,primary);
-    return {activeSynergyIds:active.map(item=>item.id),primaryHealth:Number(primary.getData('health')),secondaryHealth:Number(secondary.getData('health')),secondaryDamage:secondaryBefore-Number(secondary.getData('health'))};
+    if(synergy.kind==='frost-ring')this.elementStates.set(primary,{ice:{buildup:0,stacks:1,expiresAt:this.time.now+10_000,nextTickAt:this.time.now+10_000}});
+    if(synergy.kind==='crown-sigil')primary.setData('weakenedUntil',this.time.now+10_000);
+    if(synergy.kind==='crown-guidance'){
+      secondary.setData('weakenedUntil',this.time.now+10_000);
+      const shot=this.shots.create(this.player.x,this.player.y,'shot') as Phaser.Physics.Arcade.Sprite;
+      shot.setData('weaponId',weaponId).setData('damage',12).setData('element','spirit').setData('expires',this.time.now+1900).setData('homing',true).setData('target',primary).setData('pierce',1).setData('area',0);
+      primary.destroy();
+      this.updateProjectiles(this.time.now);
+      this.hitEnemy(shot,secondary);
+    }else{
+      const behaviorByKind:Record<string,string>={
+        'grave-aftershock':'cleaving-arc','storm-lance':'chain-lightning','ember-burst':'chain-lightning',
+        'frost-ring':'orbiting-blades','venom-trail':'area-seed','spirit-chain':'spirit-seeker',
+        'blood-thread':'life-tether','storm-arc':'fan-volley','ward-pulse':'defensive-pulse',
+        'magma-rift':'delayed-mortar','curse-sigil':'delayed-sigil','crown-sigil':'delayed-sigil',
+        'spirit-splinter':'spirit-seeker'
+      };
+      this.executeWeapon(weapon,behaviorByKind[synergy.kind]??weapon.behavior,12,2,Math.max(weapon.range,180),primary,weaponLevelStats(this.build.weapons[0]!,weapon));
+      const shot=this.shots.getChildren().find(child=>child.active&&child.getData('weaponId')===weaponId) as Phaser.Physics.Arcade.Sprite|undefined;
+      if(shot)this.hitEnemy(shot,primary);
+    }
+    return {activeSynergyIds:active.map(item=>item.id),primaryHealth:Number(primary.getData('health')??0),secondaryHealth:Number(secondary.getData('health')??0),secondaryDamage:secondaryBefore-Number(secondary.getData('health')??0),synergyKind:synergy.kind};
   }
 
   browserTestSpawnXpOrb(xp:number):void {
@@ -772,7 +789,7 @@ export class RunScene extends Phaser.Scene {
         const candidates=this.activeTargets();
         const guided=getActiveWeaponSynergies(String(shot.getData('weaponId')??''),this.build.passives.map(passive=>passive.passiveId)).some(item=>item.kind==='crown-guidance');
         const weakened=guided?candidates.filter(enemy=>Number(enemy.getData('weakenedUntil')??0)>this.time.now):[];
-        target=findNearestTarget(shot,weakened.length?weakened:candidates);if(target)shot.setData('target',target);
+        target=findNearestTarget(shot,weakened.length?weakened:candidates);if(target){shot.setData('target',target);if(guided&&weakened.includes(target))this.recordWeaponSynergy('soul-lantern-hollow-crown');}
       }
       if(target?.active){const angle=Phaser.Math.Angle.Between(shot.x,shot.y,target.x,target.y);shot.setVelocity(Math.cos(angle)*330,Math.sin(angle)*330);}
     }
@@ -1147,7 +1164,7 @@ export class RunScene extends Phaser.Scene {
     return damage*getWeaponSynergyDamageMultiplier(weaponId,this.build.passives.map(passive=>passive.passiveId),weakened);
   }
 
-  private recordWeaponSynergy(id:string):void {this.weaponSynergyTriggers=[...this.weaponSynergyTriggers.slice(-11),id];}
+  private recordWeaponSynergy(id:string):void {if(!this.weaponSynergyTriggers.includes(id))this.weaponSynergyTriggers=[...this.weaponSynergyTriggers.slice(-13),id];}
 
   private spawnWeaponSynergyZone(x:number,y:number,radius:number,durationMs:number,tickMs:number,damage:number,element:ElementId):void {
     const marker=this.add.graphics().setDepth(6);

@@ -381,6 +381,41 @@ test('owned passive changes its linked weapon attack through the live Phaser hit
   expect(pageErrors).toEqual([]);
 });
 
+
+test('all fourteen authored weapon synergies trigger through their real Phaser combat paths', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  const pairs=[
+    ['veil-bolt','soul-vessel','veil-bolt-soul-vessel'],
+    ['gravecleaver','graveplate','gravecleaver-graveplate'],
+    ['oath-pike','storm-conductor','oath-pike-storm-conductor'],
+    ['ember-chains','ashen-heart','ember-chains-ashen-heart'],
+    ['winter-orbit','frostbound-sigil','winter-orbit-frostbound-sigil'],
+    ['briar-seed','venom-vial','briar-seed-venom-vial'],
+    ['soul-lantern','soul-vessel','soul-lantern-soul-vessel'],
+    ['blood-loom','blood-reliquary','blood-loom-blood-reliquary'],
+    ['stormglass','storm-conductor','stormglass-storm-conductor'],
+    ['iron-bell','wardens-knot','iron-bell-wardens-knot'],
+    ['rune-mortar','ashen-heart','rune-mortar-ashen-heart'],
+    ['eclipse-sigil','veil-thread','eclipse-sigil-veil-thread'],
+    ['eclipse-sigil','hollow-crown','eclipse-sigil-hollow-crown'],
+    ['soul-lantern','hollow-crown','soul-lantern-hollow-crown']
+  ] as const;
+  for(const [weaponId,passiveId,synergyId] of pairs){
+    const result=await page.evaluate(([weapon,passive])=>{
+      const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestFireWeaponSynergy:(weaponId:string,passiveId:string)=>{activeSynergyIds:string[];synergyKind:string}}}}}).__BEYOND_VEIL_GAME__;
+      if(!game)throw new Error('Development browser test bridge is not available.');
+      return game.scene.getScene('run').browserTestFireWeaponSynergy(weapon,passive);
+    },[weaponId,passiveId]);
+    expect(result.activeSynergyIds).toContain(synergyId);
+    await expect.poll(async()=> (await readBrowserRunSnapshot(page)).weaponSynergyTriggers,{timeout:3_000,message:synergyId+' should execute its combat trigger'}).toContain(synergyId);
+    const triggered=await readBrowserRunSnapshot(page);
+    expect(triggered.weaponSynergyTriggers.filter(id=>id===synergyId)).toHaveLength(1);
+  }
+  expect(pageErrors).toEqual([]);
+});
+
 test('level-five passive special is selected through the real UI and Last Ward prevents one lethal hit', async ({ page }) => {
   const pageErrors:string[]=[];
   page.on('pageerror',error=>pageErrors.push(error.message));

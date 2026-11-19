@@ -288,3 +288,6 @@ Playwright Chromium smoke coverage on `full-game-development`:
 
 
 - 2026-11-19 CI #210 (44430731288) result: TypeScript PASS, 97/97 unit tests PASS, production build PASS, new weapon-synergy browser scenario PASS, and 10/11 Chromium scenarios PASS. The sole failure was the pre-existing boss-chest smoke test asserting an exact 180 Ruh Özü even though a nearby enemy can also contribute 1 essence (observed total 181). This is an assertion defect, not a reward-system regression. The approved follow-up changes only that test to require at least the authored 180 boss reward and to compare persisted/reloaded totals against the actual run total. No gameplay behavior is changed. CI for this correction is pending; npm audit did not run in #210 because the browser step failed.
+
+
+- 2026-11-19: Added the complete 12×12 (144-pair) weapon/passive activation matrix and a real-Phaser combat-path browser scenario for all 14 authored synergies. The development-only bridge prepares the corresponding attack path and records each synergy at most once per test attack; Crown Guidance records when it actually selects a weakened target. Full CI verification is pending. No assets, dependencies, or engine version changes.

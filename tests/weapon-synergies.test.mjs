@@ -59,3 +59,20 @@ test('each synergy has a readable combat trigger and a distinct runtime mechanic
   }
   assert.equal(kinds.size, WEAPON_SYNERGIES.length, 'every weapon/passive pairing should have its own mechanic');
 });
+
+test('the full 12-by-12 weapon/passive matrix activates only the 14 authored pairs', () => {
+  assert.equal(WEAPONS.length, 12);
+  assert.equal(PASSIVES.length, 12);
+  assert.equal(WEAPONS.length * PASSIVES.length, 144);
+  const authored = new Set(WEAPON_SYNERGIES.map(item => item.weaponId + ':' + item.passiveId));
+  let checked = 0;
+  for (const weapon of WEAPONS) for (const passive of PASSIVES) {
+    const pair = weapon.id + ':' + passive.id;
+    const active = getActiveWeaponSynergies(weapon.id, [passive.id]);
+    assert.equal(active.length, authored.has(pair) ? 1 : 0, pair + ' activation mismatch');
+    if (authored.has(pair)) assert.equal(active[0].weaponId + ':' + active[0].passiveId, pair);
+    checked++;
+  }
+  assert.equal(checked, 144);
+  assert.equal(authored.size, 14);
+});
