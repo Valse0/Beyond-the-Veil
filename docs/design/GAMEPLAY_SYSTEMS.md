@@ -61,7 +61,7 @@ The run scene now applies authored enemy-specific combat rules rather than relyi
 | Bataklık Sülüğü | Recovers health when its drain attack connects |
 | Çürük Gaz Kesesi | Death explosion; radius/damage depend on whether it was primed |
 | Çamur Cadısı | Hex field grants nearby enemies a 15% movement-speed buff |
-| Sis Ağ Örücüsü | Telegraph then deploys a player-slowing web field |
+| Sis Ağ Örücüsü | Telegraph then deploys a web field that slows the player and enemies inside it |
 | Perde Avcısı | Periodic short vanish windows |
 | Mühür Tazısı | Leaves temporary frost patches that slow the player |
 | Ayna Taklitçisi | Conceals itself at range and reveals when approached |
