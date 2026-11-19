@@ -499,8 +499,8 @@ test('all fourteen authored weapon synergies trigger through their real Phaser c
         if(!game)throw new Error('Development browser test bridge is not available.');
         return game.scene.getScene('run').browserTestSynergyDiagnostics();
       });
-      return {triggered:snapshot.weaponSynergyTriggers.includes(synergyId),runFinished:diagnostics.runFinished,scenePaused:diagnostics.scenePaused,clockPaused:diagnostics.clockPaused,sceneActive:diagnostics.sceneActive,sceneTimeNow:diagnostics.sceneTimeNow,activeEnemyCount:diagnostics.activeEnemyCount,playerHealth:diagnostics.playerHealth,passiveZoneCount:diagnostics.passiveZoneCount};
-    },{timeout:8_000,message:synergyId+' should execute; last scene/clock state is included'}).toMatchObject({triggered:true});
+      return JSON.stringify({triggered:snapshot.weaponSynergyTriggers.includes(synergyId),runFinished:diagnostics.runFinished,scenePaused:diagnostics.scenePaused,clockPaused:diagnostics.clockPaused,sceneActive:diagnostics.sceneActive,sceneTimeNow:diagnostics.sceneTimeNow,activeEnemyCount:diagnostics.activeEnemyCount,playerHealth:diagnostics.playerHealth,passiveZoneCount:diagnostics.passiveZoneCount});
+    },{timeout:8_000,message:synergyId+' should execute; last scene/clock state is included'}).toContain('"triggered":true');
     const triggered=await readBrowserRunSnapshot(page);
     expect(triggered.weaponSynergyTriggers.filter(id=>id===synergyId)).toHaveLength(1);
     const diagnostics=await page.evaluate(()=>{
