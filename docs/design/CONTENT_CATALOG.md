@@ -93,3 +93,18 @@ The initial crafting catalog contains five regional materials and five one-time 
 | Lanetli Kale | `veil-thread` — Perde İpliği | Perde Yarığı | Tutulma Mührü — strengthened Yayılım |
 
 Each recipe costs two matching regional materials and 140–180 Ruh Özü. Crafting is a one-time, validated transaction; the permanent variant unlock strengthens its weapon's Yayılım branch when selected. Stable definitions live in `src/data/crafting.ts`; pure inventory and recipe rules live in `src/gameplay/crafting/crafting-runtime.ts`. Material counts and unlocked variant IDs persist in save schema v4. The Blacksmith service and player-facing crafting screen are not part of this data/runtime package.
+
+
+## Character mastery rewards
+
+All five hunters use the same initial progression curve: 25 accumulated mastery points unlock level 2, 100 points unlock level 5, and 250 points unlock level 10. A run grants 3 points, one additional point per 10 kills, and 10 additional points for a boss victory; points persist after defeat.
+
+| Hunter | Level 2 title | Level 5 ability variant | Level 10 cosmetic reward |
+|---|---|---|---|
+| Lanetli Avcı | `hunter-title` | `pulse-alt` | `ashen-trail` |
+| Kara Şövalye | `knight-title` | `aegis-alt` | `iron-oath-skin` |
+| Ruh Büyücüsü | `mage-title` | `rift-alt` | `astral-mantle` |
+| Gölge Suikastçı | `assassin-title` | `shade-alt` | `night-veil` |
+| Kan Rahibesi | `priestess-title` | `rite-alt` | `scarlet-regalia` |
+
+The reward IDs are sourced from each hunter's `mastery` data. Earned reward IDs are stored separately from per-hunter mastery-point totals. Level-ten cosmetic rewards are also added to the persistent cosmetic collection. This package implements progression and persistence only; reward presentation and alternate-ability selection remain later player-facing progression work.
