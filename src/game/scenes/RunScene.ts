@@ -943,7 +943,7 @@ export class RunScene extends Phaser.Scene {
       this.elementStates.set(enemy,hit.state);damage=hit.damage+(hit.reaction?.damage??0);
       if(isPassiveSpecialActive(this.build,'venom-vial')&&isPoisonBloomReady(hit.state.poison?.stacks??0,5)){const bloom=PASSIVES.find(item=>item.id==='venom-vial')!.specialUpgrade.mechanic;if(bloom.kind==='poison-spores'){const ready=tryPassiveCooldown(this.passiveSpecialState,'toxic-bloom',this.time.now,bloom.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)this.spawnPassiveZone(enemy.x,enemy.y,bloom);}}
       if(hit.triggered&&element==='spirit')this.healPlayer(Math.max(1,this.state.maxHealth*.025));
-      if(hit.triggered&&element==='blood'){const sacrament=PASSIVES.find(item=>item.id==='blood-reliquary')!.specialUpgrade.mechanic;const bonus=sacrament.kind==='low-health-lifesteal'&&isPassiveSpecialActive(this.build,'blood-reliquary')?getLowHealthLifestealBonus(this.state.health,this.state.maxHealth,sacrament):0;this.healPlayer(damage*(.03+this.currentBuildStats().lifesteal+bonus));}
+      if(hit.triggered&&element==='blood'){const sacrament=PASSIVES.find(item=>item.id==='blood-reliquary')!.specialUpgrade.mechanic;const bonus=sacrament.kind==='low-health-lifesteal'&&isPassiveSpecialActive(this.build,'blood-reliquary')?getLowHealthLifestealBonus(this.state.health,this.state.maxHealth,sacrament):0;this.healPlayer(damage*(.03+this.currentBuildStats().lifesteal+this.relicStats.lifestealBonus+bonus));}
       if(hit.triggered&&element==='lightning')this.chainLightningFrom(enemy,damage*.4);
     }
     const nightThread=PASSIVES.find(item=>item.id==='veil-thread')!.specialUpgrade.mechanic;
@@ -993,7 +993,7 @@ export class RunScene extends Phaser.Scene {
     }
     const nightThread=PASSIVES.find(item=>item.id==='veil-thread')!.specialUpgrade.mechanic;
     const criticalMultiplier=nightThread.kind==='critical-curse'&&isPassiveSpecialActive(this.build,'veil-thread')?nightThread.criticalMultiplier:1.5;
-    const crit=resolveCriticalHit(damage,this.currentBuildStats().criticalChance,Math.random(),criticalMultiplier);damage=crit.damage;
+    const crit=resolveCriticalHit(damage,this.currentBuildStats().criticalChance+this.relicStats.criticalChanceBonus,Math.random(),criticalMultiplier);damage=crit.damage;
     if(crit.critical&&nightThread.kind==='critical-curse'&&isPassiveSpecialActive(this.build,'veil-thread')){const current=this.bossElementState.dark;const darkDef=ELEMENTS.find(item=>item.id==='dark')!;this.bossElementState={...this.bossElementState,dark:{buildup:0,stacks:addCurseStack(current&&current.expiresAt>this.time.now?current.stacks:0,nightThread.bonusStacks),expiresAt:this.time.now+darkDef.durationMs,nextTickAt:this.time.now+1000}};}
     if(element==='fire'&&isPassiveSpecialActive(this.build,'ashen-heart')){const fire=PASSIVES.find(item=>item.id==='ashen-heart')!.specialUpgrade.mechanic;if(fire.kind==='fire-explosion'){const ready=tryPassiveCooldown(this.passiveSpecialState,'ember-core',this.time.now,fire.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)for(const nearby of this.activeTargets()){if(nearby!==boss&&Phaser.Math.Distance.Between(boss.x,boss.y,nearby.x,nearby.y)<=fire.radius)this.damageEnemy(nearby,damage*fire.damageMultiplier);}}}
     const ice=PASSIVES.find(item=>item.id==='frostbound-sigil')!.specialUpgrade.mechanic;

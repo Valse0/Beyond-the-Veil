@@ -339,3 +339,25 @@ test('relic acquisition is idempotent and never overwrites unrelated profile pro
   assert.equal(loaded.progression.soulEssence, 99);
   assert.deepEqual(loaded.progression.permanentUpgrades, { maxHealth: 1 });
 });
+
+
+test('recovers and migrates a schema-v2 backup when the primary save is corrupt', () => {
+  const storage = new MemoryStorage();
+  const legacy = createInitialSaveData(fixedNow());
+  const v2 = { ...legacy, schemaVersion: 2 };
+  delete v2.collections.relicIds;
+  delete v2.progression.equippedRelicIds;
+  v2.progression.soulEssence = 188;
+  v2.progression.permanentUpgrades = { attackPower: 2 };
+  storage.setItem(SAVE_STORAGE_KEY, '{bad');
+  storage.setItem(SAVE_BACKUP_KEY, JSON.stringify(v2));
+
+  const result = new SaveManager(storage, fixedNow).load();
+  assert.equal(result.status, 'recovered');
+  assert.equal(result.data.schemaVersion, 3);
+  assert.equal(result.data.progression.soulEssence, 188);
+  assert.deepEqual(result.data.progression.permanentUpgrades, { attackPower: 2 });
+  assert.deepEqual(result.data.progression.equippedRelicIds, []);
+  assert.deepEqual(result.data.collections.relicIds, []);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 3);
+});
