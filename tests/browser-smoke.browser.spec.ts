@@ -539,15 +539,16 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
 test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
-      schemaVersion: 2,
+      schemaVersion: 3,
       profile: { createdAt: '2026-11-19T00:00:00.000Z', updatedAt: '2026-11-19T00:00:00.000Z' },
       progression: {
         soulEssence: 0, completedRuns: 0,
         unlockedCharacterIds: ['cursed-hunter'], unlockedRegionIds: ['cursed-forest'],
         completedDifficulties: {},
-        permanentUpgrades: { maxHealth: 2, attackPower: 2, moveSpeed: 1, armor: 3, xpBonus: 2, rerolls: 2 }
+        permanentUpgrades: { maxHealth: 2, attackPower: 2, moveSpeed: 1, armor: 3, xpBonus: 2, rerolls: 2 },
+        equippedRelicIds: []
       },
-      collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [] },
+      collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: [] },
       settings: {}
     }));
   });
