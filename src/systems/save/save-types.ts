@@ -2,7 +2,7 @@ export type JsonValue = string | number | boolean | null | JsonValue[] | { [key:
 export type JsonObject = { [key: string]: JsonValue };
 
 export interface SaveData {
-  schemaVersion: 4;
+  schemaVersion: 5;
   profile: { createdAt: string; updatedAt: string };
   progression: {
     soulEssence: number;
@@ -20,6 +20,7 @@ export interface SaveData {
     relicIds: string[];
     craftingMaterials: Record<string, number>;
     unlockedWeaponVariantIds: string[];
+    unlockedMasteryRewardIds: string[];
   };
   settings: JsonObject;
 }

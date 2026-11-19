@@ -4,6 +4,7 @@ import { RELICS } from '../../data/relics.js';
 import { CRAFTING_MATERIALS } from '../../data/crafting.js';
 import { grantCraftingMaterials } from '../crafting/crafting-runtime.js';
 import type { SaveData } from '../../systems/save/save-types.js';
+import { applyCharacterMastery, calculateRunMasteryPoints } from '../progression/character-mastery.js';
 
 export interface RunResultInput {
   regionId: RegionId;
@@ -11,6 +12,8 @@ export interface RunResultInput {
   soulEssenceEarned: number;
   relicIdsEarned?: readonly string[];
   craftingMaterialsEarned?: Readonly<Record<string, number>>;
+  characterId?: string;
+  kills?: number;
 }
 
 export function applyRunResult(save: SaveData, result: RunResultInput): SaveData {
@@ -33,9 +36,12 @@ export function applyRunResult(save: SaveData, result: RunResultInput): SaveData
     const amount = result.craftingMaterialsEarned?.[material.id];
     if (typeof amount === 'number' && Number.isInteger(amount) && amount > 0) validMaterials[material.id] = amount;
   }
+  const mastery = result.characterId
+    ? applyCharacterMastery(save.collections, result.characterId, calculateRunMasteryPoints(result.kills ?? 0, result.won))
+    : save.collections;
   return {
     ...save,
-    collections: { ...save.collections, relicIds: [...relicIds], craftingMaterials: grantCraftingMaterials(save.collections.craftingMaterials, validMaterials) },
+    collections: { ...save.collections, ...mastery, relicIds: [...relicIds], craftingMaterials: grantCraftingMaterials(save.collections.craftingMaterials, validMaterials) },
     progression: {
       ...save.progression,
       soulEssence: save.progression.soulEssence + reward,
