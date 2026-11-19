@@ -384,3 +384,18 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Schema v7 adds achievement counters, completed IDs and unique hunter/region history. Migration from schema 0–6 initializes only the new fields and preserves existing progression and collections.
 - CI #315 (44582111720) on commit `62305f1eccec2c270c9094843b23c51a17446e90`: TypeScript PASS; 154/154 unit tests PASS; production build PASS; Chromium Playwright 21/21 PASS; npm audit 0 vulnerabilities.
 - No achievement UI, final assets, dependency, backend, ads or paid service were added.
+
+
+## Collection Completion System v1 implementation pass (2026-11-19)
+
+| Requirement | Scope | Status | Evidence | Remaining work |
+|---|---|---|---|---|
+| COLL-01 | Six source-driven collections: enemies, weapons, relics, region lore, hunter biographies and mastery costumes | IMPLEMENTED_UNVERIFIED | `src/data/collections.ts`; `src/gameplay/progression/collections.ts`; `src/game/scenes/RunScene.ts`; `tests/collections.test.mjs` | Automated verification pending. Archive presentation, secret-item catalog and natural-run balance remain. |
+| COLL-02 | Unique collection rewards and achievements, including all-six completion reward | IMPLEMENTED_UNVERIFIED | `src/data/achievements.ts`; `src/gameplay/progression/achievements.ts`; `tests/collections.test.mjs` | Automated verification pending. Reward presentation remains for the UI phase. |
+| SAVE-COLL-01 | Save schema v8 migrations from schema 0–7 | IMPLEMENTED_UNVERIFIED | `src/systems/save/save-types.ts`; `src/systems/save/save-manager.ts`; `tests/save-system.test.mjs` | Automated verification pending. |
+
+- Collection definitions derive IDs from the authored catalogs: 25 enemy types, 12 weapons, 10 relics, five region lore entries, five hunter biographies and five level-ten mastery rewards.
+- Enemy discoveries are recorded on defeat; weapon discoveries include the run's starting weapon and later weapon picks; hunter biographies are recorded at run completion; region lore is recorded on boss victory. Existing relic ownership and mastery reward IDs remain their respective source of truth.
+- Each collection completion unlocks a unique persistent reward and achievement. Completing all six also grants `veil-archivist-regalia` and `grand-collector`. Rewards are idempotent.
+- Save schema v8 adds discovered enemy/weapon/biography IDs, completed collection IDs and collection reward IDs. Migrations from schema 0–7 initialize new fields while preserving existing profile, lore, relic, mastery and achievement data.
+- No collection UI, final art, dependency, backend, ads or paid service was added.

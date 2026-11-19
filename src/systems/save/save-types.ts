@@ -1,4 +1,5 @@
 import type { EquipmentProfile } from '../../gameplay/progression/equipment-profiles.js';
+import type { CollectionId } from '../../data/collections.js';
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };

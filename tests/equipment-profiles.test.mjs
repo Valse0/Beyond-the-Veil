@@ -128,7 +128,7 @@ test('active profiles remain independent per character and survive a reload', ()
   const reloaded = new SaveManager(storage, fixedNow);
   assert.equal(reloaded.getActiveEquipmentProfile('cursed-hunter').id, hunter);
   assert.equal(reloaded.getActiveEquipmentProfile('black-knight').id, knight);
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 7);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 8);
 });
 
 test('rejects invalid profile updates without changing the saved loadout', () => {
@@ -158,7 +158,7 @@ test('schema-v5 migration adds empty profile collections without losing existing
 
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'migrated');
-  assert.equal(result.data.schemaVersion, 7);
+  assert.equal(result.data.schemaVersion, 8);
   assert.equal(result.data.progression.soulEssence, 412);
   assert.deepEqual(result.data.progression.equippedRelicIds, ['matriarch-seed']);
   assert.deepEqual(result.data.collections.relicIds, ['matriarch-seed', 'forest-heart']);
@@ -189,7 +189,7 @@ test('schema 0 through 4 migrations initialize profile collections and preserve 
     storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(legacy));
     const result = new SaveManager(storage, fixedNow).load();
     assert.equal(result.status, 'migrated', 'schema ' + version);
-    assert.equal(result.data.schemaVersion, 7);
+    assert.equal(result.data.schemaVersion, 8);
     assert.equal(result.data.progression.soulEssence, 200 + version);
     assert.deepEqual(result.data.progression.equipmentProfiles, {});
     assert.deepEqual(result.data.progression.activeEquipmentProfileIds, {});

@@ -99,3 +99,20 @@ test('run results grant achievements and keep rewards after defeat', () => {
   assert.ok(result.collections.unlockedCosmeticIds.includes('ashen-hunter'));
   assert.ok(result.collections.relicIds.includes('forest-heart'));
 });
+
+test('run discoveries persist on defeat while region story lore requires a victory input', () => {
+  const save = createInitialSaveData();
+  const defeated = applyRunResult(save, {
+    regionId: 'cursed-forest', won: false, soulEssenceEarned: 0, characterId: 'cursed-hunter', kills: 1,
+    enemyIdsEarned: ['rootbound-husk'], weaponIdsEarned: ['veil-bolt']
+  });
+  assert.deepEqual(defeated.collections.discoveredEnemyIds, ['rootbound-husk']);
+  assert.deepEqual(defeated.collections.discoveredWeaponIds, ['veil-bolt']);
+  assert.deepEqual(defeated.collections.discoveredCharacterBioIds, ['cursed-hunter']);
+  assert.deepEqual(defeated.collections.discoveredLoreIds, []);
+  const victory = applyRunResult(defeated, {
+    regionId: 'cursed-forest', won: true, soulEssenceEarned: 0, characterId: 'cursed-hunter',
+    loreIdsEarned: ['cursed-forest-lore']
+  });
+  assert.deepEqual(victory.collections.discoveredLoreIds, ['cursed-forest-lore']);
+});

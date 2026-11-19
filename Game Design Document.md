@@ -787,6 +787,8 @@ içerir.
 
 Koleksiyon tamamlamaları özel ödüller ve başarımlar açar.
 
+İlk ilerleme kapsamındaki koleksiyon hedefleri: 25 yaratık türü, 12 silah, 10 kalıntı, beş bölge hikâye kaydı, beş avcı biyografisi ve beş seviye-10 ustalık kostümü. Yaratıklar yenilerek, silahlar koşuda kullanılarak, kalıntılar edinilerek, hikâye kayıtları bölge boss'u yenilerek, biyografiler avcıyla koşu tamamlanarak ve ustalık kostümleri ilgili karakterle seviye-10'a ulaşılarak kaydedilir. Her koleksiyon kendine ait bir ödül ve başarım açar; altı koleksiyonun tamamı ek bir büyük ödül verir. Gizli eşya kataloğu ve koleksiyon arşivi arayüzü sonraki içerik/UI aşamasında tamamlanır.
+
 ⸻
 
 16. GÖREVLER VE MEYDAN OKUMALAR

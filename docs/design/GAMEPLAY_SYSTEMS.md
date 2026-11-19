@@ -110,3 +110,12 @@ Save schema v6 adds progression.equipmentProfiles and progression.activeEquipmen
 ## Achievements (data and progression foundation)
 
 The achievement catalog tracks completed runs, cumulative enemy defeats, boss victories, completed run events, distinct hunters and distinct regions. Progress is committed with the normal run-result save, including defeat results. Each achievement grants one authored reward into the existing cosmetic, relic or weapon-variant collection. Completion and reward grants are idempotent. The player-facing achievement archive and reward presentation are deferred to the later UI phase.
+
+
+## Collection completion (progression foundation)
+
+Six persistent collections are sourced directly from the authored content catalogs: 25 defeated enemy types, 12 weapons used (including the starting weapon), 10 owned relics, five region lore records, five hunter biographies and five level-ten mastery costumes. Enemy and weapon discoveries are committed at the run-result boundary; hunter biographies are recorded when that hunter completes a run; a region lore record is added after its boss victory; relics and mastery costumes reuse their existing permanent ownership/unlock collections.
+
+Each completed collection unlocks its own named collection reward and achievement. Completing all six grants the final Archivist reward and achievement. Completion and rewards are idempotent. The collection archive UI, item previews, secret-item presentation and additional non-mastery costume catalog remain in the later UI/content phase.
+
+Save schema v8 adds discovered enemy/weapon/biography IDs, completed collection IDs and collection reward IDs. Existing relic, lore and mastery reward data remains the source of truth for those collections. Migrations from schema 0–7 preserve prior profile and achievement progress while initializing only the new fields.

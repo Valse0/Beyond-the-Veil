@@ -72,7 +72,7 @@ test('migrates a version-zero save and preserves known fields', () => {
   assert.equal(result.data.progression.soulEssence, 30);
   assert.equal(result.data.progression.completedRuns, 2);
   assert.equal(result.data.settings.musicVolume, 0.5);
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 7);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 8);
 });
 
 test('refuses to overwrite a save from a newer schema version', () => {
@@ -167,14 +167,14 @@ test('migrates an existing schema-v1 save without losing progression or settings
 
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'migrated');
-  assert.equal(result.data.schemaVersion, 7);
+  assert.equal(result.data.schemaVersion, 8);
   assert.equal(result.data.progression.soulEssence, 275);
   assert.equal(result.data.progression.completedRuns, 8);
   assert.deepEqual(result.data.progression.unlockedRegionIds, ['cursed-forest', 'forgotten-graveyard']);
   assert.equal(result.data.collections.characterMastery['cursed-hunter'], 3);
   assert.equal(result.data.settings.musicVolume, 0.35);
   assert.deepEqual(result.data.progression.permanentUpgrades, {});
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 7);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 8);
 });
 
 test('migrates a schema-v1 backup when the primary save is corrupt', () => {
@@ -188,10 +188,10 @@ test('migrates a schema-v1 backup when the primary save is corrupt', () => {
 
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'recovered');
-  assert.equal(result.data.schemaVersion, 7);
+  assert.equal(result.data.schemaVersion, 8);
   assert.equal(result.data.progression.soulEssence, 91);
   assert.deepEqual(result.data.progression.permanentUpgrades, {});
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 7);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 8);
 });
 
 test('rejects negative, non-finite, fractional, mismatched and unknown permanent upgrade purchases', () => {
@@ -298,13 +298,13 @@ test('migrates schema-v2 primary and backup saves to schema v4 without losing pr
 
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'migrated');
-  assert.equal(result.data.schemaVersion, 7);
+  assert.equal(result.data.schemaVersion, 8);
   assert.equal(result.data.progression.soulEssence, 314);
   assert.deepEqual(result.data.progression.permanentUpgrades, { maxHealth: 2, attackPower: 1 });
   assert.deepEqual(result.data.progression.equippedRelicIds, []);
   assert.deepEqual(result.data.collections.relicIds, []);
   assert.equal(result.data.collections.characterMastery['cursed-hunter'], 7);
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 7);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 8);
 });
 
 test('equips only owned relics, rejects duplicates and enforces three slots', () => {
@@ -360,16 +360,16 @@ test('recovers and migrates a schema-v2 backup when the primary save is corrupt'
 
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'recovered');
-  assert.equal(result.data.schemaVersion, 7);
+  assert.equal(result.data.schemaVersion, 8);
   assert.equal(result.data.progression.soulEssence, 188);
   assert.deepEqual(result.data.progression.permanentUpgrades, { attackPower: 2 });
   assert.deepEqual(result.data.progression.equippedRelicIds, []);
   assert.deepEqual(result.data.collections.relicIds, []);
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 7);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 8);
 });
 
 
-test('loads a valid schema-v6 profile with relic fields and all permanent upgrades', () => {
+test('loads a valid schema-v8 profile with relic fields and all permanent upgrades', () => {
   const storage = new MemoryStorage();
   const data = createInitialSaveData(fixedNow());
   data.progression.permanentUpgrades = { maxHealth: 2, attackPower: 2, moveSpeed: 1, armor: 3, xpBonus: 2, rerolls: 2 };
@@ -396,12 +396,12 @@ test('migrates schema-v3 saves while preserving relic ownership and equipped rel
 
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'migrated');
-  assert.equal(result.data.schemaVersion, 7);
+  assert.equal(result.data.schemaVersion, 8);
   assert.deepEqual(result.data.collections.relicIds, ['matriarch-seed', 'forest-heart']);
   assert.deepEqual(result.data.progression.equippedRelicIds, ['matriarch-seed']);
   assert.deepEqual(result.data.collections.craftingMaterials, {});
   assert.deepEqual(result.data.collections.unlockedWeaponVariantIds, []);
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 7);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 8);
 });
 
 test('crafts a weapon variant atomically, consumes exact costs and persists its unlock', () => {
@@ -449,9 +449,35 @@ test('migrates schema-v4 saves while preserving crafting materials and permanent
 
   const result = new SaveManager(storage, fixedNow).load();
   assert.equal(result.status, 'migrated');
-  assert.equal(result.data.schemaVersion, 7);
+  assert.equal(result.data.schemaVersion, 8);
   assert.deepEqual(result.data.collections.craftingMaterials, { 'living-root': 2 });
   assert.deepEqual(result.data.collections.unlockedWeaponVariantIds, ['briar-seed-verdant-variant']);
   assert.deepEqual(result.data.collections.unlockedMasteryRewardIds, []);
-  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 7);
+  assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 8);
+});
+
+test('schema-v6 migration initializes achievement and collection fields without losing relic ownership', () => {
+  const storage = new MemoryStorage();
+  const legacy = createInitialSaveData(fixedNow());
+  legacy.collections.relicIds = ['matriarch-seed'];
+  const v6 = { ...legacy, schemaVersion: 6 };
+  delete v6.collections.achievementProgress;
+  delete v6.collections.completedAchievementIds;
+  delete v6.collections.achievementPlayedCharacterIds;
+  delete v6.collections.achievementExploredRegionIds;
+  delete v6.collections.discoveredEnemyIds;
+  delete v6.collections.discoveredWeaponIds;
+  delete v6.collections.discoveredCharacterBioIds;
+  delete v6.collections.completedCollectionIds;
+  delete v6.collections.unlockedCollectionRewardIds;
+  storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(v6));
+  const result = new SaveManager(storage, fixedNow).load();
+  assert.equal(result.status, 'migrated');
+  assert.equal(result.data.schemaVersion, 8);
+  assert.deepEqual(result.data.collections.relicIds, ['matriarch-seed']);
+  assert.deepEqual(result.data.collections.achievementProgress, {});
+  assert.deepEqual(result.data.collections.completedAchievementIds, []);
+  assert.deepEqual(result.data.collections.discoveredEnemyIds, []);
+  assert.deepEqual(result.data.collections.discoveredWeaponIds, []);
+  assert.deepEqual(result.data.collections.completedCollectionIds, []);
 });

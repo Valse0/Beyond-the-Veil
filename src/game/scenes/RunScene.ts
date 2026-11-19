@@ -133,6 +133,8 @@ export class RunScene extends Phaser.Scene {
   private equippedRelicIds:string[]=[];
   private relicStats:RelicStats=deriveRelicStats([],'cursed-hunter');
   private runRelicIds:string[]=[];
+  private runDiscoveredEnemyIds:string[]=[];
+  private runDiscoveredWeaponIds:string[]=[];
   private unlockedWeaponVariantIds:string[]=[];
   private runCraftingMaterials:Record<string,number>={};
   private browserSynergyTestTargets:Phaser.Physics.Arcade.Sprite[]=[];
@@ -425,6 +427,8 @@ export class RunScene extends Phaser.Scene {
   init(data:{characterId?:string;regionId?:RegionId}):void {
     this.character=CHARACTERS.find(c=>c.id===data?.characterId)??STARTING_CHARACTER;
     this.region=REGIONS.find(r=>r.id===data?.regionId)??REGIONS[0]!;
+    this.runDiscoveredEnemyIds=[];
+    this.runDiscoveredWeaponIds=[];
   }
 
   create():void {
@@ -442,6 +446,7 @@ export class RunScene extends Phaser.Scene {
     const startingWeapon=WEAPONS.find(w=>w.id===(activeEquipmentProfile?.startingWeaponId??this.character.startingWeaponId))??WEAPONS[0]!;
     const startingPassive=PASSIVES.find(p=>p.id===(activeEquipmentProfile?.startingPassiveId??this.character.startingPassiveId))??PASSIVES[0]!;
     this.build=addWeapon(this.build,startingWeapon);this.build=addPassive(this.build,startingPassive);
+    this.runDiscoveredWeaponIds=[startingWeapon.id];
     this.paused=false;this.queuedLevels=0;this.levelUpControls=createLevelUpControlState(this.permanentUpgradeEffects.extraRerolls);this.currentLevelChoices=[];this.banishMode=false;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;
     this.previousGamepadFrame=EMPTY_GAMEPAD_FRAME;this.gamepadMoveX=0;this.gamepadMoveY=0;this.clearOverlay();
     const requestedSeed=this.registry.get('runSeed');
@@ -974,6 +979,7 @@ export class RunScene extends Phaser.Scene {
       this.time.delayedCall(260,()=>blast.destroy());
     }
     const experience=Number(enemy.getData('experience'));
+    if(!this.runDiscoveredEnemyIds.includes(def.id))this.runDiscoveredEnemyIds.push(def.id);
     this.recordRunEventEnemyDefeat(enemy);
     this.runSoulEssence+=Math.floor(Math.max(0,experience)/2)+(enemy.getData('isElite')?35:0);
     if(enemy.getData('isElite')&&isPassiveSpecialActive(this.build,'hollow-crown'))this.applyCrownOfAshes(enemy);
@@ -1588,7 +1594,7 @@ export class RunScene extends Phaser.Scene {
       else if(choice.id==='magnet'){this.baseMagnetBonus+=65;this.refreshBuildStats();}
       else this.state=applyUpgrade(this.state,choice.id as UpgradeId);
     }
-    if(choice.kind==='weapon-add'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def)this.build=addWeapon(this.build,def);}
+    if(choice.kind==='weapon-add'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def){this.build=addWeapon(this.build,def);if(!this.runDiscoveredWeaponIds.includes(def.id))this.runDiscoveredWeaponIds.push(def.id);}}
     if(choice.kind==='weapon-up'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def)this.build=upgradeWeapon(this.build,def);}
     if(choice.kind==='weapon-branch'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def&&choice.branchId)this.build=chooseWeaponBranch(this.build,def,choice.branchId);}
     if(choice.kind==='passive-add'){const def=PASSIVES.find(p=>p.id===choice.contentId);if(def)this.build=addPassive(this.build,def);}
@@ -1626,7 +1632,7 @@ export class RunScene extends Phaser.Scene {
     try {
       const loaded=manager.load();
       if(!('data' in loaded))return false;
-      manager.save(applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length}));
+      manager.save(applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length,enemyIdsEarned:this.runDiscoveredEnemyIds,weaponIdsEarned:this.runDiscoveredWeaponIds,loreIdsEarned:won?[this.region.explorationPoints[0]!.id]:[]}));
       return true;
     } catch {
       return false;

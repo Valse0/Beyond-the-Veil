@@ -9,3 +9,5 @@ test('all seven elements have status buildup and cross-element reactions',()=>{a
 
 test('all 25 enemies have distinct behavior and attack patterns',()=>{assert.equal(new Set(ENEMIES.map(e=>e.behavior)).size,25);assert.equal(new Set(ENEMIES.map(e=>e.attack.kind)).size,25);});
 test('all 12 weapons use distinct attack behavior contracts',()=>{assert.equal(new Set(WEAPONS.map(w=>w.behavior)).size,12);});
+
+test('all six collection sets match the current authored content catalog',()=>{const sizes=Object.fromEntries(COLLECTIONS.map(c=>[c.id,c.itemIds.length]));assert.deepEqual(sizes,{bestiary:25,arsenal:12,'relic-vault':10,'story-archive':5,'character-biographies':5,'mastery-attire':5});});

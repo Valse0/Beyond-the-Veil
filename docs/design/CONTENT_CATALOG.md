@@ -117,4 +117,22 @@ Equipment profiles are character-specific save data, not catalog content. Each u
 
 ## Achievement catalog
 
-The data-driven achievement catalog currently contains 13 milestones. Each entry has a stable ID, localized name/description, metric, threshold and one reward routed into the existing cosmetic, relic or weapon-variant collection. Save validation checks achievement IDs and metric data; progression tests verify reward routing against the authored content IDs.
+The data-driven achievement catalog currently contains 20 milestones: 13 run/progression milestones, six collection-completion achievements and one all-collections achievement. Each entry has a stable ID, localized name/description, metric, threshold and one reward routed into the existing cosmetic, relic, weapon-variant or dedicated collection-reward collection. Save validation checks achievement IDs and metric data; progression tests verify reward routing against the authored content IDs.
+
+
+## Collection catalog
+
+The six collection sets are derived from the source catalogs rather than duplicated lists:
+
+| Collection | Required entries | Discovery rule |
+|---|---:|---|
+| Yaratık Ansiklopedisi | 25 | Defeat each authored base enemy type |
+| Silah Arşivi | 12 | Start a run with or select each weapon |
+| Kalıntı Mahzeni | 10 | Permanently acquire each relic |
+| Hikâye Arşivi | 5 | Win in each region to record its lore entry |
+| Avcı Biyografileri | 5 | Complete a run with each hunter |
+| Ustalık Kostümleri | 5 | Reach level-ten mastery with each hunter |
+
+Each collection has a unique achievement and a persistent collection reward ID. Completing all six unlocks `veil-archivist-regalia` and the `grand-collector` achievement. The reward IDs are saved independently from equipped cosmetics and do not grant gameplay power. The archive UI and visual reward presentation are deferred.
+
+The catalog is generated from the enemy, weapon, relic, region, character and mastery source definitions. Tests assert the exact 25/12/10/5/5/5 content counts and stable cross-references.

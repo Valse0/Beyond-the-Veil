@@ -6,6 +6,7 @@ import { grantCraftingMaterials } from '../crafting/crafting-runtime.js';
 import type { SaveData } from '../../systems/save/save-types.js';
 import { applyCharacterMastery, calculateRunMasteryPoints } from '../progression/character-mastery.js';
 import { applyAchievementRunProgress } from '../progression/achievements.js';
+import { applyCollectionProgress } from '../progression/collections.js';
 
 export interface RunResultInput {
   regionId: RegionId;
@@ -16,6 +17,9 @@ export interface RunResultInput {
   characterId?: string;
   kills?: number;
   explorationEventsCompleted?: number;
+  enemyIdsEarned?: readonly string[];
+  weaponIdsEarned?: readonly string[];
+  loreIdsEarned?: readonly string[];
 }
 
 export function applyRunResult(save: SaveData, result: RunResultInput): SaveData {
@@ -41,13 +45,19 @@ export function applyRunResult(save: SaveData, result: RunResultInput): SaveData
   const mastery = result.characterId
     ? applyCharacterMastery(save.collections, result.characterId, calculateRunMasteryPoints(result.kills ?? 0, result.won))
     : save.collections;
-  const achievementBase = { ...save.collections, ...mastery };
+  const collectionBase = { ...save.collections, ...mastery, relicIds: [...relicIds] };
+  const collectionProgress = applyCollectionProgress(collectionBase, {
+    enemyIds: result.enemyIdsEarned,
+    weaponIds: result.weaponIdsEarned,
+    characterBioIds: result.characterId ? [result.characterId] : [],
+    loreIds: result.loreIdsEarned
+  });
   const achievements = result.characterId
-    ? applyAchievementRunProgress(achievementBase, { kills: result.kills ?? 0, won: result.won, characterId: result.characterId, regionId: result.regionId, explorationEventsCompleted: result.explorationEventsCompleted ?? 0 })
-    : achievementBase;
+    ? applyAchievementRunProgress(collectionProgress, { kills: result.kills ?? 0, won: result.won, characterId: result.characterId, regionId: result.regionId, explorationEventsCompleted: result.explorationEventsCompleted ?? 0, completedCollectionIds: collectionProgress.completedCollectionIds })
+    : collectionProgress;
   return {
     ...save,
-    collections: { ...save.collections, ...mastery, ...achievements, relicIds: [...new Set([...relicIds, ...achievements.relicIds])], craftingMaterials: grantCraftingMaterials(save.collections.craftingMaterials, validMaterials) },
+    collections: { ...save.collections, ...mastery, ...achievements, relicIds: [...new Set(achievements.relicIds)], craftingMaterials: grantCraftingMaterials(save.collections.craftingMaterials, validMaterials) },
     progression: {
       ...save.progression,
       soulEssence: save.progression.soulEssence + reward,
