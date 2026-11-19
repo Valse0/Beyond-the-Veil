@@ -2,8 +2,9 @@ import { CHARACTERS } from '../../data/characters.js';
 import { REGIONS } from '../../data/regions.js';
 import { SAVE_BACKUP_KEY, SAVE_STORAGE_KEY } from './save-storage.js';
 import type { JsonObject, JsonValue, SaveData, SaveLoadResult, SaveStorage } from './save-types.js';
+import { getPermanentUpgradeCost, getPermanentUpgradeDefinition, isValidPermanentUpgradeRecord } from '../../gameplay/progression/permanent-upgrades.js';
 
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -46,7 +47,7 @@ function isSaveData(value: unknown): value is SaveData {
     && isStringArray(progression.unlockedRegionIds)
     && progression.unlockedRegionIds.length > 0
     && isStringArrayRecord(progression.completedDifficulties)
-    && isNumberRecord(progression.permanentUpgrades)
+    && isValidPermanentUpgradeRecord(progression.permanentUpgrades)
     && isObject(collections)
     && isNumberRecord(collections.characterMastery)
     && isStringArray(collections.unlockedCosmeticIds)
@@ -94,7 +95,7 @@ function migrateV0(value: Record<string, unknown>, now: string): SaveData {
         ? progression.unlockedRegionIds : defaults.progression.unlockedRegionIds,
       completedDifficulties: isStringArrayRecord(progression.completedDifficulties)
         ? progression.completedDifficulties : defaults.progression.completedDifficulties,
-      permanentUpgrades: isNumberRecord(progression.permanentUpgrades)
+      permanentUpgrades: isValidPermanentUpgradeRecord(progression.permanentUpgrades)
         ? progression.permanentUpgrades : defaults.progression.permanentUpgrades
     },
     collections: {
@@ -105,6 +106,19 @@ function migrateV0(value: Record<string, unknown>, now: string): SaveData {
     settings: isJsonObject(value.settings) ? value.settings : defaults.settings
   };
   if (!isSaveData(candidate)) throw new Error('Legacy save contains invalid values.');
+  return candidate;
+}
+
+function migrateV1(value: Record<string, unknown>): SaveData {
+  const progression = value.progression;
+  if (!isObject(progression)) throw new Error('Legacy version-one progression is invalid.');
+  const upgrades = progression.permanentUpgrades === undefined ? {} : progression.permanentUpgrades;
+  const candidate: unknown = {
+    ...value,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    progression: { ...progression, permanentUpgrades: upgrades }
+  };
+  if (!isSaveData(candidate)) throw new Error('Legacy version-one save contains invalid values.');
   return candidate;
 }
 
@@ -184,13 +198,17 @@ export class SaveManager {
     return result.data.progression.permanentUpgrades[upgradeId] ?? 0;
   }
 
-  purchasePermanentUpgrade(upgradeId: string, cost: number, maxLevel = 5): boolean {
+  purchasePermanentUpgrade(upgradeId: string, cost: number, maxLevel?: number): boolean {
+    const definition = getPermanentUpgradeDefinition(upgradeId);
+    if (!definition || !Number.isFinite(cost) || !Number.isInteger(cost) || cost < 0) return false;
+    if (maxLevel !== undefined && maxLevel !== definition.maxLevel) return false;
     const result = this.load();
     if (result.status === 'unsupported' || result.status === 'corrupt') return false;
     const data = result.data;
     const currentLevel = data.progression.permanentUpgrades[upgradeId] ?? 0;
-    if (currentLevel >= maxLevel || data.progression.soulEssence < cost) return false;
-    data.progression.soulEssence -= cost;
+    const expectedCost = getPermanentUpgradeCost(upgradeId, currentLevel);
+    if (expectedCost === null || cost !== expectedCost || currentLevel >= definition.maxLevel || data.progression.soulEssence < expectedCost) return false;
+    data.progression.soulEssence -= expectedCost;
     data.progression.permanentUpgrades[upgradeId] = currentLevel + 1;
     this.save(data);
     return true;
@@ -206,6 +224,7 @@ export class SaveManager {
       }
       if (version > CURRENT_SCHEMA_VERSION) return { status: 'unsupported', version };
       if (version === 0) return { status: 'migrated', data: migrateV0(value, this.now()) };
+      if (version === 1) return { status: 'migrated', data: migrateV1(value) };
       if (!isSaveData(value)) return { status: 'corrupt', message: 'Save data failed validation.' };
       return { status: 'loaded', data: value };
     } catch (error) {
