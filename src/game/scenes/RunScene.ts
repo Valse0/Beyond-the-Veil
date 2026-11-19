@@ -195,8 +195,31 @@ export class RunScene extends Phaser.Scene {
     this.region=region;
     this.state={...this.state,health:this.state.maxHealth};
     this.player.setPosition(WORLD_W/2,WORLD_H/2).setVelocity(0,0);
+    this.hazardTarget={x:this.player.x,y:this.player.y};
     this.playerSlowUntil=0;this.playerSlowMultiplier=1;
     this.hazardPoisonStacks=0;this.hazardPoisonExpiresAt=0;this.hazardPoisonNextTickAt=0;
+    this.hazardLastEffectId='';this.hazardLastDamage=0;
+    this.hazardCycle={hazardIndex:index,nextAt:this.time.now,activeUntil:0,telegraphUntil:0};
+    this.activeHazardId='';this.hazardHasHit=false;this.hazardTargetForced=true;
+    this.updateRegionHazard(this.time.now);
+    return {regionId:region.id,hazardId,telegraphMs:hazard.telegraphMs,shape:mechanic.shape};
+  }
+
+  browserTestHazardSnapshot():{regionId:string;activeHazardId:string;lastEffectId:string;lastDamage:number;health:number;maxHealth:number;poisonStacks:number;slowActive:boolean;activeEnemyCount:number} {
+    this.assertBrowserTestMode();
+    return {regionId:this.region.id,activeHazardId:this.activeHazardId,lastEffectId:this.hazardLastEffectId,lastDamage:this.hazardLastDamage,health:this.state.health,maxHealth:this.state.maxHealth,poisonStacks:this.hazardPoisonStacks,slowActive:this.time.now<this.playerSlowUntil,activeEnemyCount:this.enemies.countActive(true)};
+  }
+
+  browserTestTriggerHazard(hazardId:string):{regionId:string;hazardId:string;telegraphMs:number;shape:string} {
+    this.assertBrowserTestMode();
+    const region=REGIONS.find(item=>item.hazards.some(hazard=>hazard.id===hazardId));
+    const index=region?.hazards.findIndex(hazard=>hazard.id===hazardId)??-1;
+    const hazard=region?.hazards[index];
+    const mechanic=getRegionHazardMechanic(hazardId);
+    if(!region||!hazard||!mechanic)throw new Error('Unknown region hazard: '+hazardId);
+    this.region=region;this.state={...this.state,health:this.state.maxHealth};
+    this.player.setPosition(WORLD_W/2,WORLD_H/2).setVelocity(0,0);
+    this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.hazardPoisonStacks=0;this.hazardPoisonExpiresAt=0;this.hazardPoisonNextTickAt=0;
     this.hazardLastEffectId='';this.hazardLastDamage=0;
     this.hazardCycle={hazardIndex:index,nextAt:this.time.now,activeUntil:0,telegraphUntil:0};
     this.activeHazardId='';this.hazardHasHit=false;this.hazardTargetForced=true;
