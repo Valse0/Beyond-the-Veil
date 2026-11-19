@@ -1,18 +1,34 @@
 # Implemented Architecture
 
-One Phaser 3 Game owns the runtime. Configuration lives in src/game/config; MainMenuScene and RunScene own scene presentation and lifecycle. The reference viewport is 1280x720 landscape with FIT scaling and Arcade Physics.
+Beyond the Veil is a Phaser 3 + TypeScript + Vite single-player game. The active implementation branch is `full-game-development`; `main` remains the protected baseline. The reference viewport is 1280×720 landscape with Phaser Arcade Physics.
 
-- core/types: shared engine-independent contracts.
-- gameplay/run: pure run-state transitions, XP, upgrades, damage and elapsed time.
-- gameplay/combat: deterministic target selection and damage helpers.
-- data: typed character, enemy, boss, weapon, passive, element and region definitions, separated from execution; stable asset IDs in asset-registry.ts.
-- gameplay/content: cross-catalog validation for counts, duplicate IDs, references, phase thresholds, progression rows, element reactions and placeholder provenance.
-- game: Phaser boot, rendering, input, physics and scene navigation.
-- tests: Node's built-in runner exercises pure rules without a browser.
+## Runtime structure
 
-RunScene translates input into pure state transitions and renders the result. Phaser owns physical bodies; plain TypeScript owns health, XP, levels and upgrades. The first implementation deliberately avoids extra frameworks and test dependencies.
+- `src/core/types`: shared engine-independent content and runtime contracts.
+- `src/data`: typed hunters, enemies, bosses, weapons, passives, elements, regions and stable asset IDs.
+- `src/game/config`: Phaser configuration and plugin setup.
+- `src/game/scenes`: Main Menu, Hunter Selection, Region/Difficulty Selection, Hunter Hub and Run scenes.
+- `src/game/input`: normalized keyboard/gamepad helpers; gameplay retains keyboard and touch controls.
+- `src/gameplay`: engine-independent run, combat, spawning, events, progression, level-up, weapon, passive and synergy rules.
+- `src/systems/save`: local profile storage, validation, backup/recovery and schema migration.
+- `tests`: Node unit tests and Playwright Chromium browser scenarios.
 
-Phaser 3 is retained. Temporary vector shapes keep the game runnable while original/licensed pixel art remains a separate requirement. Current limitations: one hunter, three temporary enemy patterns, one weapon, four level-up upgrades; no bosses, full roster, permanent progression, save recovery, final art/audio, localization or Android package.
+## Current gameplay and progression
 
+The live run includes catalog-driven hunters and region selection, wave/elite scheduling, enemy and boss combat, XP level-ups, weapon branches/evolutions, passive specials, timed run events, boss chests and persistent Ruh Özü rewards. The 12×12 weapon/passive pairing matrix is tested as catalog data; the 14 authored combat synergies have browser-level effect assertions under active stabilization.
 
-The first-release content catalog and 71-entry placeholder asset registry are implemented as data. Their definitions are validated in CI, but most are not yet connected to live Phaser behavior. Vite is pinned to 6.4.6; npm audit currently reports zero vulnerabilities. The production build still emits a 1.51 MB JavaScript chunk (351 kB gzip), so code splitting/performance work remains.
+The Hunter Hub is reachable from the Main Menu and currently offers six capped permanent upgrades. These upgrades are stored in the profile and are being integrated into actual run stats. Save schema version 2 migrates prior version-1 profiles while preserving progression and collections.
+
+## Platform and quality boundaries
+
+The project remains Phaser 3; no engine migration is approved. Desktop Chromium automation is not equivalent to physical Android, gamepad, smart-TV browser/remote or native console validation. Native console distribution is not established. Main Menu keyboard focus/navigation is still incomplete, so keyboard-only and TV-remote access to the Hub needs follow-up.
+
+## Known incomplete requirements
+
+- Hunter Hub NPC services (Blacksmith, Alchemist, Relic Master and progression-gated special merchants) are not implemented.
+- Permanent-upgrade respec/reallocation required by GDD §15.2 is not implemented.
+- Final pixel art, animation, VFX and audio production remain outstanding; current visuals are placeholders.
+- Full 15-minute natural runs, broad balance, accessibility, physical mobile/controller/TV testing and Android packaging remain open.
+- Production chunk size and runtime performance require continued profiling as content density grows.
+
+Use `docs/IMPLEMENTATION_LEDGER.md` as the evidence-backed requirement status source; this architecture summary is not a release-readiness declaration.
