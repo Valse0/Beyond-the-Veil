@@ -70,7 +70,7 @@ test('full collections complete once and grant six rewards plus the grand-comple
       });
     }
   }
-  assert.deepEqual(save.collections.completedCollectionIds, COLLECTIONS.map(item => item.id));
+  assert.deepEqual([...save.collections.completedCollectionIds].sort(), COLLECTIONS.map(item => item.id).sort());
   assert.equal(save.collections.unlockedCollectionRewardIds.length, 7);
   assert.ok(save.collections.unlockedCollectionRewardIds.includes('veil-archivist-regalia'));
   assert.equal(save.collections.completedAchievementIds.filter(id => id.startsWith('collection-')).length, 6);

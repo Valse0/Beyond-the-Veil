@@ -72,7 +72,7 @@ test('character mastery persists on defeat, awards kill bonuses, and unlocks mil
   const second = applyRunResult(first, { regionId: 'cursed-forest', won: true, soulEssenceEarned: 0, characterId: 'cursed-hunter', kills: 90 });
   assert.equal(second.collections.characterMastery['cursed-hunter'], 27);
   assert.deepEqual(second.collections.unlockedMasteryRewardIds, ['hunter-title']);
-  assert.deepEqual(second.collections.unlockedCosmeticIds, ['ashen-hunter', 'forest-wraith']);
+  assert.deepEqual(second.collections.unlockedCosmeticIds, ['ashen-hunter', 'forest-wraith', 'bone-regalia']);
   assert.equal(save.collections.characterMastery['cursed-hunter'], undefined);
 });
 

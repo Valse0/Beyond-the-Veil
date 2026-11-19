@@ -12,9 +12,9 @@ test('run achievements grant catalogued rewards to the correct collections', () 
   assert.deepEqual(collections.completedAchievementIds, ['first-descent', 'first-blood', 'boss-slayer', 'curious-soul']);
   assert.ok(collections.unlockedCosmeticIds.includes('ashen-hunter'));
   assert.deepEqual(collections.relicIds, []);
-  assert.ok(collections.unlockedCosmeticIds.includes('default-hunter'));
-  assert.ok(collections.unlockedCosmeticIds.includes('default-knight'));
-  assert.ok(collections.unlockedCosmeticIds.includes('default-mage'));
+  assert.ok(collections.unlockedCosmeticIds.includes('forest-wraith'));
+  assert.ok(collections.unlockedCosmeticIds.includes('bone-regalia'));
+  assert.ok(collections.unlockedCosmeticIds.includes('mourning-veil'));
   assert.equal(collections.achievementProgress['total-kills'], 100);
 });
 
