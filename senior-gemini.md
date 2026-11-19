@@ -21,7 +21,7 @@ Beyond the Veil is a dark-fantasy, single-player, offline-first roguelite surviv
 
 ## 3. Latest confirmed verification
 
-GitHub Actions run #240 on commit `d97a620a38319c8918c6a61da0e92fc9b282ab3e` completed successfully:
+GitHub Actions run #247 on commit `c89bddb9033c15a7bdda8a9fbb81a01661e8a5ee` completed successfully:
 
 | Check | Result |
 |---|---:|
@@ -33,9 +33,9 @@ GitHub Actions run #240 on commit `d97a620a38319c8918c6a61da0e92fc9b282ab3e` com
 
 The browser suite includes real Phaser checks for the six permanent-upgrade effects, Hunter Hub keyboard purchase flow, all 14 weapon/passive synergy effects, XP level-up, boss reward persistence and storage failure behavior.
 
-[GitHub Actions #240](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44555203202)
+[GitHub Actions #247](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44555450343)
 
-Subsequent test-fixture hardening commits disable autonomous spawning and auto-attacks during isolated synergy tests. A fresh workflow for the newer branch head is still required before treating those additional commits as verified.
+The #247 workflow includes the final synergy-fixture isolation changes and verifies the latest branch head.
 
 ## 4. Critical remaining GDD work
 
