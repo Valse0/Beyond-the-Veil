@@ -471,6 +471,59 @@ test('Hunter Hub keyboard navigation can purchase a permanent upgrade and return
   });
 });
 
+test('Hunter Hub respec requires confirmation and refunds net investment after reload', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
+      schemaVersion: 2,
+      profile: { createdAt: '2026-11-19T00:00:00.000Z', updatedAt: '2026-11-19T00:00:00.000Z' },
+      progression: {
+        soulEssence: 0, completedRuns: 0,
+        unlockedCharacterIds: ['cursed-hunter'], unlockedRegionIds: ['cursed-forest'],
+        completedDifficulties: {}, permanentUpgrades: { maxHealth: 2, attackPower: 1 }
+      },
+      collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [] },
+      settings: {}
+    }));
+  });
+
+  await page.goto('/?bv-test=1');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  await page.mouse.click(430, 535);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('hunter-hub'));
+  });
+
+  const before = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  await page.mouse.click(1110, 660);
+  const dialog = await canvas.screenshot();
+  expect(dialog.length).toBeGreaterThan(1_000);
+  await page.mouse.click(528, 472);
+  await expect.poll(async () => page.evaluate(() => {
+    const save = JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!);
+    return save.progression.permanentUpgrades;
+  })).toEqual(before.progression.permanentUpgrades);
+
+  await page.mouse.click(1110, 660);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => page.evaluate(() => {
+    const save = JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!);
+    return { essence: save.progression.soulEssence, upgrades: save.progression.permanentUpgrades };
+  })).toEqual({ essence: 202, upgrades: {} });
+
+  await page.reload();
+  await expect(canvas).toBeVisible();
+  const afterReload = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(afterReload.progression.soulEssence).toBe(202);
+  expect(afterReload.progression.permanentUpgrades).toEqual({});
+  expect(pageErrors).toEqual([]);
+});
+
+
 test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
