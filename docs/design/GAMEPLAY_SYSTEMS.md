@@ -119,3 +119,10 @@ Six persistent collections are sourced directly from the authored content catalo
 Each completed collection unlocks its own named collection reward and achievement. Completing all six grants the final Archivist reward and achievement. Relics granted by achievements are re-evaluated against the relic collection in the same run-result transaction. Completion and rewards are idempotent. The collection archive UI, item previews, secret-item presentation and additional non-mastery costume catalog remain in the later UI/content phase.
 
 Save schema v8 adds discovered enemy/weapon/biography IDs, completed collection IDs and collection reward IDs. Existing relic, lore and mastery reward data remains the source of truth for those collections. Migrations from schema 0–7 preserve prior profile and achievement progress while initializing only the new fields.
+
+
+## Element reactions v1
+
+The seven elements now have distinct status roles: fire and blood deal periodic damage, ice slows and briefly freezes on threshold, poison deals periodic damage and increases incoming damage by stack, dark weakens through curse stacks, spirit rewards threshold triggers with sustain, and lightning applies short control pulses with its existing chain behavior. Status duration and stack caps are enforced in the pure element runtime; ice freeze and lightning stun are timed rather than permanent. Normal enemies and bosses share the same hit/tick runtime and reaction resolver.
+
+Seven authored pair reactions have typed outcomes: Thermal Shock (burst), Ignition Plague (fire spread), Shatter Arc (shatter plus chain), Soul Rupture (curse-fueled chain and sustain), Conductive Plague (multi-target chain), Crimson Ignition (bleed rupture), and Blood-Soul Siphon (sustain). Reaction effects are data-driven and idempotent per hit; poison vulnerability and dark curse modifiers are applied consistently to normal enemies and bosses. Existing weapon/passive synergy hooks remain active.

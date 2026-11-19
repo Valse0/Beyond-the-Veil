@@ -400,3 +400,11 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Save schema v8 adds discovered enemy/weapon/biography IDs, completed collection IDs and collection reward IDs. Migrations from schema 0–7 initialize new fields while preserving existing profile, lore, relic, mastery and achievement data.
 - CI #319 (44585648745), commit `48f1b52093a62d68f03c355f7580e7cf2e28edab`: TypeScript PASS; 160/160 unit tests PASS; production build PASS; Chromium Playwright 21/21 PASS; npm audit 0 vulnerabilities.
 - No collection UI, final art, dependency, backend, ads or paid service was added.
+
+
+## Element Reaction System v1 implementation pass (2026-11-19)
+
+- Replaced generic bonus-damage-only reactions with seven typed elemental pair reactions and explicit effect payloads: burst, spread, shatter, soul chain, conductive chain, siphon and rupture.
+- Added bounded stack/status timing, short threshold freeze, poison vulnerability, and a common reaction resolver shared by normal enemy and boss hit paths. Normal enemies and bosses continue to use the same elemental status tick runtime.
+- Expanded runtime tests for all seven reaction pairs, unique/symmetric pair definitions, timed freeze, poison vulnerability and stack bounds. Browser verification is pending CI.
+- No UI, final art, dependency, backend, ads or paid service changes.

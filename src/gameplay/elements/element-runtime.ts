@@ -1,43 +1,82 @@
-import type { ElementDefinition, ElementId } from '../../core/types/content.js';
-export interface ElementStatus { buildup:number; stacks:number; expiresAt:number; nextTickAt:number; stunnedUntil?:number; }
+import type { ElementDefinition, ElementId, ElementReactionDefinition } from '../../core/types/content.js';
+
+export interface ElementStatus {
+  buildup:number;
+  stacks:number;
+  expiresAt:number;
+  nextTickAt:number;
+  stunnedUntil?:number;
+  frozenUntil?:number;
+}
 export type ElementState=Partial<Record<ElementId,ElementStatus>>;
-export interface ElementHitResult { state:ElementState; damage:number; reaction?:{id:string;name:string;effect:string;damage:number}; triggered:boolean; }
-export function applyElementHit(state:ElementState, element:ElementDefinition, baseDamage:number, resistance:number, now:number, catalog:readonly ElementDefinition[]):ElementHitResult {
+export interface ElementReactionResult extends ElementReactionDefinition { damage:number }
+export interface ElementHitResult { state:ElementState; damage:number; reaction?:ElementReactionResult; triggered:boolean }
+export interface ElementTickResult { state:ElementState;damage:number;slowed:boolean;stunned:boolean;frozen:boolean;damageTakenMultiplier:number }
+
+const maxStacksFor=(id:ElementId):number=>id==='dark'?3:id==='poison'?5:id==='blood'?4:1;
+
+export function applyElementHit(
+  state:ElementState,
+  element:ElementDefinition,
+  baseDamage:number,
+  resistance:number,
+  now:number,
+  catalog:readonly ElementDefinition[]
+):ElementHitResult {
   const resist=Math.max(-.5,Math.min(element.resistanceCap,resistance));
   const damage=Math.max(0,baseDamage*(1-resist));
   const current=state[element.id]??{buildup:0,stacks:0,expiresAt:0,nextTickAt:now+1000};
   const buildup=current.buildup+element.buildupPerHit;
   const triggered=buildup>=element.threshold;
-  const maxStacks=element.id==='dark'?3:element.id==='poison'?5:element.id==='blood'?4:1;
-  const stacks=triggered?Math.min(maxStacks,current.stacks+1):current.stacks;
-  const next:ElementState={...state,[element.id]:{buildup:triggered?buildup-element.threshold:buildup,stacks,expiresAt:triggered?now+element.durationMs:Math.max(current.expiresAt,now+element.durationMs),nextTickAt:current.expiresAt>now?current.nextTickAt:now+1000}};
-  let reaction:ElementHitResult['reaction'];
-  for(const activeId of Object.keys(state) as ElementId[]) {
-    if(activeId===element.id) continue;
-    const active=state[activeId]; if(!active||active.expiresAt<=now||active.stacks<=0) continue;
-    const rule=element.reactions.find(r=>r.with===activeId)||catalog.find(e=>e.id===activeId)?.reactions.find(r=>r.with===element.id);
-    if(rule) {
-      reaction={id:rule.id,name:rule.name,effect:rule.effect,damage:Math.round(damage*rule.damageMultiplier)};
-      next[activeId]={...active,stacks:Math.max(0,active.stacks-1)};
-      break;
-    }
+  const stacks=triggered?Math.min(maxStacksFor(element.id),current.stacks+1):current.stacks;
+  const own:ElementStatus={
+    buildup:triggered?buildup-element.threshold:buildup,
+    stacks,
+    expiresAt:triggered?now+element.durationMs:Math.max(current.expiresAt,now+element.durationMs),
+    nextTickAt:current.expiresAt>now?current.nextTickAt:now+1000,
+    ...(element.id==='ice'&&triggered?{frozenUntil:now+420}:{}),
+    ...(element.id==='lightning'&&triggered?{stunnedUntil:now+260}:{})
+  };
+  const next:ElementState={...state,[element.id]:own};
+  let reaction:ElementReactionResult|undefined;
+  const activeEntries=(Object.keys(state) as ElementId[])
+    .filter(id=>id!==element.id)
+    .map(id=>({id,status:state[id]}))
+    .filter((entry):entry is {id:ElementId;status:ElementStatus}=>Boolean(entry.status&&entry.status.expiresAt>now&&entry.status.stacks>0));
+  for(const active of activeEntries){
+    const rule=element.reactions.find(item=>item.with===active.id)
+      ??catalog.find(item=>item.id===active.id)?.reactions.find(item=>item.with===element.id);
+    if(!rule)continue;
+    reaction={...rule,damage:Math.round(damage*rule.damageMultiplier)};
+    const consume=Math.max(1,rule.kind==='rupture'?active.status.stacks:1);
+    next[active.id]={...active.status,stacks:Math.max(0,active.status.stacks-consume)};
+    if(rule.kind==='rupture')next[element.id]={...own,stacks:Math.max(0,own.stacks-1)};
+    break;
   }
   return {state:next,damage:Math.round(damage),reaction,triggered};
 }
-export function tickElementStatuses(state:ElementState, now:number):{state:ElementState;damage:number;slowed:boolean;stunned:boolean} {
-  const next:ElementState={}; let damage=0,slowed=false,stunned=false;
-  for(const id of Object.keys(state) as ElementId[]) {
-    const s=state[id]; if(!s||s.expiresAt<=now) continue;
-    next[id]={...s};
-    if(now>=s.nextTickAt) {
-      if(id==='fire') damage+=2+s.stacks*2;
-      if(id==='poison') damage+=s.stacks*2;
-      if(id==='blood') damage+=s.stacks*1.5;
-      next[id]!.nextTickAt=now+(id==='lightning'?1500:1000);
-      if(id==='lightning'&&s.stacks>0)next[id]!.stunnedUntil=now+260;
+
+export function tickElementStatuses(state:ElementState,now:number):ElementTickResult {
+  const next:ElementState={};
+  let damage=0,slowed=false,stunned=false,frozen=false,poisonStacks=0;
+  for(const id of Object.keys(state) as ElementId[]){
+    const status=state[id];
+    if(!status||status.expiresAt<=now)continue;
+    const current={...status};
+    if(now>=status.nextTickAt){
+      if(id==='fire')damage+=2+status.stacks*2;
+      if(id==='poison')damage+=status.stacks*2;
+      if(id==='blood')damage+=status.stacks*1.5;
+      current.nextTickAt=now+(id==='lightning'?1500:1000);
+      if(id==='lightning'&&status.stacks>0)current.stunnedUntil=now+260;
     }
-    if(id==='ice') slowed=true;
-    if(id==='lightning'&&s.stacks>0&&(next[id]!.stunnedUntil??0)>now)stunned=true;
+    if(id==='ice'){
+      slowed=true;
+      frozen=frozen||(current.frozenUntil??0)>now;
+    }
+    if(id==='lightning'&&status.stacks>0)stunned=stunned||(current.stunnedUntil??0)>now;
+    if(id==='poison')poisonStacks=status.stacks;
+    next[id]=current;
   }
-  return {state:next,damage:Math.round(damage),slowed,stunned};
+  return {state:next,damage:Math.round(damage),slowed,stunned,frozen,damageTakenMultiplier:1+poisonStacks*.025};
 }

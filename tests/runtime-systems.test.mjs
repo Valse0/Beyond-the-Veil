@@ -221,3 +221,56 @@ test('every enemy special behavior maps to the intended action and only special 
   }
  }
 });
+
+test('seven elements define distinct status identities and all authored reactions are symmetric and typed',()=>{
+ const ids=new Set(ELEMENTS.map(element=>element.id));
+ assert.equal(ids.size,7);
+ const reactionIds=new Set();
+ const pairs=new Set();
+ for(const element of ELEMENTS)for(const reaction of element.reactions){
+  assert.ok(['burst','spread','shatter','soul-chain','conductive-chain','siphon','rupture'].includes(reaction.kind));
+  assert.ok(!reactionIds.has(reaction.id),'reaction IDs must be unique');
+  reactionIds.add(reaction.id);
+  const pair=[element.id,reaction.with].sort().join(':');
+  assert.ok(!pairs.has(pair),'only one authored reaction per pair');
+  pairs.add(pair);
+ }
+ assert.equal(reactionIds.size,7);
+ assert.equal(pairs.size,7);
+});
+
+test('every authored elemental reaction resolves with its distinct effect payload and bounded status stacks',()=>{
+ const cases=[
+  ['fire','ice','thermal-shock','burst'],
+  ['fire','poison','ignition-plague','spread'],
+  ['ice','lightning','shatter-arc','shatter'],
+  ['dark','spirit','soul-rupture','soul-chain'],
+  ['lightning','poison','conductive-plague','conductive-chain'],
+  ['blood','fire','crimson-ignition','rupture'],
+  ['blood','spirit','blood-soul-siphon','siphon']
+ ];
+ for(const [first,second,id,kind] of cases){
+  let state={};
+  const a=ELEMENTS.find(element=>element.id===first);
+  const b=ELEMENTS.find(element=>element.id===second);
+  for(let i=0;i<7;i++)state=applyElementHit(state,a,10,0,1000+i,ELEMENTS).state;
+  let result;
+  for(let i=0;i<7;i++)result=applyElementHit(state,b,10,0,2000+i,ELEMENTS);
+  assert.equal(result.reaction?.id,id);
+  assert.equal(result.reaction?.kind,kind);
+  assert.ok(result.reaction.damage>0);
+  for(const status of Object.values(result.state))assert.ok(status.stacks<=5&&status.stacks>=0);
+ }
+});
+
+test('ice threshold freezes briefly, poison increases incoming damage, and control expires',()=>{
+ let state={};
+ const ice=ELEMENTS.find(element=>element.id==='ice');
+ for(let i=0;i<7;i++)state=applyElementHit(state,ice,10,0,1000+i,ELEMENTS).state;
+ const frozen=tickElementStatuses(state,1100);
+ assert.equal(frozen.frozen,true);
+ assert.equal(tickElementStatuses(frozen.state,1500).frozen,false);
+ state={poison:{buildup:0,stacks:4,expiresAt:5000,nextTickAt:2000}};
+ assert.equal(tickElementStatuses(state,1500).damageTakenMultiplier,1.1);
+ assert.equal(tickElementStatuses(state,6000).damageTakenMultiplier,1);
+});

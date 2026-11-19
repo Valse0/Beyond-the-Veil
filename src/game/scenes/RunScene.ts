@@ -626,7 +626,7 @@ export class RunScene extends Phaser.Scene {
         const pack=this.activeTargets().filter(other=>other!==enemy&&this.enemyDefinition(other)?.behavior==='swarm'&&Phaser.Math.Distance.Between(enemy.x,enemy.y,other.x,other.y)<115).length;
         const packBoost=1+Math.min(.45,pack*.12);vx*=packBoost;vy*=packBoost;
       }
-      enemy.setVelocity(effects.stunned?0:vx,effects.stunned?0:vy);
+      enemy.setVelocity(effects.stunned||effects.frozen?0:vx,effects.stunned||effects.frozen?0:vy);
       if(effects.damage>0)this.damageEnemy(enemy,effects.damage);
       const concealed=intent.state.burrowed||Number(enemy.getData('untargetableUntil')??0)>time;
       enemy.setAlpha(concealed?.28:1);
@@ -649,8 +649,8 @@ export class RunScene extends Phaser.Scene {
 
   private moveBoss(boss:Phaser.Physics.Arcade.Sprite,time:number):void {
     if(!this.bossDefinition||!this.bossState)return;
-    const lightning=this.bossElementState.lightning;
-    if((lightning?.stunnedUntil??0)>time){boss.setVelocity(0,0);return;}
+    const lightning=this.bossElementState.lightning,ice=this.bossElementState.ice;
+    if((lightning?.stunnedUntil??0)>time||(ice?.frozenUntil??0)>time){boss.setVelocity(0,0);return;}
     const dx=this.player.x-boss.x,dy=this.player.y-boss.y,dist=Math.hypot(dx,dy)||1;
     if(dist>145)boss.setVelocity(dx/dist*this.bossDefinition.health*.006,dy/dist*this.bossDefinition.health*.006);else boss.setVelocity(0,0);
     const phase=this.bossDefinition.phases[this.bossState.phaseIndex]!;
@@ -942,7 +942,8 @@ export class RunScene extends Phaser.Scene {
     if(actor?.burrowed||(!enemy.getData('mimicRevealed')&&def.behavior==='mimic'))return;
     const existing=this.elementStates.get(enemy)??{};
     const curse=existing.dark&&existing.dark.expiresAt>this.time.now?existing.dark.stacks:0;
-    let damage=baseDamage*(1+curse*.06);
+    const poison=existing.poison&&existing.poison.expiresAt>this.time.now?existing.poison.stacks:0;
+    let damage=baseDamage*(1+curse*.06+poison*.025);
     if(actor&&def.behavior!=='mimic'&&actor.exposedUntil>this.time.now)damage*=1.25;
     const armorBroken=Number(enemy.getData('armorBrokenUntil')??0)>this.time.now;
     if((def.behavior==='shield-advance'||def.behavior==='rune-guardian')&&!armorBroken&&element!=='lightning'&&this.isEnemyFacingPlayer(enemy,actor))damage*=.35;
@@ -957,7 +958,7 @@ export class RunScene extends Phaser.Scene {
       const elementDef=ELEMENTS.find(e=>e.id===element)!;
       const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier*this.relicStats.elementalBuildupMultiplier};
       const hit=applyElementHit(existing,tuned,damage,def.resistances[element]??0,this.time.now,ELEMENTS);
-      this.elementStates.set(enemy,hit.state);damage=hit.damage+(hit.reaction?.damage??0);
+      this.elementStates.set(enemy,hit.state);damage=hit.damage+(hit.reaction?.damage??0);if(hit.reaction)this.resolveElementReaction(enemy,hit.reaction);
       if(isPassiveSpecialActive(this.build,'venom-vial')&&isPoisonBloomReady(hit.state.poison?.stacks??0,5)){const bloom=PASSIVES.find(item=>item.id==='venom-vial')!.specialUpgrade.mechanic;if(bloom.kind==='poison-spores'){const ready=tryPassiveCooldown(this.passiveSpecialState,'toxic-bloom',this.time.now,bloom.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)this.spawnPassiveZone(enemy.x,enemy.y,bloom);}}
       if(hit.triggered&&element==='spirit')this.healPlayer(Math.max(1,this.state.maxHealth*.025));
       if(hit.triggered&&element==='blood'){const sacrament=PASSIVES.find(item=>item.id==='blood-reliquary')!.specialUpgrade.mechanic;const bonus=sacrament.kind==='low-health-lifesteal'&&isPassiveSpecialActive(this.build,'blood-reliquary')?getLowHealthLifestealBonus(this.state.health,this.state.maxHealth,sacrament):0;this.healPlayer(damage*(.03+this.currentBuildStats().lifesteal+this.relicStats.lifestealBonus+bonus));}
@@ -987,6 +988,23 @@ export class RunScene extends Phaser.Scene {
     this.dropExperience(enemy,experience);this.state=recordKill(this.state);enemy.destroy();
   }
 
+  private resolveElementReaction(source:Phaser.Physics.Arcade.Sprite,reaction:import('../../core/types/content.js').ElementReactionDefinition&{damage:number}):void {
+    if(reaction.healFraction)this.healPlayer(reaction.damage*reaction.healFraction);
+    if(reaction.spreadRadius){
+      const targets=this.activeTargets().filter(target=>target!==source&&Phaser.Math.Distance.Between(source.x,source.y,target.x,target.y)<=reaction.spreadRadius!);
+      for(const target of targets)this.damageEnemy(target,reaction.damage*.35,'fire');
+    }
+    if(reaction.chainTargets){
+      let current=source;const hit=new Set<Phaser.Physics.Arcade.Sprite>([source]);
+      for(let i=0;i<reaction.chainTargets;i++){
+        const next=this.activeTargets().filter(target=>!hit.has(target))
+          .sort((a,b)=>Phaser.Math.Distance.Between(current.x,current.y,a.x,a.y)-Phaser.Math.Distance.Between(current.x,current.y,b.x,b.y))[0];
+        if(!next||Phaser.Math.Distance.Between(current.x,current.y,next.x,next.y)>190)break;
+        hit.add(next);current=next;this.damageEnemy(next,reaction.damage*.35);
+      }
+    }
+  }
+
   private chainLightningFrom(source:Phaser.Physics.Arcade.Sprite,damage:number):void {
     const field=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='lightning-field')?.specialUpgrade.mechanic;
     if(field?.kind==='lightning-field'&&isPassiveSpecialActive(this.build,'storm-conductor'))this.spawnPassiveZone(source.x,source.y,field);
@@ -998,12 +1016,13 @@ export class RunScene extends Phaser.Scene {
   private damageBossTarget(boss:Phaser.Physics.Arcade.Sprite,baseDamage:number,element?:ElementId):void {
     if(!this.bossDefinition||!this.bossState||this.bossState.defeated)return;
     const curse=this.bossElementState.dark&&this.bossElementState.dark.expiresAt>this.time.now?this.bossElementState.dark.stacks:0;
-    let damage=baseDamage*(1+curse*.06);
+    const poison=this.bossElementState.poison&&this.bossElementState.poison.expiresAt>this.time.now?this.bossElementState.poison.stacks:0;
+    let damage=baseDamage*(1+curse*.06+poison*.025);
     if(element){
       const elementDef=ELEMENTS.find(e=>e.id===element)!;
       const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier*this.relicStats.elementalBuildupMultiplier};
       const hit=applyElementHit(this.bossElementState,tuned,damage,this.bossDefinition.resistance[element]??0,this.time.now,ELEMENTS);
-      this.bossElementState=hit.state;damage=hit.damage+(hit.reaction?.damage??0);
+      this.bossElementState=hit.state;damage=hit.damage+(hit.reaction?.damage??0);if(hit.reaction)this.resolveElementReaction(boss,hit.reaction);
       if(isPassiveSpecialActive(this.build,'venom-vial')&&isPoisonBloomReady(hit.state.poison?.stacks??0,5)){const bloom=PASSIVES.find(item=>item.id==='venom-vial')!.specialUpgrade.mechanic;if(bloom.kind==='poison-spores'){const ready=tryPassiveCooldown(this.passiveSpecialState,'toxic-bloom',this.time.now,bloom.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)this.spawnPassiveZone(boss.x,boss.y,bloom);}}
       if(hit.triggered&&element==='spirit')this.healPlayer(Math.max(1,this.state.maxHealth*.025));
       if(hit.triggered&&element==='blood'){const sacrament=PASSIVES.find(item=>item.id==='blood-reliquary')!.specialUpgrade.mechanic;const bonus=sacrament.kind==='low-health-lifesteal'&&isPassiveSpecialActive(this.build,'blood-reliquary')?getLowHealthLifestealBonus(this.state.health,this.state.maxHealth,sacrament):0;this.healPlayer(damage*(.03+this.currentBuildStats().lifesteal+bonus));}
@@ -1314,7 +1333,7 @@ export class RunScene extends Phaser.Scene {
       const status=this.elementStates.get(enemy);if(!status)continue;
       const tick=tickElementStatuses(status,time);this.elementStates.set(enemy,tick.state);
       if(tick.damage>0)this.damageEnemy(enemy,tick.damage);
-      enemy.setAlpha(tick.slowed||Boolean(this.enemyStates.get(enemy)?.burrowed)? .58:1);
+      enemy.setAlpha(tick.slowed||tick.frozen||Boolean(this.enemyStates.get(enemy)?.burrowed)? .58:1);
     }
     if(this.bossState&&this.bossSprite?.active){const tick=tickElementStatuses(this.bossElementState,time);this.bossElementState=tick.state;if(tick.damage>0)this.damageBossTarget(this.bossSprite,tick.damage);}
   }
