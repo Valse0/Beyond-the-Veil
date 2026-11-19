@@ -57,6 +57,8 @@ export function weaponLevelStats(progress:WeaponProgress,definition:WeaponDefini
     intervalMs:Math.max(120,Math.round(row.intervalMs*(modifiers?.intervalMultiplier??1))),
     range:Math.round(row.range*(modifiers?.rangeMultiplier??1)),
     projectiles:Math.max(1,row.projectiles+(modifiers?.projectileBonus??0)),
+    baseProjectiles:row.projectiles,
+    projectileBonus:modifiers?.projectileBonus??0,
     pierce:(definition.behavior==='piercing-thrust'?2:1)+(modifiers?.pierceBonus??0),
     areaMultiplier:modifiers?.areaMultiplier??1,
     chainTargetBonus:modifiers?.chainTargetBonus??0,
