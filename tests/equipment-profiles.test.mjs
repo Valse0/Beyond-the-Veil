@@ -189,7 +189,7 @@ test('schema 0 through 4 migrations initialize profile collections and preserve 
     storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(legacy));
     const result = new SaveManager(storage, fixedNow).load();
     assert.equal(result.status, 'migrated', 'schema ' + version);
-    assert.equal(result.data.schemaVersion, 9);
+    assert.equal(result.data.schemaVersion, 10);
     assert.equal(result.data.progression.soulEssence, 200 + version);
     assert.deepEqual(result.data.progression.equipmentProfiles, {});
     assert.deepEqual(result.data.progression.activeEquipmentProfileIds, {});
