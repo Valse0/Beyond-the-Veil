@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BOSSES } from '../.test-dist/src/data/bosses.js';
+import { ENEMIES } from '../.test-dist/src/data/enemies.js';
 import { BOSS_VARIANTS } from '../.test-dist/src/data/boss-variants.js';
 import { resolveBossVariant } from '../.test-dist/src/gameplay/bosses/boss-variant-runtime.js';
 
@@ -14,6 +15,7 @@ test('catalog contains ten unique story-linked boss variants across all five bos
     for(const phase of variant.phases){
       assert.equal(phase.attacks.length,2,variant.id+' '+phase.id);
       assert.ok(phase.addEnemyIds.length>0,variant.id+' '+phase.id);
+      for(const enemyId of phase.addEnemyIds)assert.ok(ENEMIES.some(enemy=>enemy.id===enemyId),variant.id+' references unknown support enemy '+enemyId);
       assert.ok(phase.bossDamageMultiplier>=.8&&phase.bossDamageMultiplier<=1.3,variant.id+' '+phase.id);
       assert.ok(phase.movementMultiplier>=.75&&phase.movementMultiplier<=1.3,variant.id+' '+phase.id);
       assert.ok(phase.attacks.every(attack=>attack.telegraph.warningMs>=550&&attack.cooldownMs>=3300),variant.id+' '+phase.id);

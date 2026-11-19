@@ -1058,6 +1058,11 @@ test('all ten story boss variants are selected and applied in live Phaser boss e
     expect(snapshot.phaseMovementMultiplier).toBeGreaterThan(0);
     phaseSignatures.add([snapshot.phaseName,snapshot.phaseAttackShapes.join(','),snapshot.phaseAddEnemyIds.join(','),snapshot.phaseDamageMultiplier,snapshot.phaseMovementMultiplier].join('|'));
     expect(snapshot.objects.length).toBeGreaterThan(0);
+    const phaseResult=await callBossArena(page,'browserTestAdvanceBossPhase') as {phaseIndex:number;spawnedSupportEnemyIds:string[]};
+    expect(phaseResult.phaseIndex).toBe(1);
+    const advanced=await callBossArena(page,'browserTestArenaSnapshot') as BossArenaSnapshot;
+    expect(advanced.phaseName).not.toBe(snapshot.phaseName);
+    for(const enemyId of advanced.phaseAddEnemyIds)expect(phaseResult.spawnedSupportEnemyIds).toContain(enemyId);
   }
   expect(phaseSignatures.size).toBe(10);
   await callBossArena(page,'browserTestSpawnBossForRegion',['cursed-forest',[]]);
