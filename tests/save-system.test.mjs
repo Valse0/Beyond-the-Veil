@@ -240,7 +240,7 @@ test('respec refuses a profile without investments and does not change either sa
 
   assert.equal(manager.respecPermanentUpgrades(), false);
   assert.equal(storage.getItem(SAVE_STORAGE_KEY), beforePrimary);
-  assert.equal(storage.getItem(SAVE_BACKUP_KEY), beforePrimary);
+  assert.equal(storage.getItem(SAVE_BACKUP_KEY), beforeBackup);
 });
 
 test('respec deducts its fee from the recovered investment, even with no loose essence', () => {
@@ -278,5 +278,5 @@ test('respec does not alter the current save if storage rejects the write', () =
 
   assert.equal(manager.respecPermanentUpgrades(), false);
   assert.equal(storage.getItem(SAVE_STORAGE_KEY), beforePrimary);
-  assert.equal(storage.getItem(SAVE_BACKUP_KEY), beforeBackup);
+  assert.equal(storage.getItem(SAVE_BACKUP_KEY), beforePrimary);
 });
