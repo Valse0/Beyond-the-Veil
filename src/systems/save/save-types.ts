@@ -2,7 +2,7 @@ export type JsonValue = string | number | boolean | null | JsonValue[] | { [key:
 export type JsonObject = { [key: string]: JsonValue };
 
 export interface SaveData {
-  schemaVersion: 1;
+  schemaVersion: 2;
   profile: { createdAt: string; updatedAt: string };
   progression: {
     soulEssence: number;
