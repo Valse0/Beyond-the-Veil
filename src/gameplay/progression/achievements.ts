@@ -17,5 +17,20 @@ add('runs-completed',1);add('total-kills',safeCount(run.kills));if(run.won)add('
 if(!next.achievementPlayedCharacterIds.includes(run.characterId))next.achievementPlayedCharacterIds.push(run.characterId);if(!next.achievementExploredRegionIds.includes(run.regionId))next.achievementExploredRegionIds.push(run.regionId);
 for(const id of run.completedCollectionIds??[])if(!next.completedCollectionIds.includes(id))next.completedCollectionIds.push(id);
 next.achievementProgress['unique-characters']=next.achievementPlayedCharacterIds.length;next.achievementProgress['unique-regions']=next.achievementExploredRegionIds.length;next.achievementProgress['completed-collections']=next.completedCollectionIds.length;
-const completed=new Set(next.completedAchievementIds);for(const item of ACHIEVEMENTS){if(completed.has(item.id))continue;const conditionMet=item.collectionId?next.completedCollectionIds.includes(item.collectionId as CollectionId):(next.achievementProgress[item.metric]??0)>=item.target;if(!conditionMet)continue;completed.add(item.id);grantReward(next,item.reward);}next.completedAchievementIds=[...completed];return next as T;
+return applyAchievementCollectionProgress(next as T);
+}
+
+/** Re-evaluate already-earned metrics and collection completions without incrementing run counters. */
+export function applyAchievementCollectionProgress<T extends AchievementCollections>(collections:T):T{
+const next:AchievementCollections={...collections,completedAchievementIds:[...collections.completedAchievementIds],unlockedCollectionRewardIds:[...collections.unlockedCollectionRewardIds],unlockedCosmeticIds:[...collections.unlockedCosmeticIds],relicIds:[...collections.relicIds],unlockedWeaponVariantIds:[...collections.unlockedWeaponVariantIds]};
+const completed=new Set(next.completedAchievementIds);
+for(const item of ACHIEVEMENTS){
+if(completed.has(item.id))continue;
+const conditionMet=item.collectionId?next.completedCollectionIds.includes(item.collectionId as CollectionId):(next.achievementProgress[item.metric]??0)>=item.target;
+if(!conditionMet)continue;
+completed.add(item.id);
+grantReward(next,item.reward);
+}
+next.completedAchievementIds=[...completed];
+return {...collections,...next} as T;
 }

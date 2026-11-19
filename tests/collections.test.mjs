@@ -85,3 +85,17 @@ test('full collections complete once and grant six rewards plus the grand-comple
   assert.equal(again.collections.unlockedCollectionRewardIds.length, 7);
   assert.equal(again.collections.completedAchievementIds.filter(id => id.startsWith('collection-')).length, 6);
 });
+
+test('relics granted by achievements count toward relic-vault completion immediately', () => {
+  const save = createInitialSaveData();
+  const achievementRelics = new Set(['forest-heart', 'king-crown-shard', 'grave-lament']);
+  save.collections.relicIds = RELICS.filter(item => !achievementRelics.has(item.id)).map(item => item.id);
+  const result = applyRunResult(save, {
+    regionId: 'cursed-forest', won: true, soulEssenceEarned: 0,
+    characterId: 'cursed-hunter', kills: 100, explorationEventsCompleted: 3
+  });
+  assert.equal(result.collections.relicIds.length, 10);
+  assert.ok(result.collections.completedCollectionIds.includes('relic-vault'));
+  assert.ok(result.collections.completedAchievementIds.includes('collection-relic-vault'));
+  assert.ok(result.collections.unlockedCollectionRewardIds.includes('relic-curator'));
+});

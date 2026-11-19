@@ -5,7 +5,7 @@ import { CRAFTING_MATERIALS } from '../../data/crafting.js';
 import { grantCraftingMaterials } from '../crafting/crafting-runtime.js';
 import type { SaveData } from '../../systems/save/save-types.js';
 import { applyCharacterMastery, calculateRunMasteryPoints } from '../progression/character-mastery.js';
-import { applyAchievementRunProgress } from '../progression/achievements.js';
+import { applyAchievementCollectionProgress, applyAchievementRunProgress } from '../progression/achievements.js';
 import { applyCollectionProgress } from '../progression/collections.js';
 
 export interface RunResultInput {
@@ -52,9 +52,12 @@ export function applyRunResult(save: SaveData, result: RunResultInput): SaveData
     characterBioIds: result.characterId ? [result.characterId] : [],
     loreIds: result.loreIdsEarned
   });
-  const achievements = result.characterId
+  const runProgress = result.characterId
     ? applyAchievementRunProgress(collectionProgress, { kills: result.kills ?? 0, won: result.won, characterId: result.characterId, regionId: result.regionId, explorationEventsCompleted: result.explorationEventsCompleted ?? 0, completedCollectionIds: collectionProgress.completedCollectionIds })
     : collectionProgress;
+  // Achievement relic rewards are owned relics too, so refresh collection completion after rewards.
+  const refreshedCollections = applyCollectionProgress(runProgress, {});
+  const achievements = applyAchievementCollectionProgress(refreshedCollections);
   return {
     ...save,
     collections: { ...save.collections, ...mastery, ...achievements, relicIds: [...new Set(achievements.relicIds)], craftingMaterials: grantCraftingMaterials(save.collections.craftingMaterials, validMaterials) },
