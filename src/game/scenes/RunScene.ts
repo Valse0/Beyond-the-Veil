@@ -495,9 +495,10 @@ export class RunScene extends Phaser.Scene {
     const progress=this.build.weapons[0]!;
     const stats=weaponLevelStats(progress,weapon,this.unlockedWeaponVariantIds);
     const after=targets.map(enemy=>Number(enemy.getData('health')));
+    const execution=this.lastWeaponExecution as {weaponId:string;behavior:string}|undefined;
     return {
       weaponId,branchId,evolved:progress.evolved,evolutionName:stats.evolutionName,behavior:stats.behavior,
-      executedBehavior:this.lastWeaponExecution?.weaponId===weaponId?this.lastWeaponExecution.behavior:null,
+      executedBehavior:execution?.weaponId===weaponId?execution.behavior:null,
       projectileCount:this.shots.getChildren().filter(child=>child.active&&child.getData('weaponId')===weaponId).length,
       damagedTargetCount:after.filter((health,index)=>health<before[index]!).length
     };
@@ -1077,7 +1078,7 @@ export class RunScene extends Phaser.Scene {
       if(distance>stats.range)continue;
       this.weaponReady[weapon.id]=time+stats.intervalMs/(this.currentBuildStats().attackSpeedMultiplier*this.relicStats.attackSpeedMultiplier*this.baseHasteMultiplier);
       const damage=stats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier*this.permanentUpgradeEffects.damageMultiplier*this.relicStats.damageMultiplier*getRelicDamageMultiplier(this.equippedRelicIds,this.character.id,weapon.element);
-      const behavior=stats.behavior;
+      let behavior=stats.behavior;
       if(weapon.id==='oath-pike'&&getActiveWeaponSynergies(weapon.id,this.build.passives.map(passive=>passive.passiveId)).some(item=>item.kind==='storm-lance'))behavior='chain-lightning';
       this.executeWeapon(weapon,behavior,damage,stats.projectiles,stats.range,target,stats);
     }
