@@ -206,6 +206,7 @@ type BrowserRunSnapshot = {
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
   runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
   health:number;maxHealth:number;damage:number;moveSpeed:number;permanentUpgradeEffects:{maxHealthBonus:number;damageMultiplier:number;moveSpeedMultiplier:number;armorBonus:number;xpGainMultiplier:number;extraRerolls:number};passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
+  availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
   weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
   shotDiagnostics:{weaponId:string;damage:number}[];
   bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;finishTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null;sceneTime:{paused:boolean;now:number;active:boolean};playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
@@ -214,7 +215,7 @@ type BrowserRunSnapshot = {
   runEvents:{selected:string[];active:{kind:string;progress:number;stage:number;status:string}|null;completed:string[];failed:string[]};
 };
 
-async function startBrowserTestRun(page: import('@playwright/test').Page): Promise<import('@playwright/test').Locator> {
+async function startBrowserTestRun(page: import('@playwright/test').Page,unlockedPathIds:string[]=[]): Promise<import('@playwright/test').Locator> {
   await page.goto('/?bv-test=1');
   const canvas=page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
@@ -222,6 +223,12 @@ async function startBrowserTestRun(page: import('@playwright/test').Page): Promi
     const game=(window as Window & {__BEYOND_VEIL_GAME__?: {registry:{get:(key:string)=>unknown}}}).__BEYOND_VEIL_GAME__;
     return Boolean(game&&game.registry.get('browserTestMode')===true);
   });
+  if(unlockedPathIds.length)await page.evaluate(ids=>{
+    const key='beyond-the-veil.save';const raw=window.localStorage.getItem(key);
+    if(!raw)throw new Error('First-launch save was not created before story-path test setup.');
+    const save=JSON.parse(raw) as {story:{unlockedPathIds:string[]}};
+    save.story.unlockedPathIds=ids;window.localStorage.setItem(key,JSON.stringify(save));
+  },unlockedPathIds);
   await page.mouse.click(160,555);
   await page.mouse.move(1240,40);
   await page.waitForTimeout(150);
@@ -1282,4 +1289,25 @@ test('real Phaser exploration overlaps persist lore and secret paths on defeat a
   expect(snapshot.discoveredLoreIds).toEqual([]);
   expect(snapshot.discoveredPathIds).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+
+test('saved main-quest choice opens and traverses only its matching live story passage',async({page})=>{
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page,['forest-mercy-path','grave-silent-gate','cursed-forest-secret']);
+  const before=await readBrowserRunSnapshot(page);
+  expect(before.availableStoryPathIds).toEqual(['forest-mercy-path']);
+  expect(before.lastTraversedStoryPathId).toBeNull();
+
+  await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestMoveToStoryPath:(id:string)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestMoveToStoryPath('forest-mercy-path');
+  });
+  await expect.poll(async()=>(await readBrowserRunSnapshot(page)).lastTraversedStoryPathId).toBe('forest-mercy-path');
+  const after=await readBrowserRunSnapshot(page);
+  expect(after.playerX).toBeCloseTo(300,0);
+  expect(after.playerY).toBeCloseTo(270,0);
+  expect(pageErrors).toEqual([]);
 });

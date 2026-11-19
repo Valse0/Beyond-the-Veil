@@ -211,3 +211,13 @@ The five main-region quest outcomes unlock one of two authored boss encounter va
 Each variant replaces the boss's three phase names, attack telegraphs/damage/cooldowns, support enemy groups, and phase-specific boss damage/movement multipliers. The original boss identity, health thresholds, arena definition and mechanics, elemental weaknesses/resistances, rewards, and boss-chest flow are retained. If no matching story outcome exists, the original boss definition is used unchanged. Variant visuals continue using the existing boss placeholder asset; no final UI or art is included.
 
 The ten story links are: Thorn Matriarch (awakened/corrupted), Ossuary King (reckoning/warhost), Furnace Colossus (dormant/overheated), Mire Oracle (awakened/usurper), and Unwritten Regent (sealed/unbound). Automated unit and live Phaser browser checks cover every branch and the no-choice fallback. Natural-run difficulty and balance still require player testing.
+
+
+## World Path Unlock Integration v1
+
+- Ten authored traversable story passages map exclusively to the two outcomes of each of the five main regional quests.
+- A passage becomes available only when its exact outcome path ID is present in the saved story state and the player enters the matching region.
+- The story-path catalog is deliberately separate from exploration discovery IDs (for example, `cursed-forest-secret`); discovering a lore marker or secret point does not fabricate a story branch.
+- In the current 2400×1800 Phaser play area, an unlocked passage is represented by a temporary portal marker and a destination beacon. Entering the marker uses the real Arcade overlap path to move the hunter to its authored destination point.
+- Passage traversal does not mutate save data: the branch outcome remains the persistent unlock, and the same route is available again on a later region entry.
+- This is the first gameplay integration inside the existing play area, not the final organic multi-room region map. Physical corridors, sub-area geometry, final art/audio, natural-run balance and mobile/TV validation remain outstanding.

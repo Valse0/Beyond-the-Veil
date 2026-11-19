@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { ElementId, RegionId, EnemyDefinition, BossDefinition, CharacterDefinition, WeaponDefinition, PassiveSpecialMechanic } from '../../core/types/content.js';
+import type { ElementId, RegionId, RegionPathDefinition, EnemyDefinition, BossDefinition, CharacterDefinition, WeaponDefinition, PassiveSpecialMechanic } from '../../core/types/content.js';
 import type { RunState, UpgradeId } from '../../core/types/game.js';
 import { CHARACTERS, STARTING_CHARACTER } from '../../data/characters.js';
 import { ENEMIES } from '../../data/enemies.js';
@@ -10,6 +10,7 @@ import { RELICS } from '../../data/relics.js';
 import { CRAFTING_MATERIALS } from '../../data/crafting.js';
 import { ELEMENTS } from '../../data/elements.js';
 import { REGIONS } from '../../data/regions.js';
+import { resolveUnlockedRegionPaths } from '../../gameplay/world/region-path-runtime.js';
 import { resolveBossVariant } from '../../gameplay/bosses/boss-variant-runtime.js';
 import { findNearestTarget } from '../../gameplay/combat/combat-rules.js';
 import { advanceRun, applyUpgrade, createRunState, gainExperience, recordKill } from '../../gameplay/run/run-model.js';
@@ -153,6 +154,8 @@ export class RunScene extends Phaser.Scene {
   private runDiscoveredEnemyIds:string[]=[];
   private runDiscoveredLoreIds:string[]=[];
   private runDiscoveredPathIds:string[]=[];
+  private activeStoryPaths:RegionPathDefinition[]=[];
+  private lastTraversedStoryPathId:string|null=null;
   private questSaveData?:SaveData;
   private runDiscoveredWeaponIds:string[]=[];
   private unlockedWeaponVariantIds:string[]=[];
@@ -173,7 +176,7 @@ export class RunScene extends Phaser.Scene {
     paused:boolean;bossSpawned:boolean;bossVariantId:string|null;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
     runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
     questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
-    discoveredLoreIds:string[];discoveredPathIds:string[];
+    discoveredLoreIds:string[];discoveredPathIds:string[];availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
     passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
     weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
     shotDiagnostics:{weaponId:string;damage:number}[];
@@ -194,7 +197,7 @@ export class RunScene extends Phaser.Scene {
       runSoulEssence:this.runSoulEssence,runRelicIds:[...this.runRelicIds],equippedRelicIds:[...this.equippedRelicIds],runCraftingMaterials:{...this.runCraftingMaterials},kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
       bossHealth:this.bossState?.health??null,health:this.state.health,maxHealth:this.state.maxHealth,damage:this.state.damage,moveSpeed:this.state.moveSpeed,
       questProgress:Object.fromEntries(Object.entries(this.questSaveData?.story.quests??{}).map(([id,progress])=>[id,{status:progress.status,objectiveProgress:{...progress.objectiveProgress}}])),
-      discoveredLoreIds:[...this.runDiscoveredLoreIds],discoveredPathIds:[...this.runDiscoveredPathIds],
+      discoveredLoreIds:[...this.runDiscoveredLoreIds],discoveredPathIds:[...this.runDiscoveredPathIds],availableStoryPathIds:this.activeStoryPaths.map(path=>path.id),lastTraversedStoryPathId:this.lastTraversedStoryPathId,
       bossChestDiagnostics:(()=>{
         const playerBody=this.player.body as Phaser.Physics.Arcade.Body;
         const chest=this.eventObjects.getChildren().find(object=>object.getData('eventObjectType')==='boss-chest');
@@ -608,6 +611,13 @@ export class RunScene extends Phaser.Scene {
     this.player.setPosition(point.x,point.y).setVelocity(0,0);
   }
 
+  browserTestMoveToStoryPath(pathId:string):void {
+    this.assertBrowserTestMode();
+    const gate=this.eventObjects.getChildren().find(object=>object.getData('eventObjectType')==='story-path-gate'&&object.getData('storyPathId')===pathId) as Phaser.GameObjects.GameObject&{x:number;y:number}|undefined;
+    if(!gate)throw new Error('The requested unlocked story path is not present: '+pathId);
+    this.player.setPosition(gate.x,gate.y).setVelocity(0,0);
+  }
+
   browserTestMoveToBossChest():void {
     this.assertBrowserTestMode();
     const chest=this.eventObjects.getChildren().find(object=>object.getData('eventObjectType')==='boss-chest') as Phaser.GameObjects.GameObject&{x:number;y:number}|undefined;
@@ -688,7 +698,7 @@ export class RunScene extends Phaser.Scene {
     this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.bossArenaState=undefined;this.playerPoisonStacks=0;this.playerPoisonExpiresAt=0;this.playerPoisonNextTickAt=0;this.arenaInteractionReadyAt=0;this.lastBossArenaVisualsAt=0;this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;this.weaponSynergyGuardUntil=0;this.weaponSynergyGuardReduction=.28;this.weaponSynergyTriggers=[];
-    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.runDiscoveredLoreIds=[];this.runDiscoveredPathIds=[];this.bossChestOpened=false;this.completedTreasureHunt=false;this.runCraftingMaterials={};this.lastRunSaved=null;
+    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.runDiscoveredLoreIds=[];this.runDiscoveredPathIds=[];this.activeStoryPaths=[];this.lastTraversedStoryPathId=null;this.bossChestOpened=false;this.completedTreasureHunt=false;this.runCraftingMaterials={};this.lastRunSaved=null;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
@@ -708,6 +718,7 @@ export class RunScene extends Phaser.Scene {
     this.physics.add.overlap(this.player,this.orbs,(_p,o)=>this.collectOrb(o as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.eventObjects,(_p,o)=>this.handleRunEventObjectOverlap(o as Phaser.GameObjects.GameObject));
     this.spawnExplorationPoints(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
+    this.spawnUnlockedStoryPaths(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
     this.createHud();this.createTouchControls();this.spawnEnemy();this.waveDirector={...this.waveDirector,spawnIndex:1,nextSpawnAtMs:1500};this.refreshBuildStats();
   }
 
@@ -1494,6 +1505,24 @@ export class RunScene extends Phaser.Scene {
     if(secret&&!knownPaths.has(secret.id))this.createExplorationPoint(WORLD_W/2+330,WORLD_H/2+220,'exploration-secret',secret.id);
   }
 
+  private spawnUnlockedStoryPaths(save?:SaveData):void {
+    this.activeStoryPaths=resolveUnlockedRegionPaths(this.region.id,save?.story.unlockedPathIds??[]);
+    for(const path of this.activeStoryPaths)this.createStoryPathGate(path);
+  }
+
+  private createStoryPathGate(path:RegionPathDefinition):void {
+    const marker=this.add.circle(path.entry.x,path.entry.y,20,0x7651a0,.92).setStrokeStyle(4,0xd7b8ff,.95).setDepth(5);
+    this.physics.add.existing(marker);
+    const body=marker.body as Phaser.Physics.Arcade.Body;
+    body.setAllowGravity(false);body.setImmovable(true);body.setCircle(22);
+    marker.setData('eventObjectType','story-path-gate').setData('storyPathId',path.id);
+    const label=this.add.text(path.entry.x,path.entry.y-34,path.name.toLocaleUpperCase('tr-TR'),{fontSize:'11px',fontStyle:'bold',color:'#ead8ff',stroke:'#17131a',strokeThickness:3}).setOrigin(.5).setDepth(7);
+    marker.setData('eventObjectLabel',label);
+    this.eventObjects.add(marker);
+    this.add.circle(path.destination.x,path.destination.y,28,0x7651a0,.2).setStrokeStyle(3,0xd7b8ff,.72).setDepth(1);
+    this.add.text(path.destination.x,path.destination.y-38,'GEÇİT SONU',{fontSize:'10px',fontStyle:'bold',color:'#d7c1ef',stroke:'#17131a',strokeThickness:3}).setOrigin(.5).setDepth(2);
+  }
+
   private createExplorationPoint(x:number,y:number,type:'exploration-lore'|'exploration-secret',pointId:string):void {
     const secret=type==='exploration-secret';
     const marker=this.add.circle(x,y,secret?17:15,secret?0x8062a6:0xd4ad65,.92).setStrokeStyle(3,secret?0xe0c4ff:0xffe6a8).setDepth(5);
@@ -1535,6 +1564,17 @@ export class RunScene extends Phaser.Scene {
 
   private collectRunEventObject(object:Phaser.GameObjects.GameObject):void {
     const type=object.getData('eventObjectType');
+    if(type==='story-path-gate'){
+      const pathId=String(object.getData('storyPathId')??'');
+      const path=this.activeStoryPaths.find(item=>item.id===pathId);
+      if(!path||this.lastTraversedStoryPathId===path.id)return;
+      this.lastTraversedStoryPathId=path.id;
+      (object.getData('eventObjectLabel') as Phaser.GameObjects.GameObject|undefined)?.destroy();
+      object.destroy();
+      this.player.setPosition(path.destination.x,path.destination.y).setVelocity(0,0);
+      this.eventHud?.setText('HİKÂYE YOLU AÇILDI  •  '+path.name.toLocaleUpperCase('tr-TR')).setVisible(true);
+      return;
+    }
     if(type==='exploration-lore'||type==='exploration-secret'){
       const pointId=String(object.getData('explorationPointId')??'');
       const label=object.getData('eventObjectLabel') as Phaser.GameObjects.GameObject|undefined;
