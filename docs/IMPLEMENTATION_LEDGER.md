@@ -274,3 +274,14 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Added pure rule tests for all 12 mechanics and browser coverage for selecting Last Ward via the Phaser UI and surviving a lethal hit at 1 HP.
 - CI #44428703010 on `full-game-development`: TypeScript PASS; 91/91 unit tests PASS; production build PASS; Chromium Playwright 10/10 PASS; npm audit 0 vulnerabilities.
 - Requirement state is `IMPLEMENTED_UNVERIFIED`, not `VERIFIED`: physical phone/gamepad/TV checks, playtest balance, and final original visual/audio assets remain outstanding. No asset production was started; notify the user before that phase.
+
+
+## Weapon–passive synergy implementation package (2026-11-19)
+
+| Requirement | Scope | Status | Evidence | Remaining work |
+|---|---|---|---|---|
+| SYNERGY-01 | §10.4 / §11 — all authored weapon/passive links execute as distinct combat behaviors | IMPLEMENTED_UNVERIFIED | `src/gameplay/weapons/weapon-synergies.ts` defines all 14 links authored in `PASSIVES.transformsWeaponIds`; all 12 weapons are covered. Unit tests validate exact catalog parity, immediate activation on passive ownership, unique mechanics, chain bonuses and weakened-target bonuses. Browser smoke exercises the real Phaser projectile-hit path for Eşik Kıvılcımı + Ruh Kabı. | Await CI for full TypeScript/unit/build/Chromium/audit verification. Full combinations, balance, visual/audio feedback, mobile/gamepad/TV hardware and natural long-run playtests remain. |
+| QA-01 follow-up | Automated synergy coverage | IN_PROGRESS | New focused suite: `tests/weapon-synergies.test.mjs`; browser scenario added to `tests/browser-smoke.browser.spec.ts`. | Do not mark verified until CI completes with all steps successful. |
+
+- 2026-11-19: Began weapon–passive synergy work on `full-game-development` only. Test-first commit `06384745658d74038295bbce2b6106dd8bcf3c26` added six focused contracts; CI #209 (44430216271) failed as expected because the new runtime module did not yet exist (91 existing tests passed; the new test failed with ERR_MODULE_NOT_FOUND). This confirms the tests detect the missing feature. The implementation package adds the independent synergy catalog, connects each authored pair to a distinct combat effect, and adds one real Phaser projectile-hit browser scenario. No assets or engine changes.
+- Previous passive-ledger documentation CI #208 (44429037198) completed with Playwright 8/10: the selection-flow pause assertion timed out, and the boss reward assertion observed 181 rather than 180 Ruh Özü because an additional enemy reward was present. TypeScript, unit tests and production build completed before browser failure. These are pre-existing smoke-test brittleness findings; no unrelated gameplay or test changes are included in this synergy package.

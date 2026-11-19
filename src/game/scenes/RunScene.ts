@@ -13,6 +13,7 @@ import { advanceRun, applyUpgrade, createRunState, gainExperience, recordKill } 
 import { stepEnemyAI, type EnemyActorState } from '../../gameplay/enemies/enemy-runtime.js';
 import { applyElementHit, tickElementStatuses, type ElementState } from '../../gameplay/elements/element-runtime.js';
 import { addPassive, addWeapon, choosePassiveSpecial, chooseWeaponBranch, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState } from '../../gameplay/weapons/build-runtime.js';
+import { getActiveWeaponSynergies, getWeaponSynergyChainBonus, getWeaponSynergyDamageMultiplier } from '../../gameplay/weapons/weapon-synergies.js';
 import { addCurseStack, createPassiveSpecialRuntimeState, getLowHealthLifestealBonus, getWeakenedDamageMultiplier, grantFreeReroll, isFrozenTarget, isPassiveSpecialActive, isPoisonBloomReady, resolveCriticalHit, resolveLastWard, resolveSealedPlate, tryPassiveCooldown, type PassiveSpecialRuntimeState } from '../../gameplay/passives/passive-runtime.js';
 import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState } from '../../gameplay/bosses/boss-runtime.js';
 import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent } from '../../gameplay/regions/region-runtime.js';
@@ -120,6 +121,9 @@ export class RunScene extends Phaser.Scene {
   private passiveZones:{x:number;y:number;radius:number;expiresAt:number;nextTickAt:number;damage:number;tickMs:number;marker:Phaser.GameObjects.Graphics}[]=[];
   private passiveSpecialState:PassiveSpecialRuntimeState=createPassiveSpecialRuntimeState();
   private passiveSpecialFeedback?:Phaser.GameObjects.Text;
+  private weaponSynergyGuardUntil=0;
+  private weaponSynergyGuardReduction=.28;
+  private weaponSynergyTriggers:string[]=[];
 
   constructor(){super('run');}
 
@@ -132,7 +136,7 @@ export class RunScene extends Phaser.Scene {
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
     runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;
-    passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];
+    passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
     weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
     shotDiagnostics:{weaponId:string;damage:number}[];
     bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;finishTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null;sceneTime:{paused:boolean;now:number;active:boolean};playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
@@ -147,6 +151,7 @@ export class RunScene extends Phaser.Scene {
       evolvedWeaponIds:this.build.weapons.filter(weapon=>weapon.evolved).map(weapon=>weapon.weaponId),
       choices:this.currentLevelChoices.map(({id,title,kind,contentId,branchId})=>({id,title,kind,contentId,branchId})),
       passives:this.build.passives.map(item=>({...item})),activePassiveSpecialIds:this.build.passives.filter(item=>item.special).map(item=>item.passiveId),
+      activeWeaponSynergyIds:this.build.weapons.flatMap(weapon=>getActiveWeaponSynergies(weapon.weaponId,this.build.passives.map(passive=>passive.passiveId)).map(synergy=>synergy.id)),weaponSynergyTriggers:[...this.weaponSynergyTriggers],
       weapons:this.build.weapons.map(progress=>{const definition=WEAPONS.find(item=>item.id===progress.weaponId);const stats=definition?weaponLevelStats(progress,definition):undefined;return {weaponId:progress.weaponId,level:progress.level,branchId:progress.branchId??null,evolved:progress.evolved,stats:stats?{damage:stats.damage,intervalMs:stats.intervalMs,range:stats.range,projectiles:stats.projectiles,pierce:stats.pierce,areaMultiplier:stats.areaMultiplier,chainTargetBonus:stats.chainTargetBonus,branchName:stats.branchName??null}:null};}),
       shotDiagnostics:this.shots.getChildren().filter(child=>child.active&&child.getData('weaponId')).map(child=>({weaponId:String(child.getData('weaponId')),damage:Number(child.getData('damage'))})), 
       runSoulEssence:this.runSoulEssence,kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
@@ -170,6 +175,28 @@ export class RunScene extends Phaser.Scene {
       runEvents:{selected:[...this.runEventState.selectedEvents],active:this.runEventState.activeEvent?{kind:this.runEventState.activeEvent.kind,progress:this.runEventState.activeEvent.progress,stage:this.runEventState.activeEvent.stage,status:this.runEventState.activeEvent.status}:null,completed:[...this.runEventState.completedEvents],failed:[...this.runEventState.failedEvents]},
       controls:{...this.levelUpControls,bannedChoiceIds:[...this.levelUpControls.bannedChoiceIds]}
     };
+  }
+
+  browserTestFireWeaponSynergy(weaponId:string,passiveId:string):{activeSynergyIds:string[];primaryHealth:number;secondaryHealth:number;secondaryDamage:number} {
+    this.assertBrowserTestMode();
+    const weapon=WEAPONS.find(item=>item.id===weaponId),passive=PASSIVES.find(item=>item.id===passiveId);
+    if(!weapon||!passive)throw new Error('Unknown browser test weapon/passive pair.');
+    const active=getActiveWeaponSynergies(weaponId,[passiveId]);
+    if(!active.length)throw new Error('The selected passive does not define a synergy for '+weaponId+'.');
+    this.build={weapons:[{weaponId,level:1,evolved:false}],passives:[{passiveId,level:1,special:false}]};
+    this.weaponSynergyTriggers=[];
+    for(const child of [...this.shots.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
+    const definition=ENEMIES.find(item=>item.id===this.region.enemyIds[0]);
+    if(!definition)throw new Error('The current region has no test enemy.');
+    const primary=this.createEnemy(this.player.x+55,this.player.y,definition,1);
+    const secondary=this.createEnemy(this.player.x+78,this.player.y+8,definition,1);
+    const secondaryBefore=Number(secondary.getData('health'));
+    const stats=weaponLevelStats(this.build.weapons[0]!,weapon);
+    this.executeWeapon(weapon,weapon.behavior,12,1,stats.range,primary,stats);
+    const shot=this.shots.getChildren().find(child=>child.active&&child.getData('weaponId')===weaponId) as Phaser.Physics.Arcade.Sprite|undefined;
+    if(!shot)throw new Error('The test weapon did not create its expected projectile.');
+    this.hitEnemy(shot,primary);
+    return {activeSynergyIds:active.map(item=>item.id),primaryHealth:Number(primary.getData('health')),secondaryHealth:Number(secondary.getData('health')),secondaryDamage:secondaryBefore-Number(secondary.getData('health'))};
   }
 
   browserTestSpawnXpOrb(xp:number):void {
@@ -309,7 +336,7 @@ export class RunScene extends Phaser.Scene {
     if(this.runSeed===0)this.runSeed=1;
     this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
-    this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;
+    this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;this.weaponSynergyGuardUntil=0;this.weaponSynergyGuardReduction=.28;this.weaponSynergyTriggers=[];
     this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.lastRunSaved=null;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
@@ -627,12 +654,15 @@ export class RunScene extends Phaser.Scene {
       const weapon=WEAPONS.find(w=>w.id===progress.weaponId);if(!weapon)continue;
       const stats=weaponLevelStats(progress,weapon),ready=this.weaponReady[weapon.id]??0;
       if(time<ready)continue;
-      const target=findNearestTarget(this.player,targets);if(!target)continue;
+      const guided=getActiveWeaponSynergies(weapon.id,this.build.passives.map(passive=>passive.passiveId)).some(item=>item.kind==='crown-guidance');
+      const weakened=guided?targets.filter(enemy=>Number(enemy.getData('weakenedUntil')??0)>time):[];
+      const target=findNearestTarget(this.player,weakened.length?weakened:targets);if(!target)continue;
       const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,target.x,target.y);
       if(distance>stats.range)continue;
       this.weaponReady[weapon.id]=time+stats.intervalMs/(this.currentBuildStats().attackSpeedMultiplier*this.baseHasteMultiplier);
       const damage=stats.damage*this.currentBuildStats().damageMultiplier*this.character.stats.damageMultiplier;
-      const behavior=progress.evolved?this.evolvedWeaponBehavior(weapon):weapon.behavior;
+      let behavior=progress.evolved?this.evolvedWeaponBehavior(weapon):weapon.behavior;
+      if(weapon.id==='oath-pike'&&getActiveWeaponSynergies(weapon.id,this.build.passives.map(passive=>passive.passiveId)).some(item=>item.kind==='storm-lance'))behavior='chain-lightning';
       this.executeWeapon(weapon,behavior,damage,stats.projectiles,stats.range,target,stats);
     }
   }
@@ -649,6 +679,9 @@ export class RunScene extends Phaser.Scene {
 
   private executeWeapon(weapon:WeaponDefinition,behavior:string,damage:number,projectiles:number,range:number,target:Phaser.Physics.Arcade.Sprite,stats:ReturnType<typeof weaponLevelStats>):void {
     const targets=this.activeTargets(),element=weapon.element;
+    const passiveIds=this.build.passives.map(passive=>passive.passiveId);
+    const synergies=getActiveWeaponSynergies(weapon.id,passiveIds);
+    const synergy=(kind:string)=>synergies.find(item=>item.kind===kind);
     const angle=Phaser.Math.Angle.Between(this.player.x,this.player.y,target.x,target.y);
     if(behavior==='cleaving-arc'||behavior==='defensive-pulse'||behavior==='orbiting-blades'){
       const baseRadius=behavior==='cleaving-arc'?Math.min(150,range):behavior==='orbiting-blades'?Math.min(105,range):Math.min(135,range);
@@ -657,22 +690,65 @@ export class RunScene extends Phaser.Scene {
         if(behavior==='cleaving-arc'){const a=Phaser.Math.Angle.Between(this.player.x,this.player.y,enemy.x,enemy.y);if(Math.abs(Phaser.Math.Angle.Wrap(a-angle))>1.15)continue;}
         this.damageEnemy(enemy,damage,element);
       }
+      const aftershock=synergy('grave-aftershock');
+      if(behavior==='cleaving-arc'&&aftershock){
+        this.recordWeaponSynergy(aftershock.id);
+        const radius=aftershock.radius??92;
+        const pulse=this.add.circle(this.player.x,this.player.y,radius,0xb6a17b,.14).setDepth(6);
+        this.time.delayedCall(140,()=>pulse.destroy());
+        this.damageTargetsInRadius(this.player.x,this.player.y,radius,damage*(aftershock.damageMultiplier??.42),element);
+      }
+      const ward=synergy('ward-pulse');
+      if(behavior==='defensive-pulse'&&ward){
+        this.recordWeaponSynergy(ward.id);
+        this.weaponSynergyGuardUntil=Math.max(this.weaponSynergyGuardUntil,this.time.now+(ward.durationMs??700));
+        this.weaponSynergyGuardReduction=ward.damageReduction??.28;
+        this.showPassiveSpecialFeedback('MUHAFIZ ÇEMBERİ');
+      }
+      const frost=synergy('frost-ring');
+      if(behavior==='orbiting-blades'&&frost){
+        const state=target.getData('isBoss')?this.bossElementState:(this.elementStates.get(target)??{});
+        if(isFrozenTarget(state.ice?.expiresAt,this.time.now)){
+          this.recordWeaponSynergy(frost.id);
+          this.damageTargetsInRadius(target.x,target.y,frost.radius??82,damage*(frost.damageMultiplier??.35),'ice');
+        }
+      }
       this.cameras.main.shake(45,.001);return;
     }
     if(behavior==='chain-lightning'){
       let current=target;const hit=new Set<Phaser.Physics.Arcade.Sprite>();
-      for(let i=0;i<Math.min(5,Math.min(3,projectiles+1)+stats.chainTargetBonus);i++){if(hit.has(current))break;hit.add(current);this.damageEnemy(current,damage*(1-i*.16),element);
+      const maxTargets=Math.min(5,Math.min(3,projectiles+1)+stats.chainTargetBonus+getWeaponSynergyChainBonus(weapon.id,passiveIds));
+      let lastTarget=current;
+      for(let i=0;i<maxTargets;i++){if(hit.has(current))break;hit.add(current);lastTarget=current;this.damageEnemy(current,damage*(1-i*.16),element);
         const next=targets.filter(t=>!hit.has(t)).sort((a,b)=>Phaser.Math.Distance.Between(current.x,current.y,a.x,a.y)-Phaser.Math.Distance.Between(current.x,current.y,b.x,b.y))[0];if(!next||Phaser.Math.Distance.Between(current.x,current.y,next.x,next.y)>170)break;current=next;}
+      const ember=synergy('ember-burst');
+      if(ember&&hit.size>0){this.recordWeaponSynergy(ember.id);this.damageTargetsInRadius(lastTarget.x,lastTarget.y,ember.radius??72,damage*(ember.damageMultiplier??.45),'fire');}
+      const storm=synergy('storm-lance');
+      if(storm)this.recordWeaponSynergy(storm.id);
       return;
     }
     if(behavior==='life-tether'){
       this.damageEnemy(target,damage,element);
       if(stats.chainTargetBonus>0){const secondary=targets.filter(item=>item!==target).sort((a,b)=>Phaser.Math.Distance.Between(target.x,target.y,a.x,a.y)-Phaser.Math.Distance.Between(target.x,target.y,b.x,b.y))[0];if(secondary&&Phaser.Math.Distance.Between(target.x,target.y,secondary.x,secondary.y)<=170)this.damageEnemy(secondary,damage*.65,element);}
-      this.healPlayer(damage*this.currentBuildStats().lifesteal);return;
+      const blood=synergy('blood-thread');
+      if(blood)this.recordWeaponSynergy(blood.id);
+      this.healPlayer(damage*(this.currentBuildStats().lifesteal+(blood?.damageMultiplier??0)));return;
     }
     if(behavior==='delayed-mortar'||behavior==='delayed-sigil'||behavior==='area-seed'){
       const marker=this.add.graphics().setDepth(7);marker.lineStyle(2,elementTint[element],.9);marker.strokeCircle(target.x,target.y,Math.min(72,range*.28)*stats.areaMultiplier);
-      this.time.delayedCall(behavior==='area-seed'?450:650,()=>{if(!this.runFinished){this.damageTargetsInRadius(target.x,target.y,Math.min(78,range*.3)*stats.areaMultiplier,damage,element);}marker.destroy();});return;
+      this.time.delayedCall(behavior==='area-seed'?450:650,()=>{
+        if(!this.runFinished){
+          const impactRadius=Math.min(78,range*.3)*stats.areaMultiplier;
+          this.damageTargetsInRadius(target.x,target.y,impactRadius,damage,element,weapon.id);
+          const venom=synergy('venom-trail');
+          if(behavior==='area-seed'&&venom){this.recordWeaponSynergy(venom.id);this.spawnWeaponSynergyZone(target.x,target.y,venom.radius??84,venom.durationMs??1800,venom.tickMs??600,venom.damageMultiplier??.025,'poison');}
+          const magma=synergy('magma-rift');
+          if(behavior==='delayed-mortar'&&magma){this.recordWeaponSynergy(magma.id);this.spawnWeaponSynergyZone(target.x,target.y,magma.radius??92,magma.durationMs??1800,magma.tickMs??600,magma.damageMultiplier??.025,'fire');}
+          const curse=synergy('curse-sigil');
+          if(behavior==='delayed-sigil'&&curse){this.recordWeaponSynergy(curse.id);this.applyWeaponSynergyCurse(target.x,target.y,curse.radius??78,curse.stacks??1);}
+        }
+        marker.destroy();
+      });return;
     }
     const count=behavior==='fan-volley'?Math.max(3,stats.baseProjectiles)+stats.projectileBonus:projectiles;
     for(let i=0;i<count;i++){
@@ -692,7 +768,12 @@ export class RunScene extends Phaser.Scene {
     for(const child of this.shots.getChildren()){
       const shot=child as Phaser.Physics.Arcade.Sprite;if(!shot.active||!shot.getData('homing'))continue;
       let target=shot.getData('target') as Phaser.Physics.Arcade.Sprite|undefined;
-      if(!target?.active){target=findNearestTarget(shot,this.activeTargets());if(target)shot.setData('target',target);}
+      if(!target?.active){
+        const candidates=this.activeTargets();
+        const guided=getActiveWeaponSynergies(String(shot.getData('weaponId')??''),this.build.passives.map(passive=>passive.passiveId)).some(item=>item.kind==='crown-guidance');
+        const weakened=guided?candidates.filter(enemy=>Number(enemy.getData('weakenedUntil')??0)>this.time.now):[];
+        target=findNearestTarget(shot,weakened.length?weakened:candidates);if(target)shot.setData('target',target);
+      }
       if(target?.active){const angle=Phaser.Math.Angle.Between(shot.x,shot.y,target.x,target.y);shot.setVelocity(Math.cos(angle)*330,Math.sin(angle)*330);}
     }
   }
@@ -704,14 +785,35 @@ export class RunScene extends Phaser.Scene {
   private hitEnemy(shot:Phaser.Physics.Arcade.Sprite,enemy:Phaser.Physics.Arcade.Sprite):void {
     if(!shot.active||!enemy.active)return;
     const area=Number(shot.getData('area')??0),element=shot.getData('element') as ElementId|undefined;
-    this.damageEnemy(enemy,Number(shot.getData('damage')),element);
-    if(area>0)this.damageTargetsInRadius(enemy.x,enemy.y,area,Number(shot.getData('damage'))*.55,element);
+    const weaponId=String(shot.getData('weaponId')??'');
+    const damage=this.weaponSynergyDamage(weaponId,enemy,Number(shot.getData('damage')));
+    this.damageEnemy(enemy,damage,element);
+    if(area>0)this.damageTargetsInRadius(enemy.x,enemy.y,area,damage*.55,element,weaponId);
+    const synergies=getActiveWeaponSynergies(weaponId,this.build.passives.map(passive=>passive.passiveId));
+    const splinter=synergies.find(item=>item.kind==='spirit-splinter');
+    if(splinter){this.recordWeaponSynergy(splinter.id);this.damageTargetsInRadius(enemy.x,enemy.y,splinter.radius??82,damage*(splinter.damageMultiplier??.32),'spirit');}
+    const spiritChain=synergies.find(item=>item.kind==='spirit-chain');
+    if(spiritChain){
+      const secondary=this.activeTargets().filter(item=>item!==enemy).sort((a,b)=>Phaser.Math.Distance.Between(enemy.x,enemy.y,a.x,a.y)-Phaser.Math.Distance.Between(enemy.x,enemy.y,b.x,b.y))[0];
+      if(secondary&&Phaser.Math.Distance.Between(enemy.x,enemy.y,secondary.x,secondary.y)<=(spiritChain.radius??180)){this.recordWeaponSynergy(spiritChain.id);this.damageEnemy(secondary,damage*(spiritChain.damageMultiplier??.55),'spirit');}
+    }
+    const stormArc=synergies.find(item=>item.kind==='storm-arc');
+    if(stormArc){
+      const nearby=this.activeTargets().filter(item=>item!==enemy).sort((a,b)=>Phaser.Math.Distance.Between(enemy.x,enemy.y,a.x,a.y)-Phaser.Math.Distance.Between(enemy.x,enemy.y,b.x,b.y));
+      let chained=0;
+      for(const secondary of nearby){
+        if(chained>=(stormArc.chainTargets??2)||Phaser.Math.Distance.Between(enemy.x,enemy.y,secondary.x,secondary.y)>(stormArc.radius??180))break;
+        chained++;this.recordWeaponSynergy(stormArc.id);this.damageEnemy(secondary,damage*(stormArc.damageMultiplier??.42),'lightning');
+      }
+    }
     const pierce=Number(shot.getData('pierce')??1)-1;
     if(pierce>0)shot.setData('pierce',pierce);else shot.destroy();
   }
 
-  private damageTargetsInRadius(x:number,y:number,radius:number,damage:number,element?:ElementId):void {
-    for(const target of this.activeTargets())if(Phaser.Math.Distance.Between(x,y,target.x,target.y)<=radius)this.damageEnemy(target,damage,element);
+  private damageTargetsInRadius(x:number,y:number,radius:number,damage:number,element?:ElementId,weaponId?:string):void {
+    for(const target of this.activeTargets())if(Phaser.Math.Distance.Between(x,y,target.x,target.y)<=radius){
+      this.damageEnemy(target,weaponId?this.weaponSynergyDamage(weaponId,target,damage):damage,element);
+    }
   }
 
   private damageEnemy(enemy:Phaser.Physics.Arcade.Sprite,baseDamage:number,element?:ElementId):void {
@@ -1015,6 +1117,7 @@ export class RunScene extends Phaser.Scene {
       this.passiveSpecialState=result.state;
       if(result.blocked){this.showPassiveSpecialFeedback('MÜHÜRLÜ PLAKA  •  HASAR ENGELLENDİ');return;}
     }
+    if(this.time.now<this.weaponSynergyGuardUntil)amount*=1-this.weaponSynergyGuardReduction;
     const armor=this.currentBuildStats().armor+this.character.stats.armor;
     const reduced=Math.max(1,amount*(1-armor/(armor+100)));
     const ward=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='last-ward')?.specialUpgrade.mechanic;
@@ -1037,6 +1140,30 @@ export class RunScene extends Phaser.Scene {
     const poison=mechanic.kind==='poison-spores';
     marker.lineStyle(3,poison?0x9ac65d:0xf4dc74,.9);marker.fillStyle(poison?0x9ac65d:0xf4dc74,.13);marker.strokeCircle(x,y,mechanic.radius);marker.fillCircle(x,y,mechanic.radius);
     this.passiveZones.push({x,y,radius:mechanic.radius,expiresAt:this.time.now+mechanic.durationMs,nextTickAt:this.time.now+mechanic.tickMs,damage:mechanic.damageMultiplier,tickMs:mechanic.tickMs,marker});
+  }
+
+  private weaponSynergyDamage(weaponId:string,target:Phaser.Physics.Arcade.Sprite,damage:number):number {
+    const weakened=Number(target.getData('weakenedUntil')??0)>this.time.now;
+    return damage*getWeaponSynergyDamageMultiplier(weaponId,this.build.passives.map(passive=>passive.passiveId),weakened);
+  }
+
+  private recordWeaponSynergy(id:string):void {this.weaponSynergyTriggers=[...this.weaponSynergyTriggers.slice(-11),id];}
+
+  private spawnWeaponSynergyZone(x:number,y:number,radius:number,durationMs:number,tickMs:number,damage:number,element:ElementId):void {
+    const marker=this.add.graphics().setDepth(6);
+    marker.lineStyle(2,elementTint[element],.85);marker.fillStyle(elementTint[element],.12);marker.strokeCircle(x,y,radius);marker.fillCircle(x,y,radius);
+    this.passiveZones.push({x,y,radius,expiresAt:this.time.now+durationMs,nextTickAt:this.time.now+tickMs,damage,tickMs,marker});
+  }
+
+  private applyWeaponSynergyCurse(x:number,y:number,radius:number,stacks:number):void {
+    const dark=ELEMENTS.find(item=>item.id==='dark')!;
+    for(const enemy of this.activeTargets()){
+      if(Phaser.Math.Distance.Between(x,y,enemy.x,enemy.y)>radius)continue;
+      const state=enemy.getData('isBoss')?this.bossElementState:(this.elementStates.get(enemy)??{});
+      const current=state.dark;
+      const next={...state,dark:{buildup:0,stacks:addCurseStack(current&&current.expiresAt>this.time.now?current.stacks:0,stacks),expiresAt:this.time.now+dark.durationMs,nextTickAt:this.time.now+1000}};
+      if(enemy.getData('isBoss'))this.bossElementState=next;else this.elementStates.set(enemy,next);
+    }
   }
 
   private updatePassiveZones(time:number):void {

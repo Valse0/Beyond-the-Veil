@@ -537,6 +537,29 @@ Evrim yalnızca hasarı artırmamalı; silahın davranışını veya saldırı b
 
 Alternatif evrim yolları, karakter sinerjileri ve element kombinasyonları desteklenir.
 
+10.4 Silah–pasif sinerjileri
+
+Sinerji, ilgili pasif eşya koşuda bulunduğu anda etkinleşir; pasifin beşinci seviye özel yükseltmesini seçme şartı yoktur. Sinerjiler silahın saldırı biçimini değiştirir ve altı pasif yuvası sınırını korur. Aynı silaha bağlı birden fazla pasif sinerjisi birlikte çalışabilir.
+
+| Silah | Gerekli pasif | Sinerji | Gerçek savaş etkisi |
+|---|---|---|---|
+| Eşik Kıvılcımı | Ruh Kabı | Ruh Kıymığı | Mermi isabetinde 82 yarıçap içinde %32 hasarlı ruh sıçraması |
+| Mezar Yarıcı | Mezar Zırhı | Mezar Sarsıntısı | Kesişten sonra 92 yarıçapta %42 hasarlı ikinci darbe |
+| Yemin Mızrağı | Fırtına İletkeni | Gök Zinciri | Zincir saldırısına iki ek hedef |
+| Kor Zincirleri | Kül Kalbi | Kor Patlaması | Son zincir hedefinde 72 yarıçapta %45 hasarlı ateş patlaması |
+| Kış Halkaları | Buz Bağı Mührü | Kırağı Halkası | Donmuş hedefe temas edildiğinde 82 yarıçapta %35 hasarlı buz dalgası |
+| Diken Tohumu | Zehir Şişesi | Zehirli Kök | Patlama noktasında 1,8 saniye süren, 600 ms aralıklı zehir alanı |
+| Ruh Feneri | Ruh Kabı | Ruh Yankısı | Arayıcı küre 180 menzil içinde ikinci hedefe %55 hasarla sıçrar |
+| Kan Tezgâhı | Kan Emaneti | Kızıl Bağ | Yaşam bağı hasarının %6'sı ek iyileştirme sağlar |
+| Fırtına Camı | Fırtına İletkeni | Fırtına Kıvılcımı | Mermi isabetinde 180 menzil içinde iki hedefe %42 hasarlı yıldırım sıçrar |
+| Demir Çan | Muhafız Düğümü | Muhafız Çemberi | Savunma titreşiminden sonra 700 ms boyunca alınan hasar %28 azalır |
+| Rün Havanı | Kül Kalbi | Magma Yarığı | Patlama noktasında 1,8 saniye süren, 600 ms aralıklı magma alanı |
+| Tutulma Mührü | Perde İpliği | Lanet Mührü | Mühür patlamasına yakalanan hedeflere bir karanlık katmanı eklenir |
+| Tutulma Mührü | Boş Taç | Kül Avı | Zayıflatılmış hedeflere %25 ek hasar |
+| Ruh Feneri | Boş Taç | Taç Rehberi | Zayıflatılmış hedefler öncelik kazanır ve %20 ek hasar alır |
+
+Sinerjiler, özel yükseltmelerin yerine geçmez. Örneğin Kül Kalbi'nin Kor Çekirdeği ayrı bir seviye-5 özel yükseltmesidir; Kor Zincirleri ile Kül Kalbi arasındaki Kor Patlaması ise pasif edinildiği anda çalışan silah sinerjisidir.
+
 Bilinen tarifler ansiklopedide gösterilir. Gizli evrimler keşif ve ipuçlarıyla açılabilir.
 
 ⸻
@@ -578,7 +601,7 @@ Koşu başına altı pasif eşya yuvası bulunur. Her pasif beş normal seviyeye
 
 Alan hasarı, bekleme süreleri, tek kullanımlık savunma ve toplanabilir Ruh Özü parçaları veri odaklı tanımlanır. Özel yükseltmeler mevcut silah, element, XP, dash, düşman ve hasar akışlarına bağlanır; yalnızca açıklama metni olarak kalamaz.
 
-Bazı pasifler belirli silahları veya karakter yeteneklerini dönüştürür. Pasif ve silah sinerjileri, altı pasif yuvası sınırını koruyarak desteklenir.
+Bazı pasifler belirli silahları veya karakter yeteneklerini dönüştürür. Silah–pasif sinerjileri §10.4'te tanımlanır; pasif edinildiğinde etkinleşir, özel yükseltmeden bağımsızdır ve altı pasif yuvası sınırını korur.
 
 ⸻
 
