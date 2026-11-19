@@ -15,13 +15,13 @@ Beyond the Veil is a Phaser 3 + TypeScript + Vite single-player game. The active
 
 ## Current gameplay and progression
 
-The live run includes catalog-driven hunters and region selection, wave/elite scheduling, enemy and boss combat, XP level-ups, weapon branches/evolutions, passive specials, timed run events, boss chests and persistent Ruh Özü rewards. The 12×12 weapon/passive pairing matrix is tested as catalog data; the 14 authored combat synergies have browser-level effect assertions under active stabilization.
+The live run includes catalog-driven hunters and region selection, wave/elite scheduling, enemy and boss combat, XP level-ups, weapon branches/evolutions, passive specials, timed run events, boss chests and persistent Ruh Özü rewards. The 12×12 weapon/passive pairing matrix is tested as catalog data; the 14 authored combat synergies have effect-specific Chromium assertions; the current branch-head workflow passed all 14 browser scenarios.
 
-The Hunter Hub is reachable from the Main Menu and currently offers six capped permanent upgrades. These upgrades are stored in the profile and are being integrated into actual run stats. Save schema version 2 migrates prior version-1 profiles while preserving progression and collections.
+The Hunter Hub is reachable from the Main Menu and currently offers six capped permanent upgrades. These upgrades are stored in the profile and applied to run health, attack damage, movement speed, armor, XP gain and level-up rerolls. CI #247 verifies their live run effects. Save schema version 2 migrates prior version-1 profiles while preserving progression and collections.
 
 ## Platform and quality boundaries
 
-The project remains Phaser 3; no engine migration is approved. Desktop Chromium automation is not equivalent to physical Android, gamepad, smart-TV browser/remote or native console validation. Native console distribution is not established. Main Menu keyboard focus/navigation is still incomplete, so keyboard-only and TV-remote access to the Hub needs follow-up.
+The project remains Phaser 3; no engine migration is approved. Desktop Chromium automation is not equivalent to physical Android, gamepad, smart-TV browser/remote or native console validation. Native console distribution is not established. The Hub itself supports keyboard/gamepad navigation, but the Main Menu has no keyboard focus path to the Hub. Keyboard-only and TV-remote access from the title screen therefore remains incomplete.
 
 ## Known incomplete requirements
 
