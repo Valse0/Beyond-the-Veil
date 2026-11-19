@@ -170,7 +170,7 @@ export class RunScene extends Phaser.Scene {
   /** Development-only bridge used by Playwright; never callable in production builds. */
   browserTestSnapshot():{
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
-    paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
+    paused:boolean;bossSpawned:boolean;bossVariantId:string|null;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
     runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
     questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
     discoveredLoreIds:string[];discoveredPathIds:string[];
@@ -184,8 +184,7 @@ export class RunScene extends Phaser.Scene {
     this.assertBrowserTestMode();
     return {
       level:this.state.level,experience:this.state.experience,experienceToNext:this.state.experienceToNext,
-      queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,paused:this.paused,bossSpawned:this.bossSpawned,
-      bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
+      queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,paused:this.paused,bossSpawned:this.bossSpawned,bossVariantId:this.activeBossVariantId,bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
       evolvedWeaponIds:this.build.weapons.filter(weapon=>weapon.evolved).map(weapon=>weapon.weaponId),
       choices:this.currentLevelChoices.map(({id,title,kind,contentId,branchId})=>({id,title,kind,contentId,branchId})),
       passives:this.build.passives.map(item=>({...item})),activePassiveSpecialIds:this.build.passives.filter(item=>item.special).map(item=>item.passiveId),
@@ -531,7 +530,7 @@ export class RunScene extends Phaser.Scene {
     if(!region)throw new Error('Unknown test boss region: '+regionId);
     for(const child of [...this.enemies.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
     this.bossArenaObjects.clear(true,true);this.bossArenaState=undefined;
-    this.region=region;this.bossSpawned=false;this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
+    this.region=region;this.bossEncounterIdsAtRegionEntry=[...encounterIds];this.activeBossVariantId=null;this.bossSpawned=false;this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.spawnBoss();
     if(!this.bossSprite||!this.bossArenaState)throw new Error('Boss arena failed to spawn for '+regionId);
     const definition=BOSSES.find(item=>item.id===region.bossId);
@@ -541,12 +540,12 @@ export class RunScene extends Phaser.Scene {
   }
 
   browserTestArenaSnapshot():{
-    bossId:string;phaseIndex:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
+    bossId:string;bossVariantId:string|null;phaseIndex:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
     objects:{id:string;kind:string;health:number;active:boolean;disabledUntil:number;revealed:boolean;isTrue:boolean;safe:boolean}[];
   } {
     this.assertBrowserTestMode();
     if(!this.bossArenaState||!this.bossState)throw new Error('No boss arena is active.');
-    return {bossId:this.bossArenaState.bossId,phaseIndex:this.bossArenaState.phaseIndex,bossHealth:this.bossState.health,bossMaxHealth:this.bossState.maxHealth,bossDamageMultiplier:getBossArenaDamageMultiplier(this.bossArenaState,this.time.now),playerPoisonStacks:this.playerPoisonStacks,timeNow:this.time.now,
+    return {bossId:this.bossArenaState.bossId,bossVariantId:this.activeBossVariantId,phaseIndex:this.bossArenaState.phaseIndex,bossHealth:this.bossState.health,bossMaxHealth:this.bossState.maxHealth,bossDamageMultiplier:getBossArenaDamageMultiplier(this.bossArenaState,this.time.now),playerPoisonStacks:this.playerPoisonStacks,timeNow:this.time.now,
       objects:this.bossArenaState.objects.map(({id,kind,health,active,disabledUntil,revealed,isTrue,safe})=>({id,kind,health,active,disabledUntil,revealed,isTrue,safe}))};
   }
 
@@ -659,6 +658,8 @@ export class RunScene extends Phaser.Scene {
     const saveManager=this.registry.get('saveManager') as SaveManager|undefined;
     const loadedSave=saveManager?.load();
     this.questSaveData=loadedSave&&'data' in loadedSave?startAvailableQuests(loadedSave.data,this.region.id):undefined;
+     this.bossEncounterIdsAtRegionEntry=loadedSave&&'data' in loadedSave?[...loadedSave.data.story.bossEncounterIds]:[];
+     this.activeBossVariantId=null;
     this.permanentUpgradeEffects=derivePermanentUpgradeEffects(loadedSave&&'data' in loadedSave?loadedSave.data.progression.permanentUpgrades:undefined);
     const activeEquipmentProfile=loadedSave&&'data' in loadedSave?getActiveEquipmentProfile(loadedSave.data.progression,this.character.id):null;
     this.equippedRelicIds=activeEquipmentProfile?[...activeEquipmentProfile.relicIds]:loadedSave&&'data' in loadedSave?[...loadedSave.data.progression.equippedRelicIds]:[];
@@ -883,10 +884,10 @@ export class RunScene extends Phaser.Scene {
     const lightning=this.bossElementState.lightning,ice=this.bossElementState.ice;
     if((lightning?.stunnedUntil??0)>time||(ice?.frozenUntil??0)>time){boss.setVelocity(0,0);return;}
     const dx=this.player.x-boss.x,dy=this.player.y-boss.y,dist=Math.hypot(dx,dy)||1;
-    if(dist>145)boss.setVelocity(dx/dist*this.bossDefinition.health*.006,dy/dist*this.bossDefinition.health*.006);else boss.setVelocity(0,0);
     const phase=this.bossDefinition.phases[this.bossState.phaseIndex]!;
-    const attack=getBossAttack(this.bossState,phase,time);this.bossState=attack.state;
-    if(attack.attack)this.telegraphAttack(boss,undefined,this.player.x,this.player.y,attack.attack.damage,attack.attack.telegraph.warningMs,attack.attack.telegraph.shape,100);
+     if(dist>145)boss.setVelocity(dx/dist*this.bossDefinition.health*.006*(phase.movementMultiplier??1),dy/dist*this.bossDefinition.health*.006*(phase.movementMultiplier??1));else boss.setVelocity(0,0);
+     const attack=getBossAttack(this.bossState,phase,time);this.bossState=attack.state;
+     if(attack.attack)this.telegraphAttack(boss,undefined,this.player.x,this.player.y,attack.attack.damage*(phase.bossDamageMultiplier??1),attack.attack.telegraph.warningMs,attack.attack.telegraph.shape,100);
   }
 
   private telegraphAttack(source:Phaser.Physics.Arcade.Sprite,def:EnemyDefinition|undefined,x:number,y:number,damage:number,warning:number,shape:string,radius:number):void {
@@ -1084,9 +1085,11 @@ export class RunScene extends Phaser.Scene {
     const active=this.enemies.getChildren() as Phaser.Physics.Arcade.Sprite[];
     const eliteAlive=active.some(enemy=>enemy.active&&Boolean(enemy.getData('isElite')));
     if(this.bossSpawned||this.enemies.countActive(true)>=42||eliteAlive)return;
-    this.bossDefinition=BOSSES.find(b=>b.id===this.region.bossId);
-    if(!this.bossDefinition)return;
-    this.bossState=createBossEncounter(this.bossDefinition);
+    const baseBoss=BOSSES.find(b=>b.id===this.region.bossId);
+     if(!baseBoss)return;
+     const resolution=resolveBossVariant(baseBoss,this.bossEncounterIdsAtRegionEntry);
+     this.bossDefinition=resolution.boss;this.activeBossVariantId=resolution.variantId;
+     this.bossState=createBossEncounter(this.bossDefinition);
     const boss=this.enemies.create(this.player.x+330,this.player.y,'boss-'+this.bossDefinition.id) as Phaser.Physics.Arcade.Sprite;
     boss.setDepth(4).setCircle(32).setData('isBoss',true).setData('health',this.bossDefinition.health).setData('experience',80);
     this.bossSprite=boss;this.bossSpawned=true;this.bossHud?.setText(this.bossDefinition.name).setVisible(true);this.bossHealth?.setVisible(true);this.bossPhaseText?.setText(this.bossDefinition.phases[0]!.name).setVisible(true);
