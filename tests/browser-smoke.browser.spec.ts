@@ -445,6 +445,16 @@ test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls
   });
   expect(initial.controls.rerollsRemaining).toBe(4);
 
+  const combatProbe = await page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestPermanentUpgradeProbe: () => { weaponDamage: number; healthBefore: number; healthAfter: number; moveSpeed: number } } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run').browserTestPermanentUpgradeProbe();
+  });
+  expect(combatProbe.weaponDamage).toBeCloseTo((initial.weapons[0]?.stats?.damage ?? 0) * 1.1, 4);
+  expect(combatProbe.moveSpeed).toBeCloseTo(234, 4);
+  expect(combatProbe.healthBefore).toBe(130);
+  expect(combatProbe.healthAfter).toBeCloseTo(130 - 100 * (1 - 6 / 106), 4);
+
   await spawnBrowserTestXp(page, 10);
   await expect.poll(async () => (await readBrowserRunSnapshot(page)).level).toBe(2);
   const leveled = await readBrowserRunSnapshot(page);
