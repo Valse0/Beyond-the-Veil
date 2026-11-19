@@ -41,9 +41,10 @@ export function applyRunResult(save: SaveData, result: RunResultInput): SaveData
   const mastery = result.characterId
     ? applyCharacterMastery(save.collections, result.characterId, calculateRunMasteryPoints(result.kills ?? 0, result.won))
     : save.collections;
+  const achievementBase = { ...save.collections, ...mastery };
   const achievements = result.characterId
-    ? applyAchievementRunProgress(mastery, { kills: result.kills ?? 0, won: result.won, characterId: result.characterId, regionId: result.regionId, explorationEventsCompleted: result.explorationEventsCompleted ?? 0 })
-    : mastery;
+    ? applyAchievementRunProgress(achievementBase, { kills: result.kills ?? 0, won: result.won, characterId: result.characterId, regionId: result.regionId, explorationEventsCompleted: result.explorationEventsCompleted ?? 0 })
+    : achievementBase;
   return {
     ...save,
     collections: { ...save.collections, ...mastery, ...achievements, relicIds: [...relicIds], craftingMaterials: grantCraftingMaterials(save.collections.craftingMaterials, validMaterials) },

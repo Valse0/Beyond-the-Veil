@@ -190,7 +190,7 @@ function migrateV2(value: Record<string, unknown>): SaveData {
     ...value,
     schemaVersion: CURRENT_SCHEMA_VERSION,
     progression: { ...progression, equippedRelicIds: [], equipmentProfiles: {}, activeEquipmentProfileIds: {} },
-    collections: { ...collections, relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [] }
+    collections: { ...collections, relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [], achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [] }
   };
   if (!isSaveData(candidate)) throw new Error('Legacy version-two save contains invalid values.');
   return candidate;
