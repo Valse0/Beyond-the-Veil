@@ -383,6 +383,43 @@ test('owned passive changes its linked weapon attack through the live Phaser hit
 
 
 
+
+test('Hunter Hub keyboard navigation can purchase a permanent upgrade and return to the menu', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
+      schemaVersion: 2,
+      profile: { createdAt: '2026-11-19T00:00:00.000Z', updatedAt: '2026-11-19T00:00:00.000Z' },
+      progression: {
+        soulEssence: 500, completedRuns: 0,
+        unlockedCharacterIds: ['cursed-hunter'], unlockedRegionIds: ['cursed-forest'],
+        completedDifficulties: {}, permanentUpgrades: {}
+      },
+      collections: { characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [] },
+      settings: {}
+    }));
+  });
+  await page.goto('/?bv-test=1');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  await page.mouse.click(430, 535);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('hunter-hub'));
+  });
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => page.evaluate(() => {
+    const raw = window.localStorage.getItem('beyond-the-veil.save');
+    const save = raw ? JSON.parse(raw) as { progression: { soulEssence: number; permanentUpgrades: Record<string, number> } } : null;
+    return save ? { essence: save.progression.soulEssence, attackPower: save.progression.permanentUpgrades.attackPower ?? 0 } : null;
+  })).toEqual({ essence: 425, attackPower: 1 });
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('main-menu'));
+  });
+});
+
 test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
