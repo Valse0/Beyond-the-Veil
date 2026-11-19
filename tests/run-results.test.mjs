@@ -34,3 +34,17 @@ test('negative and non-finite rewards cannot reduce or inflate currency', () => 
   assert.equal(applyRunResult(save, { regionId: 'cursed-forest', won: false, soulEssenceEarned: -100 }).progression.soulEssence, 0);
   assert.equal(applyRunResult(save, { regionId: 'cursed-forest', won: false, soulEssenceEarned: Number.NaN }).progression.soulEssence, 0);
 });
+
+
+test('boss chest relic rewards are added to the permanent relic collection on victory', () => {
+  const save = createInitialSaveData('2026-11-18T12:00:00.000Z');
+  const result = applyRunResult(save, {
+    regionId: 'cursed-forest',
+    won: true,
+    soulEssenceEarned: 180,
+    relicIdsEarned: ['matriarch-seed', 'matriarch-seed', 'unknown-relic']
+  });
+  assert.deepEqual(result.collections.relicIds, ['matriarch-seed']);
+  assert.deepEqual(result.progression.equippedRelicIds, []);
+  assert.deepEqual(save.collections.relicIds, []);
+});
