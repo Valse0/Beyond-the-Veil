@@ -43,7 +43,7 @@ These rules apply to every AI agent and override conflicting instructions in any
 - For in-game HUD, menus, and game interface work, use `.agents/skills/game-ui-ux/SKILL.md`; use UI UX Pro Max as supporting guidance for visual quality, accessibility, typography, and color. Do not blindly apply web-framework advice to Phaser canvas UI.
 - If a requested skill is missing, state the gap and use the closest installed guidance; never fabricate availability or claim use without actually loading it.
 - Treat `GEMINI.md` as Gemini CLI-specific companion guidance. All agents must also follow this file and `docs/SKILL_ROUTING.md`.
-- Superpowers is a separate user-managed installation. Do not claim it is available unless its presence is verified in the active session.
+- Superpowers is pinned as the Git submodule `.agents/superpowers` at commit `22f0b463e7a5e579904dd6211a520321035526f7`. Verify that the submodule is initialized and the requested skill files are readable before use. Reading the pinned repository content in a remote session does not prove that Gemini CLI has activated Superpowers in its local terminal.
 
 ## One-time bounded full-game execution authorization
 
