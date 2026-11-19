@@ -6,7 +6,7 @@
 
 ## 1. Son tamamlanmış CI doğrulaması
 
-GitHub Actions **#240** — commit `d97a620a38319c8918c6a61da0e92fc9b282ab3e`
+GitHub Actions **#247** — commit `c89bddb9033c15a7bdda8a9fbb81a01661e8a5ee`
 
 - TypeScript kontrolü: **PASS**
 - Birim testleri: **106/106 PASS**
@@ -14,7 +14,7 @@ GitHub Actions **#240** — commit `d97a620a38319c8918c6a61da0e92fc9b282ab3e`
 - Chromium/Playwright: **14/14 PASS**
 - `npm audit --audit-level=moderate`: **PASS — 0 vulnerabilities**
 
-[CI #240 sonuçları](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44555203202)
+[CI #247 sonuçları](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44555450343)
 
 ## 2. Bu doğrulamada kapsanan kritik davranışlar
 
@@ -27,7 +27,7 @@ GitHub Actions **#240** — commit `d97a620a38319c8918c6a61da0e92fc9b282ab3e`
 
 ## 3. Güncel sınırlamalar
 
-CI #240 başarılı olsa da sonrasında sinerji test fikstürlerine iki ek izolasyon düzeltmesi ve dokümantasyon güncellemeleri eklendi. Bu daha yeni dal başı değişiklikleri için ayrı CI doğrulaması tamamlanmadan onları VERIFIED saymıyorum.
+CI #247, son sinerji fikstürü izolasyon düzeltmelerini de içeren güncel dal başında tüm adımları başarıyla tamamladı. Bu doğrulama masaüstü Chromium kapsamındadır; fiziksel cihaz veya konsol testi yerine geçmez.
 
 Henüz tamamlanmayan GDD gereksinimleri:
 - Hunter Hub Blacksmith, Alchemist, Relic Master ve özel tüccar servisleri.
@@ -37,4 +37,4 @@ Henüz tamamlanmayan GDD gereksinimleri:
 - Doğal 15 dakikalık koşu dengesi, erişilebilirlik ve fiziksel cihaz testleri.
 - Android paketleme ve ayrı platform doğrulamaları. Native konsol dağıtımı doğrulanmış değildir.
 
-**Sonuç:** Kod tabanı önemli ölçüde ilerledi ve CI #240 tam geçti; ancak proje tamamlanmış veya yayınlanmaya hazır değildir.
+**Sonuç:** Kod tabanı önemli ölçüde ilerledi ve CI #247 tam geçti; ancak proje tamamlanmış veya yayınlanmaya hazır değildir.
