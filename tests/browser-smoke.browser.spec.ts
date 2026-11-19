@@ -207,6 +207,7 @@ type BrowserRunSnapshot = {
   runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
   health:number;maxHealth:number;damage:number;moveSpeed:number;permanentUpgradeEffects:{maxHealthBonus:number;damageMultiplier:number;moveSpeedMultiplier:number;armorBonus:number;xpGainMultiplier:number;extraRerolls:number};passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
   availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
+  storyWorldState:{npcId:string|null;npcName:string|null;npcFateId:string|null;npcFateLabel:string|null;atmosphereId:string|null;atmosphereName:string|null;renderedObjectCount:number};
   weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
   shotDiagnostics:{weaponId:string;damage:number}[];
   bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;finishTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null;sceneTime:{paused:boolean;now:number;active:boolean};playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
@@ -1310,6 +1311,35 @@ test('saved main-quest choice opens and traverses only its matching live story p
   const after=await readBrowserRunSnapshot(page);
   expect(after.playerX).toBeCloseTo(300,0);
   expect(after.playerY).toBeCloseTo(270,0);
+  expect(pageErrors).toEqual([]);
+});
+
+
+test('saved story choices render the matching NPC fate and regional atmosphere in the live Phaser world',async({page})=>{
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  await page.evaluate(()=>{
+    const host=(window as Window & {__BEYOND_VEIL_GAME__?:{registry:{get:(key:string)=>unknown};scene:{getScene:(key:string)=>{scene:{restart:(data:{characterId:string;regionId:string})=>void}}}}}).__BEYOND_VEIL_GAME__;
+    if(!host)throw new Error('Game bridge unavailable.');
+    const manager=host.registry.get('saveManager') as {load:()=>{data:any};save:(value:any)=>void};
+    const save=manager.load().data;
+    save.story.npcFates['briar-warden']='spared';
+    save.story.regionAtmospheres['cursed-forest']='quiet-growth';
+    manager.save(save);
+    host.scene.getScene('run').scene.restart({characterId:'cursed-hunter',regionId:'cursed-forest'});
+  });
+  await expect.poll(async()=>(await readBrowserRunSnapshot(page)).storyWorldState.npcFateId).toBe('spared');
+  const state=(await readBrowserRunSnapshot(page)).storyWorldState;
+  expect(state).toMatchObject({
+    npcId:'briar-warden',
+    npcName:'Diken Bekçisi',
+    npcFateId:'spared',
+    npcFateLabel:'YAŞAMINA İZİN VERİLDİ',
+    atmosphereId:'quiet-growth',
+    atmosphereName:'Sessiz Büyüme'
+  });
+  expect(state.renderedObjectCount).toBeGreaterThanOrEqual(8);
   expect(pageErrors).toEqual([]);
 });
 

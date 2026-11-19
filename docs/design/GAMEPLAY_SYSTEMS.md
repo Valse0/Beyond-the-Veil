@@ -226,3 +226,12 @@ The ten story links are: Thorn Matriarch (awakened/corrupted), Ossuary King (rec
 ## Ending Outcome Runtime v1
 
 The final quest, `castle-veil-heir`, records one of two permanent branch choices: `ending-mended-veil` or `ending-beyond-veil`. A branch choice is a selected ending, not proof that the campaign has been completed. The profile records `story.completedEndingId` only after a victorious run in the Cursed Castle defeats the Unwritten Regent and opens its boss chest. Defeat, another region, another boss, an incomplete final quest, or a mismatched choice cannot complete an ending. The completion field is idempotent and does not replace an already completed ending. Save schema v10 adds this field; v9 migration preserves the full existing story and initializes completion to null. Final-scene presentation remains deferred.
+
+
+## Story World State Consumption v1
+
+The five main-region quest NPCs now appear as environmental figures when the hunter enters their region. Their saved fate selects the authored nameplate, state label, color and presence treatment; before a decision, the NPC uses a neutral unresolved appearance. The five NPCs are the Briar Warden, Mourner Acolyte, Gear Executioner, Mire Oracle and Unwritten Regent.
+
+All thirteen authored regional atmosphere outcomes are consumed from the profile save. A region-specific environmental aura and short label/description make the current story state visible without introducing an interaction prompt or changing combat. Unknown or cross-region save values are ignored and fall back to the neutral NPC state or the region's base atmosphere.
+
+The resolver is engine-independent and keeps the catalog separate from Phaser presentation. The scene uses temporary replaceable shapes and text only; no save migration, dialogue, NPC interaction, final art/audio, new input, combat change or dependency is included. Organic multi-room geography and final environmental art remain future work.

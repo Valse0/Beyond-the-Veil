@@ -11,6 +11,7 @@ import { CRAFTING_MATERIALS } from '../../data/crafting.js';
 import { ELEMENTS } from '../../data/elements.js';
 import { REGIONS } from '../../data/regions.js';
 import { resolveUnlockedRegionPaths } from '../../gameplay/world/region-path-runtime.js';
+import { resolveStoryWorldState } from '../../gameplay/world/story-world-state.js';
 import { resolveBossVariant } from '../../gameplay/bosses/boss-variant-runtime.js';
 import { findNearestTarget } from '../../gameplay/combat/combat-rules.js';
 import { advanceRun, applyUpgrade, createRunState, gainExperience, recordKill } from '../../gameplay/run/run-model.js';
@@ -156,6 +157,8 @@ export class RunScene extends Phaser.Scene {
   private runDiscoveredLoreIds:string[]=[];
   private runDiscoveredPathIds:string[]=[];
   private activeStoryPaths:RegionPathDefinition[]=[];
+  private activeStoryWorldState:ReturnType<typeof resolveStoryWorldState>|null=null;
+  private storyWorldObjectCount=0;
   private lastTraversedStoryPathId:string|null=null;
   private questSaveData?:SaveData;
   private runDiscoveredWeaponIds:string[]=[];
@@ -178,6 +181,7 @@ export class RunScene extends Phaser.Scene {
     runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
     questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
     discoveredLoreIds:string[];discoveredPathIds:string[];availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
+    storyWorldState:{npcId:string|null;npcName:string|null;npcFateId:string|null;npcFateLabel:string|null;atmosphereId:string|null;atmosphereName:string|null;renderedObjectCount:number};
     passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
     weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
     shotDiagnostics:{weaponId:string;damage:number}[];
@@ -199,6 +203,7 @@ export class RunScene extends Phaser.Scene {
       bossHealth:this.bossState?.health??null,health:this.state.health,maxHealth:this.state.maxHealth,damage:this.state.damage,moveSpeed:this.state.moveSpeed,
       questProgress:Object.fromEntries(Object.entries(this.questSaveData?.story.quests??{}).map(([id,progress])=>[id,{status:progress.status,objectiveProgress:{...progress.objectiveProgress}}])),
       discoveredLoreIds:[...this.runDiscoveredLoreIds],discoveredPathIds:[...this.runDiscoveredPathIds],availableStoryPathIds:this.activeStoryPaths.map(path=>path.id),lastTraversedStoryPathId:this.lastTraversedStoryPathId,
+      storyWorldState:{npcId:this.activeStoryWorldState?.npc?.definition.id??null,npcName:this.activeStoryWorldState?.npc?.definition.name??null,npcFateId:this.activeStoryWorldState?.npc?.fateId??null,npcFateLabel:this.activeStoryWorldState?.npc?.fate.label??null,atmosphereId:this.activeStoryWorldState?.atmosphere?.id??null,atmosphereName:this.activeStoryWorldState?.atmosphere?.name??null,renderedObjectCount:this.storyWorldObjectCount},
       bossChestDiagnostics:(()=>{
         const playerBody=this.player.body as Phaser.Physics.Arcade.Body;
         const chest=this.eventObjects.getChildren().find(object=>object.getData('eventObjectType')==='boss-chest');
@@ -699,7 +704,7 @@ export class RunScene extends Phaser.Scene {
     this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.bossArenaState=undefined;this.playerPoisonStacks=0;this.playerPoisonExpiresAt=0;this.playerPoisonNextTickAt=0;this.arenaInteractionReadyAt=0;this.lastBossArenaVisualsAt=0;this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;this.weaponSynergyGuardUntil=0;this.weaponSynergyGuardReduction=.28;this.weaponSynergyTriggers=[];
-    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.runDiscoveredLoreIds=[];this.runDiscoveredPathIds=[];this.activeStoryPaths=[];this.lastTraversedStoryPathId=null;this.bossChestOpened=false;this.completedTreasureHunt=false;this.runCraftingMaterials={};this.lastRunSaved=null;
+    this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.runDiscoveredLoreIds=[];this.runDiscoveredPathIds=[];this.activeStoryPaths=[];this.lastTraversedStoryPathId=null;this.activeStoryWorldState=null;this.storyWorldObjectCount=0;this.bossChestOpened=false;this.completedTreasureHunt=false;this.runCraftingMaterials={};this.lastRunSaved=null;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
@@ -720,6 +725,7 @@ export class RunScene extends Phaser.Scene {
     this.physics.add.overlap(this.player,this.eventObjects,(_p,o)=>this.handleRunEventObjectOverlap(o as Phaser.GameObjects.GameObject));
     this.spawnExplorationPoints(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
     this.spawnUnlockedStoryPaths(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
+    this.spawnStoryWorldState(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
     this.createHud();this.createTouchControls();this.spawnEnemy();this.waveDirector={...this.waveDirector,spawnIndex:1,nextSpawnAtMs:1500};this.refreshBuildStats();
   }
 
@@ -1509,6 +1515,36 @@ export class RunScene extends Phaser.Scene {
   private spawnUnlockedStoryPaths(save?:SaveData):void {
     this.activeStoryPaths=resolveUnlockedRegionPaths(this.region.id,save?.story.unlockedPathIds??[]);
     for(const path of this.activeStoryPaths)this.createStoryPathGate(path);
+  }
+
+  private spawnStoryWorldState(save?:SaveData):void {
+    const resolved=resolveStoryWorldState(this.region.id,save?.story);
+    this.activeStoryWorldState=resolved;
+    this.storyWorldObjectCount=0;
+    const npc=resolved.npc;
+    if(npc){
+      const {x,y}=npc.definition.position;
+      const halo=this.add.circle(x,y,29,npc.fate.color,.12).setStrokeStyle(2,npc.fate.outlineColor,.42).setDepth(1);
+      halo.setData('storyWorldObject',true);this.storyWorldObjectCount++;
+      const marker=this.add.circle(x,y,15,npc.fate.color,npc.fate.alpha).setStrokeStyle(3,npc.fate.outlineColor,.95).setScale(npc.fate.scale).setDepth(4);
+      marker.setData('storyWorldObject',true).setData('storyNpcId',npc.definition.id).setData('storyNpcFateId',npc.fateId);this.storyWorldObjectCount++;
+      const name=this.add.text(x,y-42,npc.definition.name.toLocaleUpperCase('tr-TR'),{fontFamily:'Georgia',fontSize:'13px',fontStyle:'bold',color:'#f0dfbd',stroke:'#17131a',strokeThickness:4,align:'center'}).setOrigin(.5).setDepth(8);
+      name.setData('storyWorldObject',true);this.storyWorldObjectCount++;
+      const fate=this.add.text(x,y+32,npc.fate.label,{fontSize:'10px',fontStyle:'bold',color:'#e5d7c2',stroke:'#17131a',strokeThickness:3,align:'center'}).setOrigin(.5).setDepth(8);
+      fate.setData('storyWorldObject',true);this.storyWorldObjectCount++;
+    }
+    const atmosphere=resolved.atmosphere;
+    if(atmosphere){
+      const x=WORLD_W/2,y=WORLD_H/2+350;
+      const aura=this.add.circle(x,y,150,atmosphere.auraColor,.09).setStrokeStyle(5,atmosphere.accentColor,.55).setDepth(-2);
+      aura.setData('storyWorldObject',true);this.storyWorldObjectCount++;
+      const core=this.add.circle(x,y,74,atmosphere.auraColor,.08).setStrokeStyle(2,atmosphere.accentColor,.32).setDepth(-1);
+      core.setData('storyWorldObject',true);this.storyWorldObjectCount++;
+      const title=this.add.text(x,y+178,atmosphere.name.toLocaleUpperCase('tr-TR'),{fontFamily:'Georgia',fontSize:'14px',fontStyle:'bold',color:'#f0dfbd',stroke:'#17131a',strokeThickness:4,align:'center'}).setOrigin(.5).setDepth(8);
+      title.setData('storyWorldObject',true);this.storyWorldObjectCount++;
+      const description=this.add.text(x,y+202,atmosphere.description,{fontSize:'11px',color:'#d1c5b5',stroke:'#17131a',strokeThickness:3,align:'center',wordWrap:{width:330}}).setOrigin(.5).setDepth(8);
+      description.setData('storyWorldObject',true);this.storyWorldObjectCount++;
+    }
   }
 
   private createStoryPathGate(path:RegionPathDefinition):void {
