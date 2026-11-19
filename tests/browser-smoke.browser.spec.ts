@@ -1024,6 +1024,7 @@ test('uncompleted treasure hunt cannot grant an exploration relic', async ({ pag
 type BossArenaSnapshot={
   bossId:string;bossVariantId:string|null;phaseIndex:number;phaseName:string;phaseAttackIds:string[];phaseAttackShapes:string[];phaseAddEnemyIds:string[];phaseDamageMultiplier:number;phaseMovementMultiplier:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
   objects:{id:string;kind:string;health:number;active:boolean;disabledUntil:number;revealed:boolean;isTrue:boolean;safe:boolean}[];
+  traces:{id:string;motif:string;name:string}[];
 };
 
 async function callBossArena(page:import('@playwright/test').Page,name:string,args:unknown[]=[]):Promise<unknown>{
@@ -1094,6 +1095,11 @@ test('all five boss arenas interact with real Phaser overlaps, elements and phas
     await callBossArena(page,'browserTestSpawnBossForRegion',[item.region]);
     let snapshot=await callBossArena(page,'browserTestArenaSnapshot') as BossArenaSnapshot;
     expect(snapshot.bossId).toBe(item.boss);
+    expect(snapshot.traces).toHaveLength(3);
+    expect(new Set(snapshot.traces.map(trace=>trace.id)).size).toBe(3);
+    expect(snapshot.traces.every(trace=>trace.id.length>8&&trace.name.length>4)).toBe(true);
+    const expectedTraceMotif:Record<string,string>={'thorn-matriarch':'root-shrine','ossuary-king':'grave-epitaph','furnace-colossus':'forge-mark','mire-oracle':'oracle-rings','unwritten-regent':'veil-fracture'};
+    expect(snapshot.traces.every(trace=>trace.motif===expectedTraceMotif[item.boss])).toBe(true);
     expect(snapshot.objects.filter(object=>object.kind===item.kind)).toHaveLength(item.kind==='root-pillar'||item.kind==='water-island'?3:4);
 
     if(item.boss==='thorn-matriarch'||item.boss==='ossuary-king'){

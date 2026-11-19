@@ -4,6 +4,7 @@ import type { RunState, UpgradeId } from '../../core/types/game.js';
 import { CHARACTERS, STARTING_CHARACTER } from '../../data/characters.js';
 import { ENEMIES } from '../../data/enemies.js';
 import { BOSSES } from '../../data/bosses.js';
+import { getBossTraces } from '../../data/boss-traces.js';
 import { WEAPONS } from '../../data/weapons.js';
 import { PASSIVES } from '../../data/passives.js';
 import { RELICS } from '../../data/relics.js';
@@ -104,6 +105,7 @@ export class RunScene extends Phaser.Scene {
   private bossSprite?:Phaser.Physics.Arcade.Sprite;
   private bossPhaseText?:Phaser.GameObjects.Text;
   private bossArenaObjects!:Phaser.Physics.Arcade.Group;
+  private bossTraceObjects!:Phaser.GameObjects.Group;
   private bossArenaState?:BossArenaState;
   private playerPoisonStacks=0;
   private playerPoisonExpiresAt=0;
@@ -564,7 +566,8 @@ export class RunScene extends Phaser.Scene {
     if(!this.bossArenaState||!this.bossState)throw new Error('No boss arena is active.');
     const phase=this.bossDefinition?.phases[this.bossState.phaseIndex];
      return {bossId:this.bossArenaState.bossId,bossVariantId:this.activeBossVariantId,phaseIndex:this.bossArenaState.phaseIndex,phaseName:phase?.name??'',phaseAttackIds:phase?.attacks.map(attack=>attack.id)??[],phaseAttackShapes:phase?.attacks.map(attack=>attack.telegraph.shape)??[],phaseAddEnemyIds:phase?[...phase.addEnemyIds]:[],phaseDamageMultiplier:phase?.bossDamageMultiplier??1,phaseMovementMultiplier:phase?.movementMultiplier??1,bossHealth:this.bossState.health,bossMaxHealth:this.bossState.maxHealth,bossDamageMultiplier:getBossArenaDamageMultiplier(this.bossArenaState,this.time.now),playerPoisonStacks:this.playerPoisonStacks,timeNow:this.time.now,
-      objects:this.bossArenaState.objects.map(({id,kind,health,active,disabledUntil,revealed,isTrue,safe})=>({id,kind,health,active,disabledUntil,revealed,isTrue,safe}))};
+      objects:this.bossArenaState.objects.map(({id,kind,health,active,disabledUntil,revealed,isTrue,safe})=>({id,kind,health,active,disabledUntil,revealed,isTrue,safe})),
+      traces:this.bossTraceObjects.getChildren().map(child=>({id:String(child.getData('bossTraceId')??''),motif:String(child.getData('bossTraceMotif')??''),name:String(child.getData('bossTraceName')??'')}))};
   }
 
   browserTestHitArenaObject(objectId:string,element:ElementId):void {
@@ -713,7 +716,7 @@ export class RunScene extends Phaser.Scene {
     floor.lineStyle(1,0x3a3337,0.12);
     for(let i=0;i<28;i++){const x=Phaser.Math.Between(80,WORLD_W-80),y=Phaser.Math.Between(80,WORLD_H-80);floor.lineStyle(2,0x8a795d,0.08);floor.strokeCircle(x,y,Phaser.Math.Between(18,64));}
     floor.setDepth(-10);
-    this.enemies=this.physics.add.group();this.shots=this.physics.add.group({maxSize:100});this.orbs=this.physics.add.group({maxSize:80});this.eventObjects=this.physics.add.group();this.bossArenaObjects=this.physics.add.group();
+    this.enemies=this.physics.add.group();this.shots=this.physics.add.group({maxSize:100});this.orbs=this.physics.add.group({maxSize:80});this.eventObjects=this.physics.add.group();this.bossArenaObjects=this.physics.add.group();this.bossTraceObjects=this.add.group();
     this.player=this.physics.add.sprite(WORLD_W/2,WORLD_H/2,'hunter').setCircle(12).setCollideWorldBounds(true).setDepth(3);
     this.cameras.main.startFollow(this.player,true,0.08,0.08);
     this.cursors=this.input.keyboard!.createCursorKeys();
@@ -1048,6 +1051,69 @@ export class RunScene extends Phaser.Scene {
     this.updateBossArenaVisuals();
   }
 
+  private spawnBossTraces(centerX:number,centerY:number):void {
+    this.bossTraceObjects.clear(true,true);
+    if(!this.bossDefinition)return;
+    for(const trace of getBossTraces(this.bossDefinition.id)){
+      const container=this.add.container(centerX+trace.offset.x,centerY+trace.offset.y)
+        .setDepth(1.5)
+        .setData('bossTraceId',trace.id)
+        .setData('bossTraceMotif',trace.motif)
+        .setData('bossTraceName',trace.name);
+      const mark=this.add.graphics();
+      mark.lineStyle(2,trace.primaryColor,.86);
+      mark.fillStyle(trace.primaryColor,.14);
+      if(trace.motif==='root-shrine'){
+        mark.strokeCircle(0,0,28);
+        mark.lineBetween(0,-25,0,19);
+        mark.lineBetween(0,-4,-17,-19);
+        mark.lineBetween(0,2,18,-16);
+        mark.lineBetween(0,14,-24,28);
+        mark.lineBetween(0,14,24,28);
+        mark.fillCircle(0,-25,4);
+        mark.lineStyle(2,trace.accentColor,.95);
+        mark.strokeCircle(0,0,10);
+      }else if(trace.motif==='grave-epitaph'){
+        mark.fillRoundedRect(-19,-27,38,54,8);
+        mark.strokeRoundedRect(-19,-27,38,54,8);
+        mark.lineStyle(2,trace.accentColor,.9);
+        mark.lineBetween(-9,-10,9,-10);
+        mark.lineBetween(-9,-2,9,-2);
+        mark.lineBetween(-9,6,5,6);
+        mark.strokeCircle(0,-18,4);
+      }else if(trace.motif==='forge-mark'){
+        mark.strokeCircle(0,0,27);
+        mark.strokeCircle(0,0,11);
+        for(let i=0;i<8;i++){
+          const angle=(Math.PI*2*i)/8;
+          mark.lineBetween(Math.cos(angle)*14,Math.sin(angle)*14,Math.cos(angle)*34,Math.sin(angle)*34);
+        }
+        mark.lineStyle(2,trace.accentColor,.95);
+        mark.strokeCircle(0,0,5);
+      }else if(trace.motif==='oracle-rings'){
+        mark.strokeEllipse(0,0,64,28);
+        mark.strokeEllipse(0,0,46,20);
+        mark.strokeEllipse(0,0,25,11);
+        mark.fillCircle(0,0,5);
+        mark.lineStyle(2,trace.accentColor,.95);
+        mark.lineBetween(-34,0,34,0);
+      }else{
+        mark.strokeCircle(0,0,28);
+        mark.beginPath();
+        mark.moveTo(-16,-28);mark.lineTo(-5,-10);mark.lineTo(-13,2);mark.lineTo(5,11);mark.lineTo(-2,28);
+        mark.moveTo(16,-28);mark.lineTo(7,-13);mark.lineTo(17,-2);mark.lineTo(4,9);mark.lineTo(14,27);
+        mark.strokePath();
+        mark.lineStyle(2,trace.accentColor,.95);
+        mark.lineBetween(-7,-20,7,-20);
+        mark.lineBetween(-8,20,8,20);
+      }
+      const caption=this.add.text(0,43,trace.name,{fontFamily:'Georgia',fontSize:'9px',color:'#e5d7bd',align:'center',stroke:'#17131b',strokeThickness:2})
+        .setOrigin(.5,0);
+      container.add([mark,caption]);
+      this.bossTraceObjects.add(container);
+    }
+  }
+
   private updateBossArenaVisuals():void {
     if(!this.bossArenaState)return;
     for(const child of this.bossArenaObjects.getChildren()){
@@ -1120,7 +1186,7 @@ export class RunScene extends Phaser.Scene {
     const boss=this.enemies.create(this.player.x+330,this.player.y,'boss-'+this.bossDefinition.id) as Phaser.Physics.Arcade.Sprite;
     boss.setDepth(4).setCircle(32).setData('isBoss',true).setData('health',this.bossDefinition.health).setData('experience',80);
     this.bossSprite=boss;this.bossSpawned=true;this.bossHud?.setText(this.bossDefinition.name).setVisible(true);this.bossHealth?.setVisible(true);this.bossPhaseText?.setText(this.bossDefinition.phases[0]!.name).setVisible(true);
-    this.bossArenaState=createBossArena(this.bossDefinition.id,this.runSeed);this.spawnBossArenaObjects(boss.x,boss.y);
+    this.bossArenaState=createBossArena(this.bossDefinition.id,this.runSeed);this.spawnBossArenaObjects(boss.x,boss.y);this.spawnBossTraces(boss.x,boss.y);
     this.eventHud?.setText(this.bossArenaHint()).setVisible(true);
     this.cameras.main.flash(450,70,25,40);
   }

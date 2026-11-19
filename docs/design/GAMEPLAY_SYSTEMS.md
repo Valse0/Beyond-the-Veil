@@ -18,6 +18,10 @@ Enemy definitions use stable IDs, health, movement, contact damage, XP reward, c
 
 Seven canonical elements: Ateş, Buz, Zehir, Karanlık, Ruh, Yıldırım and Kan. Each requires buildup, thresholds, resistances and tested cross-element reactions. Twelve weapons and twelve passives need upgrade paths and meaningful synergies. Weapon evolution requires a max-level weapon, its required passive and a boss chest, and must change attack behavior.
 
+## Boss arena environmental traces
+
+Each of the five authored bosses has three stable, non-interactive environmental traces placed around its arena. Their motifs echo the boss's history: root shrines for Diken Ana, erased epitaphs for Kemik Kral, forge marks for Ocak Devi, drowned oracle rings for Bataklık Kâhini, and fractured veil script for Yazılmamış Hükümdar. The Phaser scene draws these as temporary vector placeholders behind the boss and arena objects; they have no Arcade bodies and do not change collision, damage, phase, reward, save or story-choice rules. Stable trace IDs and motif assignments live in `src/data/boss-traces.ts`. Final pixel-art production remains separate.
+
 ## Fairness and progression
 Spawn pressure must be capped and readable. Difficulty must add behaviors and patterns, not only health. Reroll, banish and skip protect level-up RNG. No resistance may invalidate an entire build. Permanent Ruh Özü and unlocks survive defeat; temporary run power does not. Hunter Hub, relics, crafting, quests, mastery, achievements, collections, New Game+ and Endless Mode remain full-game requirements.
 
