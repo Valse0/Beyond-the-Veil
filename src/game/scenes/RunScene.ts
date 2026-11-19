@@ -1044,7 +1044,7 @@ export class RunScene extends Phaser.Scene {
       if(time>=zone.expiresAt){zone.marker.destroy();return false;}
       if(time>=zone.nextTickAt){
         const targets=this.activeTargets().filter(enemy=>Phaser.Math.Distance.Between(zone.x,zone.y,enemy.x,enemy.y)<=zone.radius);
-        for(const enemy of targets){const definition=this.enemyDefinition(enemy);const damage=definition?Math.max(1,definition.health*zone.damage):zone.damage;this.damageEnemy(enemy,damage);}
+        for(const enemy of targets){const definition=this.enemyDefinition(enemy);const baseHealth=enemy.getData('isBoss')?(this.bossDefinition?.health??100):definition?.health??100;this.damageEnemy(enemy,Math.max(1,baseHealth*zone.damage));}
         zone.nextTickAt=time+zone.tickMs;
       }
       return true;
