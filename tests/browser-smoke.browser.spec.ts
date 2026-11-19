@@ -155,6 +155,7 @@ type BrowserRunSnapshot = {
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
   runSoulEssence:number;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
+  health:number;maxHealth:number;passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];
   weapons:{weaponId:string;level:number;branchId:string|null;evolved:boolean;stats:{damage:number;intervalMs:number;range:number;projectiles:number;pierce:number;areaMultiplier:number;chainTargetBonus:number;branchName:string|null}|null}[];
   shotDiagnostics:{weaponId:string;damage:number}[];
   bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;finishTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null;sceneTime:{paused:boolean;now:number;active:boolean};playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
@@ -359,6 +360,37 @@ test('weapon level-three branch selection changes real Phaser attack output', as
   expect(fired.damages.every(damage=>damage===selected.weapons[0]?.stats?.damage)).toBe(true);
   const afterFire=await readBrowserRunSnapshot(page);
   expect(afterFire.shotDiagnostics.filter(shot=>shot.weaponId==='veil-bolt')).toHaveLength(3);
+  expect(pageErrors).toEqual([]);
+});
+
+test('level-five passive special is selected through the real UI and Last Ward prevents one lethal hit', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  const canvas=await startBrowserTestRun(page);
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestPreparePassiveSpecial:(id:string)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestPreparePassiveSpecial('wardens-knot');
+  });
+  const offered=await readBrowserRunSnapshot(page);
+  expect(offered.paused).toBe(true);
+  expect(offered.choices[0]?.kind).toBe('passive-special');
+  expect(offered.choices[0]?.contentId).toBe('wardens-knot');
+  await canvas.click({position:{x:310,y:382}});
+  const selected=await readBrowserRunSnapshot(page);
+  expect(selected.paused).toBe(false);
+  expect(selected.passives).toEqual([{passiveId:'wardens-knot',level:5,special:true}]);
+  expect(selected.activePassiveSpecialIds).toContain('wardens-knot');
+  expect(selected.health).toBeGreaterThan(1);
+
+  await page.evaluate(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{getScene:(key:string)=>{browserTestReceiveDamage:(amount:number)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestReceiveDamage(100000);
+  });
+  const protectedRun=await readBrowserRunSnapshot(page);
+  expect(protectedRun.health).toBe(1);
+  expect(protectedRun.runFinished).toBe(false);
   expect(pageErrors).toEqual([]);
 });
 
