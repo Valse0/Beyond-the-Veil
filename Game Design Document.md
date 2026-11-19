@@ -557,11 +557,28 @@ Pasif kategorileri:
 * Element sinerjileri
 * Özel mekanikler
 
-Koşu başına altı pasif eşya yuvası bulunur.
+Koşu başına altı pasif eşya yuvası bulunur. Her pasif beş normal seviyeye sahiptir. Beşinci seviyeye ulaşıldığında ayrı bir özel yükseltme kartı açılır; bu kart seçilmeden özel mekanik etkinleşmez. Özel yükseltme her pasif için koşu başına yalnızca bir kez seçilebilir.
 
-Pasifler seviye kazanabilir ve belirli seviyelerde özel özellik veya alternatif gelişim seçimi sunabilir.
+Özel yükseltme mekanikleri:
 
-Bazı pasifler belirli silahları veya karakter yeteneklerini dönüştürür.
+| Pasif | Özel yükseltme | Oyun içi davranış |
+|---|---|---|
+| Kül Kalbi | Kor Çekirdeği | Ateş vuruşu, 88 birim yarıçapta 850 ms bekleme süresiyle ikincil patlama oluşturur; yakındaki düşmanlar vuruş hasarının %48'ini alır. |
+| Buz Bağı Mührü | Mutlak Sıfır Odağı | Aktif buz etkisi altındaki hedefe en az 38 taban hasarlı ilk ağır vuruş, taban hasarın %70'i kadar parçalama hasarı ekler. Aynı donma penceresinde tekrar tetiklenmez. |
+| Zehir Şişesi | Zehirli Çiçek | Zehir beş katmana ulaştığında 104 yarıçaplı spor alanı oluşturur. Alan 2,6 saniye sürer, 650 ms aralıklarla hedefin azami canının %7'si kadar hasar verir; yeniden oluşma beklemesi 5,2 saniyedir. |
+| Perde İpliği | Gece İpliği | Kritik vuruş 1,5 çarpanıyla hasar verir ve hedefe bir ek karanlık/lanet katmanı ekler; lanet üç katmanla sınırlıdır. |
+| Ruh Kabı | Açık Kap | Boss yenildiğinde her biri 10 Ruh Özü değerinde üç toplanabilir parça düşürür. |
+| Fırtına İletkeni | Canlı Fırtına | Zincir yıldırımın çıktığı noktada 82 yarıçaplı, 2,2 saniyelik alan bırakır; 550 ms aralıklarla hedefin azami canının %6'sı kadar hasar verir. |
+| Kan Emaneti | Kızıl Sakrament | Can %40 veya altındayken kan etkisinin tetiklediği yaşam çalma iyileştirmesine 15 yüzde puanı ekler. |
+| Mezar Zırhı | Mühürlü Plaka | Koşunun 30. saniyesinden başlayarak her 30 saniyede bir alınacak ilk hasar temasını tamamen engeller. |
+| Avcı Çizmeleri | Hayalet Adım | Dash'in normal 190 ms bağışıklık süresine 360 ms ekler. |
+| Kâtibin Merceği | Temiz Yazım | Her koşuda ilk yeniden seçme ücretsizdir; normal yeniden seçme haklarını tüketmez. |
+| Muhafız Düğümü | Son Siper | Ölümcül darbeyi koşu başına bir kez engeller ve avcıyı 1 canla bırakır. |
+| Boş Taç | Kül Tacı | Elit öldüğünde 175 yarıçap içindeki düşmanları 5 saniyeliğine %30 daha az hasar verir hâle getirir. |
+
+Alan hasarı, bekleme süreleri, tek kullanımlık savunma ve toplanabilir Ruh Özü parçaları veri odaklı tanımlanır. Özel yükseltmeler mevcut silah, element, XP, dash, düşman ve hasar akışlarına bağlanır; yalnızca açıklama metni olarak kalamaz.
+
+Bazı pasifler belirli silahları veya karakter yeteneklerini dönüştürür. Pasif ve silah sinerjileri, altı pasif yuvası sınırını koruyarak desteklenir.
 
 ⸻
 
