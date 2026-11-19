@@ -18,6 +18,7 @@ import { addPassive, addWeapon, choosePassiveSpecial, chooseWeaponBranch, derive
 import { getActiveWeaponSynergies, getWeaponSynergyChainBonus, getWeaponSynergyDamageMultiplier } from '../../gameplay/weapons/weapon-synergies.js';
 import { addCurseStack, createPassiveSpecialRuntimeState, getLowHealthLifestealBonus, getWeakenedDamageMultiplier, grantFreeReroll, isFrozenTarget, isPassiveSpecialActive, isPoisonBloomReady, resolveCriticalHit, resolveLastWard, resolveSealedPlate, tryPassiveCooldown, type PassiveSpecialRuntimeState } from '../../gameplay/passives/passive-runtime.js';
 import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState } from '../../gameplay/bosses/boss-runtime.js';
+import { createBossArena, damageBossArenaObject, getBossArenaDamageMultiplier, getSafeBossArenaObject, stepBossArena, transitionBossArenaPhase, type BossArenaObjectKind, type BossArenaState } from '../../gameplay/bosses/boss-arena-runtime.js';
 import { createHazardCycle, stepRegionHazard, type HazardCycle, type HazardEvent } from '../../gameplay/regions/region-runtime.js';
 import { applyRunResult } from '../../gameplay/run/run-results.js';
 import { createWaveDirector, stepWaveDirector, waveRandom, type WaveDirectorState } from '../../gameplay/spawning/wave-director.js';
@@ -92,6 +93,13 @@ export class RunScene extends Phaser.Scene {
   private bossState?:BossEncounterState;
   private bossSprite?:Phaser.Physics.Arcade.Sprite;
   private bossPhaseText?:Phaser.GameObjects.Text;
+  private bossArenaObjects!:Phaser.Physics.Arcade.Group;
+  private bossArenaState?:BossArenaState;
+  private playerPoisonStacks=0;
+  private playerPoisonExpiresAt=0;
+  private playerPoisonNextTickAt=0;
+  private arenaInteractionReadyAt=0;
+  private lastBossArenaVisualsAt=0;
   private enemyStates=new WeakMap<Phaser.Physics.Arcade.Sprite,EnemyActorState>();
   private elementStates=new WeakMap<Phaser.Physics.Arcade.Sprite,ElementState>();
   private bossElementState:ElementState={};
@@ -422,6 +430,56 @@ export class RunScene extends Phaser.Scene {
     this.refreshBuildStats();
   }
 
+  browserTestSpawnBossForRegion(regionId:RegionId):void {
+    this.assertBrowserTestMode();
+    const region=REGIONS.find(item=>item.id===regionId);
+    if(!region)throw new Error('Unknown test boss region: '+regionId);
+    for(const child of [...this.enemies.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
+    this.bossArenaObjects.clear(true,true);this.bossArenaState=undefined;
+    this.region=region;this.bossSpawned=false;this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
+    this.spawnBoss();
+    if(!this.bossSprite||!this.bossArenaState||!this.bossDefinition||!this.bossState)throw new Error('Boss arena failed to spawn for '+regionId);
+    this.bossState={...this.bossState,attackReadyAt:Object.fromEntries(this.bossDefinition.phases.flatMap(phase=>phase.attacks.map(attack=>[attack.id,Number.POSITIVE_INFINITY])))};
+  }
+
+  browserTestArenaSnapshot():{
+    bossId:string;phaseIndex:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
+    objects:{id:string;kind:string;health:number;active:boolean;disabledUntil:number;revealed:boolean;isTrue:boolean;safe:boolean}[];
+  } {
+    this.assertBrowserTestMode();
+    if(!this.bossArenaState||!this.bossState)throw new Error('No boss arena is active.');
+    return {bossId:this.bossArenaState.bossId,phaseIndex:this.bossArenaState.phaseIndex,bossHealth:this.bossState.health,bossMaxHealth:this.bossState.maxHealth,bossDamageMultiplier:getBossArenaDamageMultiplier(this.bossArenaState,this.time.now),playerPoisonStacks:this.playerPoisonStacks,timeNow:this.time.now,
+      objects:this.bossArenaState.objects.map(({id,kind,health,active,disabledUntil,revealed,isTrue,safe})=>({id,kind,health,active,disabledUntil,revealed,isTrue,safe}))};
+  }
+
+  browserTestHitArenaObject(objectId:string,element:ElementId):void {
+    this.assertBrowserTestMode();
+    const target=this.bossArenaObjects.getChildren().find(child=>child.getData('arenaObjectId')===objectId) as Phaser.Physics.Arcade.Sprite|undefined;
+    if(!target?.active)throw new Error('Active arena object not found: '+objectId);
+    const shot=this.shots.create(target.x,target.y,'shot') as Phaser.Physics.Arcade.Sprite;
+    shot.setCircle(5).setData('damage',100).setData('element',element).setData('weaponId','browser-test').setData('expires',this.time.now+500);
+    shot.setVelocity(0,0);
+  }
+
+  browserTestTouchArenaObject(objectId:string):void {
+    this.assertBrowserTestMode();
+    const target=this.bossArenaObjects.getChildren().find(child=>child.getData('arenaObjectId')===objectId) as Phaser.Physics.Arcade.Sprite|undefined;
+    if(!target?.active)throw new Error('Active arena object not found: '+objectId);
+    this.player.setPosition(target.x,target.y).setVelocity(0,0);
+  }
+
+  browserTestApplyBossPoison():void {
+    this.assertBrowserTestMode();
+    this.playerPoisonStacks=4;this.playerPoisonExpiresAt=this.time.now+10_000;this.playerPoisonNextTickAt=this.time.now+60;
+  }
+
+  browserTestDamageBoss(amount:number):void {
+    this.assertBrowserTestMode();
+    if(!this.bossSprite?.active)throw new Error('No active boss to damage.');
+    const random=Math.random;Math.random=()=>.999999;
+    try{this.damageBossTarget(this.bossSprite,amount);}finally{Math.random=random;}
+  }
+
   browserTestDefeatBoss():void {
     this.assertBrowserTestMode();
     this.spawnBoss();
@@ -504,7 +562,7 @@ export class RunScene extends Phaser.Scene {
     this.runSeed=typeof requestedSeed==='number'&&Number.isFinite(requestedSeed)?requestedSeed>>>0:((Date.now()^Math.floor(Math.random()*0xffffffff))>>>0);
     if(this.runSeed===0)this.runSeed=1;
     this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
-    this.bossElementState={};this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
+    this.bossElementState={};this.bossArenaState=undefined;this.playerPoisonStacks=0;this.playerPoisonExpiresAt=0;this.playerPoisonNextTickAt=0;this.arenaInteractionReadyAt=0;this.lastBossArenaVisualsAt=0;this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;this.weaponSynergyGuardUntil=0;this.weaponSynergyGuardReduction=.28;this.weaponSynergyTriggers=[];
     this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.bossChestOpened=false;this.completedTreasureHunt=false;this.runCraftingMaterials={};this.lastRunSaved=null;
     this.makeTextures();
@@ -514,12 +572,14 @@ export class RunScene extends Phaser.Scene {
     floor.lineStyle(1,0x3a3337,0.12);
     for(let i=0;i<28;i++){const x=Phaser.Math.Between(80,WORLD_W-80),y=Phaser.Math.Between(80,WORLD_H-80);floor.lineStyle(2,0x8a795d,0.08);floor.strokeCircle(x,y,Phaser.Math.Between(18,64));}
     floor.setDepth(-10);
-    this.enemies=this.physics.add.group();this.shots=this.physics.add.group({maxSize:100});this.orbs=this.physics.add.group({maxSize:80});this.eventObjects=this.physics.add.group();
+    this.enemies=this.physics.add.group();this.shots=this.physics.add.group({maxSize:100});this.orbs=this.physics.add.group({maxSize:80});this.eventObjects=this.physics.add.group();this.bossArenaObjects=this.physics.add.group();
     this.player=this.physics.add.sprite(WORLD_W/2,WORLD_H/2,'hunter').setCircle(12).setCollideWorldBounds(true).setDepth(3);
     this.cameras.main.startFollow(this.player,true,0.08,0.08);
     this.cursors=this.input.keyboard!.createCursorKeys();
     this.keys=this.input.keyboard!.addKeys('W,A,S,D,SPACE,E,ESC,ENTER') as Record<string,Phaser.Input.Keyboard.Key>;
     this.physics.add.overlap(this.shots,this.enemies,(a,b)=>this.hitEnemy(a as Phaser.Physics.Arcade.Sprite,b as Phaser.Physics.Arcade.Sprite));
+    this.physics.add.overlap(this.shots,this.bossArenaObjects,(a,b)=>this.hitBossArenaObject(a as Phaser.Physics.Arcade.Sprite,b as Phaser.Physics.Arcade.Sprite));
+    this.physics.add.overlap(this.player,this.bossArenaObjects,(_p,o)=>this.touchBossArenaObject(o as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.enemies,(_p,e)=>this.contactDamage(e as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.orbs,(_p,o)=>this.collectOrb(o as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.eventObjects,(_p,o)=>this.handleRunEventObjectOverlap(o as Phaser.GameObjects.GameObject));
@@ -532,7 +592,9 @@ export class RunScene extends Phaser.Scene {
       const g=this.add.graphics();g.fillStyle(color,1);g.fillCircle(r+3,r+3,r);g.lineStyle(2,0xe8d7b6,.75);g.strokeCircle(r+3,r+3,r);
       g.generateTexture(key,(r+3)*2,(r+3)*2);g.destroy();
     };
-    make('hunter',0xc2a36d,13);make('shot',0xe8c77a,5);make('orb',0x69b7a5,5);make('boss-'+this.region.bossId,0x8e4567,31);
+    make('hunter',0xc2a36d,13);make('shot',0xe8c77a,5);make('orb',0x69b7a5,5);
+    for(const boss of BOSSES)make('boss-'+boss.id,0x8e4567,31);
+    make('arena-root-pillar',0x78964a,22);make('arena-grave-marker',0x9b8a75,22);make('arena-gear',0xb57b43,22);make('arena-water-island',0x4b9d9a,28);make('arena-seal',0x8062a6,22);
     if(!this.textures.exists('boss-chest')){
       const chest=this.add.graphics();
       chest.fillStyle(0x593b26,1);chest.fillRoundedRect(4,12,40,25,4);
@@ -586,7 +648,7 @@ export class RunScene extends Phaser.Scene {
     if(gamepad.startPressed){this.openPause();return;}
     this.state=advanceRun(this.state,delta);this.updateRunEvent(time);
     this.move(time);if(this.paused)return;this.moveEnemies(time);this.updateEnemyZones(time);this.updatePassiveZones(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
-    this.expireShots(time);this.magnetize();this.updateElementStatuses(time);this.updateRegionHazard(time);
+    this.expireShots(time);this.magnetize();this.updateElementStatuses(time);this.updateRegionHazard(time);this.updateBossArena(time);
     if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
     if(this.state.elapsedMs>=RUN_MS&&!this.bossState&&!this.bossSpawned)this.spawnBoss();
     if(time-this.lastHud>120){this.refreshHud();this.lastHud=time;}
@@ -732,6 +794,11 @@ export class RunScene extends Phaser.Scene {
       if(this.isInsideTelegraph(shape,source,x,y,radius)){
         const weaken=Number(source.getData('weakenedUntil')??0)>this.time.now?Number(source.getData('weakenedMultiplier')??1):1;
         this.receiveCombatDamage(damage*weaken);
+        if(source.getData('isBoss')&&this.bossDefinition?.id==='mire-oracle'&&!this.runFinished){
+          this.playerPoisonStacks=Math.min(5,this.playerPoisonStacks+1);this.playerPoisonExpiresAt=this.time.now+8_000;
+          if(this.playerPoisonNextTickAt<=this.time.now)this.playerPoisonNextTickAt=this.time.now+1_000;
+          this.eventHud?.setText('BATAKLIK ZEHRI  •  GÜVENLİ SU ADASINA ULAŞ').setVisible(true);
+        }
         if(def?.behavior==='blood-drain'&&source.active){const hp=Number(source.getData('health'))+damage*.35;source.setData('health',Math.min(Number(source.getData('maxHealth')),hp));}
         if(def?.behavior==='soul-snipe'&&source.active)source.setData('untargetableUntil',this.time.now+520);
       }
@@ -804,6 +871,96 @@ export class RunScene extends Phaser.Scene {
     return enemy;
   }
 
+  private bossArenaHint():string {
+    switch(this.bossDefinition?.id){
+      case 'thorn-matriarch':return 'KÖK SÜTUNLARI  •  ATEŞLE KIR, BOSS SAVUNMASINI AZALT';
+      case 'ossuary-king':return 'MEZAR TAŞLARI  •  YILDIRIMLA KIR, İYİLEŞMEYİ DURDUR';
+      case 'furnace-colossus':return 'DÖRT DİŞLİ  •  BUZLA DURDUR, ÇEKİRDEĞİ AÇ';
+      case 'mire-oracle':return 'TEMİZ SU ADASI  •  ZEHİRİ TEMİZLE, FAZ DEĞİŞİMİNDE YER DEĞİŞTİRİR';
+      case 'unwritten-regent':return 'MÜHÜRLER  •  KARANLIK GERÇEĞİ GÖSTERİR, RUH/KAN KIRAR';
+      default:return '';
+    }
+  }
+
+  private spawnBossArenaObjects(centerX:number,centerY:number):void {
+    if(!this.bossArenaState)return;
+    const offsets:Record<BossArenaObjectKind,{x:number;y:number}[]> = {
+      'root-pillar':[{x:-112,y:-58},{x:112,y:-58},{x:0,y:118}],
+      'grave-marker':[{x:-112,y:-100},{x:112,y:-100},{x:-112,y:100},{x:112,y:100}],
+      gear:[{x:-118,y:-92},{x:118,y:-92},{x:-118,y:92},{x:118,y:92}],
+      'water-island':[{x:-112,y:0},{x:0,y:112},{x:112,y:0}],
+      seal:[{x:-108,y:-108},{x:108,y:-108},{x:-108,y:108},{x:108,y:108}]
+    };
+    for(const [index,object] of this.bossArenaState.objects.entries()){
+      const point=offsets[object.kind][index]!;
+      const sprite=this.physics.add.sprite(centerX+point.x,centerY+point.y,'arena-'+object.kind).setDepth(2).setCircle(object.kind==='water-island'?28:19).setImmovable(true);
+      (sprite.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+      sprite.setData('arenaObjectId',object.id).setData('arenaObjectKind',object.kind);
+      this.bossArenaObjects.add(sprite);
+    }
+    this.updateBossArenaVisuals();
+  }
+
+  private updateBossArenaVisuals():void {
+    if(!this.bossArenaState)return;
+    for(const child of this.bossArenaObjects.getChildren()){
+      const sprite=child as Phaser.Physics.Arcade.Sprite;
+      const object=this.bossArenaState.objects.find(item=>item.id===sprite.getData('arenaObjectId'));
+      if(!object?.active){sprite.destroy();continue;}
+      if(object.kind==='gear'){
+        if(object.disabledUntil>this.time.now)sprite.setTint(0x8fdcff).setAlpha(.48);
+        else sprite.clearTint().setAlpha(1);
+      }else if(object.kind==='seal'){
+        sprite.setTint(object.revealed?0xffd47a:0x8062a6).setAlpha(object.revealed?1:.82);
+        sprite.setScale(object.revealed?1.18:1);
+      }else if(object.kind==='water-island'){
+        sprite.setTint(object.safe?0x70e4d3:0x536c70).setAlpha(object.safe?1:.55);
+      }else sprite.setAlpha(1);
+    }
+  }
+
+  private hitBossArenaObject(shot:Phaser.Physics.Arcade.Sprite,target:Phaser.Physics.Arcade.Sprite):void {
+    if(!shot.active||!target.active||this.runFinished||!this.bossArenaState)return;
+    const id=String(target.getData('arenaObjectId')??'');
+    const element=shot.getData('element') as ElementId|undefined;
+    const result=damageBossArenaObject(this.bossArenaState,id,Number(shot.getData('damage')??0),element,this.time.now);
+    this.bossArenaState=result.state;shot.destroy();
+    if(result.revealedObjectId)this.eventHud?.setText('GERÇEK MÜHÜR ORTAYA ÇIKTI  •  RUH VEYA KANLA KIR').setVisible(true);
+    else if(result.disabledUntil)this.eventHud?.setText('DİŞLİ DURDURULDU  •  '+Math.ceil((result.disabledUntil-this.time.now)/1000)+' SN').setVisible(true);
+    else if(result.destroyed)this.eventHud?.setText('ARENA MEKANİĞİ KIRILDI').setVisible(true);
+    else if(result.resisted)this.eventHud?.setText(this.bossArenaHint()).setVisible(true);
+    this.updateBossArenaVisuals();
+    if(result.changed)this.cameras.main.shake(80,.0012);
+  }
+
+  private touchBossArenaObject(object:Phaser.Physics.Arcade.Sprite):void {
+    if(!object.active||this.runFinished||!this.bossArenaState||this.time.now<this.arenaInteractionReadyAt)return;
+    const safe=getSafeBossArenaObject(this.bossArenaState);
+    if(!safe||safe.id!==String(object.getData('arenaObjectId')??'')||this.playerPoisonStacks<=0)return;
+    this.playerPoisonStacks=0;this.playerPoisonExpiresAt=0;this.playerPoisonNextTickAt=0;
+    this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.arenaInteractionReadyAt=this.time.now+1_300;
+    this.healPlayer(this.state.maxHealth*.015);
+    this.eventHud?.setText('TEMİZ SU  •  ZEHİR TEMİZLENDİ').setVisible(true);
+  }
+
+  private updateBossArena(time:number):void {
+    if(!this.bossArenaState)return;
+    if(this.bossSprite?.active&&this.bossState&&!this.bossState.defeated){
+      const tick=stepBossArena(this.bossArenaState,time,this.bossState.maxHealth);
+      this.bossArenaState=tick.state;
+      if(tick.healing>0){
+        const health=Math.min(this.bossState.maxHealth,this.bossState.health+tick.healing);
+        this.bossState={...this.bossState,health};this.bossSprite.setData('health',health);
+        this.bossHealth?.setSize(300*Phaser.Math.Clamp(health/this.bossState.maxHealth,0,1),5);
+      }
+    }
+    if(this.playerPoisonStacks>0){
+      if(time>=this.playerPoisonExpiresAt){this.playerPoisonStacks=0;this.playerPoisonNextTickAt=0;}
+      else if(time>=this.playerPoisonNextTickAt){this.playerPoisonNextTickAt=time+1_000;this.receiveCombatDamage(this.playerPoisonStacks*1.5);}
+    }
+    if(time-this.lastBossArenaVisualsAt>=160){this.updateBossArenaVisuals();this.lastBossArenaVisualsAt=time;}
+  }
+
   private spawnBoss():void {
     const active=this.enemies.getChildren() as Phaser.Physics.Arcade.Sprite[];
     const eliteAlive=active.some(enemy=>enemy.active&&Boolean(enemy.getData('isElite')));
@@ -814,6 +971,8 @@ export class RunScene extends Phaser.Scene {
     const boss=this.enemies.create(this.player.x+330,this.player.y,'boss-'+this.bossDefinition.id) as Phaser.Physics.Arcade.Sprite;
     boss.setDepth(4).setCircle(32).setData('isBoss',true).setData('health',this.bossDefinition.health).setData('experience',80);
     this.bossSprite=boss;this.bossSpawned=true;this.bossHud?.setText(this.bossDefinition.name).setVisible(true);this.bossHealth?.setVisible(true);this.bossPhaseText?.setText(this.bossDefinition.phases[0]!.name).setVisible(true);
+    this.bossArenaState=createBossArena(this.bossDefinition.id,this.runSeed);this.spawnBossArenaObjects(boss.x,boss.y);
+    this.eventHud?.setText(this.bossArenaHint()).setVisible(true);
     this.cameras.main.flash(450,70,25,40);
   }
 
@@ -1087,10 +1246,11 @@ export class RunScene extends Phaser.Scene {
     const ice=PASSIVES.find(item=>item.id==='frostbound-sigil')!.specialUpgrade.mechanic;
     if(ice.kind==='ice-shatter'&&isPassiveSpecialActive(this.build,'frostbound-sigil')&&baseDamage>=ice.minimumHitDamage&&isFrozenTarget(this.bossElementState.ice?.expiresAt,this.time.now)&&Number(boss.getData('iceShatteredUntil')??0)<(this.bossElementState.ice?.expiresAt??0)){damage+=baseDamage*ice.damageMultiplier;boss.setData('iceShatteredUntil',this.bossElementState.ice!.expiresAt);}
     if(element&&this.bossDefinition.weakness.includes(element))damage*=1.3;
+    damage*=getBossArenaDamageMultiplier(this.bossArenaState,this.time.now);
     const transition=damageBoss(this.bossState,this.bossDefinition,damage,this.time.now);this.bossState=transition.state;
     boss.setData('health',transition.state.health).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(boss.active)boss.clearTint();});
-    if(transition.changed&&!transition.state.defeated){this.bossPhaseText?.setText(transition.current.name);this.cameras.main.flash(320,90,38,55);
+    if(transition.changed&&!transition.state.defeated){this.bossPhaseText?.setText(transition.current.name);this.bossArenaState=this.bossArenaState?transitionBossArenaPhase(this.bossArenaState,transition.state.phaseIndex):undefined;this.updateBossArenaVisuals();this.eventHud?.setText(this.bossArenaHint()).setVisible(true);this.cameras.main.flash(320,90,38,55);
       for(const id of transition.current.addEnemyIds){if(this.enemies.countActive(true)>=42)break;const def=ENEMIES.find(e=>e.id===id);if(def)this.createEnemy(boss.x+Phaser.Math.Between(-90,90),boss.y+Phaser.Math.Between(-90,90),def,1.2);}}
     this.bossHealth?.setSize(300*Phaser.Math.Clamp(transition.state.health/transition.state.maxHealth,0,1),5);
     if(transition.state.defeated)this.defeatBoss(boss);
@@ -1101,6 +1261,7 @@ export class RunScene extends Phaser.Scene {
     const vessel=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='boss-essence')?.specialUpgrade.mechanic;
     if(vessel?.kind==='boss-essence'&&isPassiveSpecialActive(this.build,'soul-vessel'))for(let i=0;i<vessel.fragmentCount;i++){const angle=(Math.PI*2*i)/vessel.fragmentCount;this.createRunEventObject(boss.x+Math.cos(angle)*48,boss.y+Math.sin(angle)*48,'essence-fragment',vessel.essencePerFragment);}
     this.bossVictoryPending=true;this.createRunEventObject(boss.x,boss.y,'boss-chest');
+    this.bossArenaObjects.clear(true,true);this.bossArenaState=undefined;
     boss.destroy();this.bossSprite=undefined;this.bossHud?.setText('BOSS YENİLDİ');this.bossPhaseText?.setText('Boss sandığına ulaş ve aç');
     this.eventHud?.setText('BOSS SANDIĞI  •  YAKLAŞARAK AÇ').setVisible(true);
     this.cameras.main.flash(500,175,135,72);

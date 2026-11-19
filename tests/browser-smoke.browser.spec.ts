@@ -1010,3 +1010,73 @@ test('uncompleted treasure hunt cannot grant an exploration relic', async ({ pag
   expect(saved.collections.relicIds).not.toContain('forest-heart');
   expect(pageErrors).toEqual([]);
 });
+
+
+type BossArenaSnapshot={
+  bossId:string;phaseIndex:number;bossHealth:number;bossMaxHealth:number;bossDamageMultiplier:number;playerPoisonStacks:number;timeNow:number;
+  objects:{id:string;kind:string;health:number;active:boolean;disabledUntil:number;revealed:boolean;isTrue:boolean;safe:boolean}[];
+};
+
+async function callBossArena(page:import('@playwright/test').Page,name:string,args:unknown[]=[]):Promise<unknown>{
+  return page.evaluate(({method,values})=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>unknown}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    const scene=game.scene.getScene('run') as Record<string,(...input:unknown[])=>unknown>;
+    const action=scene[method];
+    if(typeof action!=='function')throw new Error('Missing browser test method: '+method);
+    return action.apply(scene,values);
+  },{method:name,values:args});
+}
+
+test('all five boss arenas interact with real Phaser overlaps, elements and phase changes',async({page})=>{
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await startBrowserTestRun(page);
+  const cases=[
+    {region:'cursed-forest',boss:'thorn-matriarch',kind:'root-pillar',id:'root-pillar-1',element:'fire'},
+    {region:'forgotten-graveyard',boss:'ossuary-king',kind:'grave-marker',id:'grave-marker-1',element:'lightning'},
+    {region:'deep-dungeon',boss:'furnace-colossus',kind:'gear',id:'gear-1',element:'ice'},
+    {region:'rotten-swamp',boss:'mire-oracle',kind:'water-island',id:'',element:'fire'},
+    {region:'cursed-castle',boss:'unwritten-regent',kind:'seal',id:'seal-1',element:'dark'}
+  ] as const;
+  for(const item of cases){
+    await callBossArena(page,'browserTestSpawnBossForRegion',[item.region]);
+    let snapshot=await callBossArena(page,'browserTestArenaSnapshot') as BossArenaSnapshot;
+    expect(snapshot.bossId).toBe(item.boss);
+    expect(snapshot.objects.filter(object=>object.kind===item.kind)).toHaveLength(item.kind==='root-pillar'||item.kind==='water-island'?3:4);
+
+    if(item.boss==='thorn-matriarch'||item.boss==='ossuary-king'){
+      const before=snapshot.objects.find(object=>object.id===item.id)!.health;
+      await callBossArena(page,'browserTestHitArenaObject',[item.id,item.element]);
+      await expect.poll(async()=>((await callBossArena(page,'browserTestArenaSnapshot')) as BossArenaSnapshot).objects.find(object=>object.id===item.id)!.health).toBeLessThan(before);
+    }else if(item.boss==='furnace-colossus'){
+      await callBossArena(page,'browserTestHitArenaObject',[item.id,item.element]);
+      await expect.poll(async()=>{const current=await callBossArena(page,'browserTestArenaSnapshot') as BossArenaSnapshot;return current.objects.find(object=>object.id===item.id)!.disabledUntil-current.timeNow;}).toBeGreaterThan(9_000);
+    }else if(item.boss==='mire-oracle'){
+      const safe=snapshot.objects.find(object=>object.safe)!;
+      expect(safe.kind).toBe('water-island');
+      await callBossArena(page,'browserTestApplyBossPoison');
+      await callBossArena(page,'browserTestTouchArenaObject',[safe.id]);
+      await expect.poll(async()=>((await callBossArena(page,'browserTestArenaSnapshot')) as BossArenaSnapshot).playerPoisonStacks).toBe(0);
+    }else{
+      await callBossArena(page,'browserTestHitArenaObject',['seal-1','dark']);
+      await expect.poll(async()=>((await callBossArena(page,'browserTestArenaSnapshot')) as BossArenaSnapshot).objects.some(object=>object.isTrue&&object.revealed)).toBe(true);
+      snapshot=await callBossArena(page,'browserTestArenaSnapshot') as BossArenaSnapshot;
+      const trueSeal=snapshot.objects.find(object=>object.isTrue)!;
+      const before=trueSeal.health;
+      await callBossArena(page,'browserTestHitArenaObject',[trueSeal.id,'spirit']);
+      await expect.poll(async()=>((await callBossArena(page,'browserTestArenaSnapshot')) as BossArenaSnapshot).objects.find(object=>object.id===trueSeal.id)!.health).toBeLessThan(before);
+    }
+
+    snapshot=await callBossArena(page,'browserTestArenaSnapshot') as BossArenaSnapshot;
+    await callBossArena(page,'browserTestDamageBoss',[snapshot.bossMaxHealth*.45]);
+    await expect.poll(async()=>((await callBossArena(page,'browserTestArenaSnapshot')) as BossArenaSnapshot).phaseIndex).toBe(1);
+    await callBossArena(page,'browserTestDamageBoss',[snapshot.bossMaxHealth*.5]);
+    await expect.poll(async()=>((await callBossArena(page,'browserTestArenaSnapshot')) as BossArenaSnapshot).phaseIndex).toBe(2);
+    const phaseThree=await callBossArena(page,'browserTestArenaSnapshot') as BossArenaSnapshot;
+    if(item.boss==='mire-oracle')expect(phaseThree.objects.find(object=>object.safe)?.id).toBe('water-island-3');
+    if(item.boss==='thorn-matriarch')expect(phaseThree.bossDamageMultiplier).toBeCloseTo(.7,4);
+    if(item.boss==='unwritten-regent')expect(phaseThree.bossDamageMultiplier).toBeCloseTo(.6,4);
+  }
+  expect(errors).toEqual([]);
+});

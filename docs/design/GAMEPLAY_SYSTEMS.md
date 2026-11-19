@@ -28,6 +28,7 @@ Engine-independent gameplay modules provide:
 - Seven-element buildup, resistance, reactions and timed status ticks: `src/gameplay/elements/element-runtime.ts`
 - Six-slot weapon/passive builds, five-level upgrades, evolution eligibility and derived stats: `src/gameplay/weapons/build-runtime.ts`
 - Boss health thresholds, three-phase transitions and per-attack cooldowns: `src/gameplay/bosses/boss-runtime.ts`
+- Five data-driven boss arena state machines (breakable objects, elemental counters, phase modifiers and safe-zone interactions): `src/gameplay/bosses/boss-arena-runtime.ts`
 - Region hazard telegraph/active cycles: `src/gameplay/regions/region-runtime.ts`
 
 The Phaser run scene now consumes these modules for its selected character and region: region-specific enemy spawning, AI movement and shaped attack telegraphs, elemental weapon hits/reactions/status ticks (burn, poison, ice slow, dark vulnerability, spirit healing, timed lightning stun pulses and blood sustain), six-slot weapon/passive acquisition and upgrades, weapon-specific attacks, boss phase transitions/adds/health display, region hazard warnings, and pause-safe overlay timing. The scene accepts `characterId` and `regionId` in its scene start data; the current main menu still launches the default hunter and first region.
@@ -137,3 +138,20 @@ Seven authored pair reactions have typed outcomes: Thermal Shock (burst), Igniti
 
 
 - Achievement rewards use separate authored cosmetic IDs (forest-wraith, bone-regalia, mourning-veil) rather than directly granting boss- or exploration-source relics.
+
+
+## Boss arena mechanics v1
+
+All five bosses now spawn their own interactive arena objects into the Phaser Arcade overlap system. Weapon projectiles can strike destructible objects; the player's body can activate the Mire Oracle's safe-water interaction. Arena rules are deterministic from the run seed, update on each boss phase transition, and use temporary procedural placeholder shapes only.
+
+| Boss | Arena interaction | Element counter | Phase behavior |
+|---|---|---|---|
+| Diken Ana | Three root pillars (240 HP each) collectively absorb 20% of incoming boss damage at phase 1. Destroying a pillar proportionally reduces absorption. | Fire deals 1.8× damage to pillars. | Total absorption rises to 25% in phase 2 and 30% in phase 3 if all pillars remain. |
+| Kemik Kral | Four grave markers (220 HP each) heal the boss every 3 seconds while active. | Lightning deals 1.8× damage to markers. | Healing per active marker scales from 0.6% to 0.8% to 1.0% of boss maximum health per tick across phases. |
+| Ocak Devi | Four gears can be stopped; when all are stopped together, the boss takes 1.25× damage. | Ice stops a gear for 10 seconds in phase 1, 8 seconds in phase 2 and 6 seconds in phase 3. | The shorter stop window increases pressure in later phases; the core opens only while all four gears are stopped. |
+| Bataklık Kâhini | Three water islands surround the arena. Only one is safe at a time; entering it cleanses player poison and restores 1.5% maximum health. | The boss's successful telegraph hits add poison stacks (up to five); each stack deals 1.5 damage per second until cleansed or expired after 8 seconds. | The safe island rotates to a different position at each phase transition. |
+| Yazılmamış Hükümdar | Four seal stones are seeded; only one is real. A Dark hit on any seal reveals the real one and removes the decoys. | The revealed seal can only be damaged by Spirit or Blood. | Before the real seal breaks, boss damage received is multiplied by 0.8 / 0.7 / 0.6 across phases. Breaking it exposes the boss and changes the multiplier to 1.25. |
+
+The arena runtime owns state and calculations without importing Phaser. RunScene owns the Arcade sprites, projectile/player overlaps, visual state, poison ticking, boss healing and boss damage integration. The test-only scene bridge can spawn each boss independently and inspect arena state; it is disabled unless browser-test mode is enabled.
+
+Balance values are initial tuning defaults. Browser tests verify actual projectile/player overlap and phase changes; natural-run balance, mobile/TV device behavior, final art, animation and audio remain outstanding.
