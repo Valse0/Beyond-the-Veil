@@ -5,9 +5,10 @@ export interface LevelUpControlState {
   bannedChoiceIds: readonly string[];
 }
 
-export function createLevelUpControlState(): LevelUpControlState {
+export function createLevelUpControlState(extraRerolls = 0): LevelUpControlState {
+  const bonus = Number.isFinite(extraRerolls) ? Math.min(3, Math.max(0, Math.floor(extraRerolls))) : 0;
   return {
-    rerollsRemaining: 2,
+    rerollsRemaining: 2 + bonus,
     banishesRemaining: 1,
     skipsRemaining: 1,
     bannedChoiceIds: []
