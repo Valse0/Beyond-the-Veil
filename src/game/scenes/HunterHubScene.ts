@@ -1,22 +1,8 @@
 import Phaser from 'phaser';
 import type { SaveManager } from '../../systems/save/save-manager.js';
+import { PERMANENT_UPGRADES, getPermanentUpgradeCost } from '../../gameplay/progression/permanent-upgrades.js';
 
-interface UpgradeDefinition {
-  id: string;
-  name: string;
-  description: string;
-  baseCost: number;
-  maxLevel: number;
-}
-
-const UPGRADES: UpgradeDefinition[] = [
-  { id: 'maxHealth', name: 'Avcının Canı', description: 'Maksimum canı artırır (+15 HP / seviye).', baseCost: 50, maxLevel: 5 },
-  { id: 'attackPower', name: 'Saldırı Gücü', description: 'Verilen hasarı artırır (%+5 / seviye).', baseCost: 75, maxLevel: 5 },
-  { id: 'moveSpeed', name: 'Hareket Hızı', description: 'Yürüme ve koşu hızını artırır (%+4 / seviye).', baseCost: 60, maxLevel: 5 },
-  { id: 'armor', name: 'Zırh ve Direnç', description: 'Gelen hasarı azaltır (+2 / seviye).', baseCost: 70, maxLevel: 5 },
-  { id: 'xpBonus', name: 'Ruh Deneyimi', description: 'Kazanılan XP miktarını artırır (%+8 / seviye).', baseCost: 80, maxLevel: 5 },
-  { id: 'rerolls', name: 'Kutsal Yenileme', description: 'Seviye atlamada ekstra yenileme hakkı verir (+1 / seviye).', baseCost: 100, maxLevel: 3 }
-];
+const UPGRADES = PERMANENT_UPGRADES;
 
 export class HunterHubScene extends Phaser.Scene {
   private essenceText?: Phaser.GameObjects.Text;
@@ -26,6 +12,7 @@ export class HunterHubScene extends Phaser.Scene {
   private buttonTexts: Map<string, Phaser.GameObjects.Text> = new Map();
   private selectedIndex = 0;
   private previousPad = { up: false, down: false, left: false, right: false, confirm: false, back: false };
+  private navKeys!: Record<string, Phaser.Input.Keyboard.Key>;
 
   constructor() {
     super('hunter-hub');
@@ -55,6 +42,8 @@ export class HunterHubScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#b8aaa0'
     });
 
+    this.navKeys = this.input.keyboard!.addKeys('UP,DOWN,ENTER,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
+
     this.essenceText = this.add.text(width - 64, 52, '', {
       fontFamily: 'Georgia, serif', fontSize: '24px', color: '#f0d9b5', fontStyle: 'bold'
     }).setOrigin(1, 0);
@@ -78,7 +67,7 @@ export class HunterHubScene extends Phaser.Scene {
 
       const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
       const currentLevel = saveManager ? saveManager.getPermanentUpgradeLevel(upgrade.id) : 0;
-      const cost = upgrade.baseCost * (currentLevel + 1);
+      const cost = getPermanentUpgradeCost(upgrade.id, currentLevel) ?? upgrade.baseCost * (currentLevel + 1);
 
       const levelText = this.add.text(leftX + 460, y + cardHeight / 2, `Seviye ${currentLevel} / ${upgrade.maxLevel}`, {
         fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#d9c9aa'
@@ -122,12 +111,13 @@ export class HunterHubScene extends Phaser.Scene {
 
   update(): void {
     const pad = this.input.gamepad?.getPad(0);
-    if (!pad) return;
-
-    const up = pad.up || Number(pad.axes[1]?.value) < -0.5;
-    const down = pad.down || Number(pad.axes[1]?.value) > 0.5;
-    const confirm = Boolean(pad.A || pad.buttons[9]?.pressed);
-    const back = Boolean(pad.B || pad.buttons[8]?.pressed);
+    const keyboardUp = Phaser.Input.Keyboard.JustDown(this.navKeys.UP!);
+    const keyboardDown = Phaser.Input.Keyboard.JustDown(this.navKeys.DOWN!);
+    const keyboardConfirm = Phaser.Input.Keyboard.JustDown(this.navKeys.ENTER!) || Phaser.Input.Keyboard.JustDown(this.navKeys.SPACE!);
+    const up = keyboardUp || Boolean(pad && (pad.up || Number(pad.axes[1]?.value) < -0.5));
+    const down = keyboardDown || Boolean(pad && (pad.down || Number(pad.axes[1]?.value) > 0.5));
+    const confirm = keyboardConfirm || Boolean(pad && (pad.A || pad.buttons[9]?.pressed));
+    const back = Boolean(pad && (pad.B || pad.buttons[8]?.pressed));
 
     if (up && !this.previousPad.up) {
       this.selectedIndex = (this.selectedIndex - 1 + UPGRADES.length) % UPGRADES.length;
