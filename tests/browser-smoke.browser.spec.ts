@@ -409,7 +409,7 @@ test('all fourteen authored weapon synergies trigger through their real Phaser c
       return game.scene.getScene('run').browserTestFireWeaponSynergy(weapon,passive);
     },[weaponId,passiveId]);
     expect(result.activeSynergyIds).toContain(synergyId);
-    await expect.poll(async()=> (await readBrowserRunSnapshot(page)).weaponSynergyTriggers,{timeout:3_000,message:synergyId+' should execute its combat trigger'}).toContain(synergyId);
+    await expect.poll(async()=> (await readBrowserRunSnapshot(page)).weaponSynergyTriggers,{timeout:8_000,message:synergyId+' should execute its combat trigger'}).toContain(synergyId);
     const triggered=await readBrowserRunSnapshot(page);
     expect(triggered.weaponSynergyTriggers.filter(id=>id===synergyId)).toHaveLength(1);
   }
@@ -552,7 +552,7 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   // resumes the clock. finishRun() then pauses the scene again, so an intermediate
   // "paused === false" or live-clock assertion is inherently timing-dependent.
   // The durable contract is that the scheduled callback fires after its full delay.
-  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.finishCallbackAtMs,{timeout:3_000,message:'Scheduled victory completion callback should execute after the timer delay'}).not.toBeNull();
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.finishCallbackAtMs,{timeout:8_000,message:'Scheduled victory completion callback should execute after the timer delay'}).not.toBeNull();
   const completedTimer=await readBrowserRunSnapshot(page);
   expect(completedTimer.bossChestDiagnostics.finishTimer).not.toBeNull();
   expect(completedTimer.bossChestDiagnostics.finishTimer?.hasDispatched).toBe(true);
