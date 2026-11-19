@@ -472,3 +472,13 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - RunScene captures saved `story.bossEncounterIds` at region entry. The selected variant is resolved at boss spawn and stays fixed for that encounter; a later story choice can only affect a subsequent region entry.
 - If no matching story outcome is saved, the original boss definition is used unchanged. Boss identity, health thresholds, arena definition/mechanics, elemental rules, reward data and boss-chest flow are preserved. No save-schema migration, UI, final art, backend or external service was added.
 - `PROG-05` and `WORLD-02` remain IN_PROGRESS because quest journal/choice UI, world-path gameplay, ending presentation and natural-run/device validation are outstanding. All five BOSS requirements remain IN_PROGRESS for final art/audio, balance and physical-device testing.
+
+
+## Ending Outcome Runtime v1 implementation pass (2026-11-19)
+
+- Separated the selected story ending (`story.endingId`) from the completed campaign ending (`story.completedEndingId`). The latter is set only after a victorious Cursed Castle run defeats the Unwritten Regent and opens the boss chest.
+- The ending resolver validates the completed final quest, selected choice, matching outcome and ending ID. Defeat, wrong region/boss, incomplete quest, malformed branch linkage and repeat completion cannot create or replace a completed ending.
+- Save schema v10 adds the nullable completed-ending ID. Schema-v9 migration preserves all existing story choices/progress and initializes the new field to null; earlier migrations continue to converge on the current schema.
+- Added unit coverage for both authored endings, invalid/mismatched choices, defeat, wrong boss/region and idempotency; added migration coverage and a live Phaser final-boss victory/reload browser test.
+- Final-scene UI, dialogue, animation, final art/audio and physical-device/natural-run validation remain later work.
+- CI evidence: pending.

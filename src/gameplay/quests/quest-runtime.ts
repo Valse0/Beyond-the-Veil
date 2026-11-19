@@ -5,7 +5,7 @@ import type { SaveData, QuestProgress, QuestStoryState } from '../../systems/sav
 import type { QuestObjectiveEventType } from '../../core/types/content.js';
 
 export function createInitialQuestStoryState(): QuestStoryState {
-  return { quests:{}, npcFates:{}, regionAtmospheres:{}, unlockedPathIds:[], bossEncounterIds:[], unlockedRewardIds:[], unlockedAlternateQuestIds:[], endingId:null, appliedOutcomeIds:[] };
+  return { quests:{}, npcFates:{}, regionAtmospheres:{}, unlockedPathIds:[], bossEncounterIds:[], unlockedRewardIds:[], unlockedAlternateQuestIds:[], endingId:null, completedEndingId:null, appliedOutcomeIds:[] };
 }
 const uniqueStrings=(v:unknown):v is string[]=>Array.isArray(v)&&v.every(x=>typeof x==='string'&&x.length>0)&&new Set(v).size===v.length;
 const stringRecord=(v:unknown):v is Record<string,string>=>typeof v==='object'&&v!==null&&!Array.isArray(v)&&Object.entries(v).every(([k,x])=>k.length>0&&typeof x==='string'&&x.length>0);
@@ -16,6 +16,7 @@ export function isQuestStoryState(value:unknown): value is QuestStoryState {
   if(typeof s.quests!=='object'||s.quests===null||Array.isArray(s.quests)||!stringRecord(s.npcFates)||!stringRecord(s.regionAtmospheres))return false;
   if(!uniqueStrings(s.unlockedPathIds)||!uniqueStrings(s.bossEncounterIds)||!uniqueStrings(s.unlockedRewardIds)||!uniqueStrings(s.unlockedAlternateQuestIds)||!uniqueStrings(s.appliedOutcomeIds))return false;
   if(s.endingId!==null&&typeof s.endingId!=='string')return false;
+  if(s.completedEndingId!==null&&s.completedEndingId!=='ending-mended-veil'&&s.completedEndingId!=='ending-beyond-veil')return false;
   for(const [id,raw] of Object.entries(s.quests as Record<string,unknown>)){
     const q=QUEST_BY_ID.get(id);
     if(!q||typeof raw!=='object'||raw===null||Array.isArray(raw))return false;

@@ -14,7 +14,7 @@ import type { PermanentUpgradeRespecQuote } from '../../gameplay/progression/per
 import { createInitialQuestStoryState, isQuestStoryState } from '../../gameplay/quests/quest-runtime.js';
 import { buildEquipmentProfile, getActiveEquipmentProfile, isActiveEquipmentProfileRecord, isEquipmentProfilesRecord, MAX_EQUIPMENT_PROFILES_PER_CHARACTER, type EquipmentProfile, type EquipmentProfileDraft } from '../../gameplay/progression/equipment-profiles.js';
 
-const CURRENT_SCHEMA_VERSION = 9;
+const CURRENT_SCHEMA_VERSION = 10;
 const RELIC_IDS = new Set(RELICS.map(relic => relic.id));
 const MATERIAL_IDS = new Set(CRAFTING_MATERIALS.map(material => material.id));
 const WEAPON_VARIANT_IDS = new Set(WEAPONS.flatMap(weapon => weapon.branches.flatMap(branch => branch.variant ? [branch.variant.id] : [])));
@@ -265,6 +265,13 @@ function migrateV7(value: Record<string, unknown>): SaveData {
 function migrateV8(value: Record<string, unknown>): SaveData {
   const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION, story: createInitialQuestStoryState() };
   if (!isSaveData(candidate)) throw new Error('Legacy version-eight save contains invalid values.');
+  return candidate;
+}
+
+function migrateV9(value: Record<string, unknown>): SaveData {
+  if (!isObject(value.story)) throw new Error('Legacy version-nine story state is invalid.');
+  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION, story: { ...value.story, completedEndingId: null } };
+  if (!isSaveData(candidate)) throw new Error('Legacy version-nine save contains invalid values.');
   return candidate;
 }
 
@@ -526,6 +533,7 @@ export class SaveManager {
       if (version === 6) return { status: 'migrated', data: migrateV6(value) };
       if (version === 7) return { status: 'migrated', data: migrateV7(value) };
       if (version === 8) return { status: 'migrated', data: migrateV8(value) };
+      if (version === 9) return { status: 'migrated', data: migrateV9(value) };
       if (!isSaveData(value)) return { status: 'corrupt', message: 'Save data failed validation.' };
       return { status: 'loaded', data: value };
     } catch (error) {

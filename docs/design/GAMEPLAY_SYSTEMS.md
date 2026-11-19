@@ -221,3 +221,8 @@ The ten story links are: Thorn Matriarch (awakened/corrupted), Ossuary King (rec
 - In the current 2400×1800 Phaser play area, an unlocked passage is represented by a temporary portal marker and a destination beacon. Entering the marker uses the real Arcade overlap path to move the hunter to its authored destination point.
 - Passage traversal does not mutate save data: the branch outcome remains the persistent unlock, and the same route is available again on a later region entry.
 - This is the first gameplay integration inside the existing play area, not the final organic multi-room region map. Physical corridors, sub-area geometry, final art/audio, natural-run balance and mobile/TV validation remain outstanding.
+
+
+## Ending Outcome Runtime v1
+
+The final quest, `castle-veil-heir`, records one of two permanent branch choices: `ending-mended-veil` or `ending-beyond-veil`. A branch choice is a selected ending, not proof that the campaign has been completed. The profile records `story.completedEndingId` only after a victorious run in the Cursed Castle defeats the Unwritten Regent and opens its boss chest. Defeat, another region, another boss, an incomplete final quest, or a mismatched choice cannot complete an ending. The completion field is idempotent and does not replace an already completed ending. Save schema v10 adds this field; v9 migration preserves the full existing story and initializes completion to null. Final-scene presentation remains deferred.

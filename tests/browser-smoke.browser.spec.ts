@@ -13,7 +13,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
     const raw = window.localStorage.getItem('beyond-the-veil.save');
     return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string }; progression: { unlockedCharacterIds: string[]; unlockedRegionIds: string[] } } : null;
   });
-  expect(firstSave?.schemaVersion).toBe(9);
+  expect(firstSave?.schemaVersion).toBe(10);
   expect(firstSave?.progression.unlockedCharacterIds).toContain('cursed-hunter');
   expect(firstSave?.progression.unlockedRegionIds).toContain('cursed-forest');
 
@@ -24,7 +24,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
     const raw = window.localStorage.getItem('beyond-the-veil.save');
     return raw ? JSON.parse(raw) as { schemaVersion: number; profile: { createdAt: string } } : null;
   });
-  expect(reloadedSave?.schemaVersion).toBe(9);
+  expect(reloadedSave?.schemaVersion).toBe(10);
   expect(reloadedSave?.profile.createdAt).toBe(firstSave?.profile.createdAt);
   const dimensions = await canvas.evaluate((element: HTMLCanvasElement) => ({
     width: element.width,
@@ -827,7 +827,7 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   expect(victory.runRelicIds).toContain('matriarch-seed');
 
   const savedVictory=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(savedVictory.schemaVersion).toBe(9);
+  expect(savedVictory.schemaVersion).toBe(10);
   expect(savedVictory.collections.relicIds).toContain('matriarch-seed');
   expect(savedVictory.collections.discoveredLoreIds).not.toContain('cursed-forest-lore'); // Story Archive records now require an actual in-run discovery.
   expect(savedVictory.progression.soulEssence).toBe(victory.runSoulEssence);
@@ -912,7 +912,7 @@ test('completed treasure hunt grants and persists its regional crafting material
   });
   await expect.poll(async()=>page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!).collections.craftingMaterials['living-root'])).toBe(1);
   const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(saved.schemaVersion).toBe(9);
+  expect(saved.schemaVersion).toBe(10);
   expect(saved.collections.craftingMaterials).toEqual({ 'living-root': 1 });
   expect(saved.collections.relicIds).toContain('forest-heart');
   expect(pageErrors).toEqual([]);
@@ -925,7 +925,7 @@ test('defeat preserves the selected hunter mastery baseline in the profile save'
   await startBrowserTestRun(page);
   await finishBrowserTestRun(page);
   const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(saved.schemaVersion).toBe(9);
+  expect(saved.schemaVersion).toBe(10);
   expect(saved.progression.completedRuns).toBe(1);
   expect(saved.collections.characterMastery['cursed-hunter']).toBe(3);
   expect(saved.collections.unlockedMasteryRewardIds).toEqual([]);
@@ -983,7 +983,7 @@ test('first completed run grants and persists the first achievement after reload
   await finishBrowserTestRun(page);
   await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved).toBe(true);
   const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(saved.schemaVersion).toBe(9);
+  expect(saved.schemaVersion).toBe(10);
   expect(saved.collections.completedAchievementIds).toContain('first-descent');
   expect(saved.collections.unlockedCosmeticIds).toContain('ashen-hunter');
   expect(saved.collections.discoveredWeaponIds).toContain('veil-bolt');
@@ -1211,13 +1211,14 @@ test('schema-v8 profile migrates into persistent quest state in the live game an
   const canvas=page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
   const migrated=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(migrated.schemaVersion).toBe(9);
+  expect(migrated.schemaVersion).toBe(10);
   expect(migrated.progression.soulEssence).toBe(88);
   expect(migrated.story.quests).toEqual({});
   expect(migrated.story.endingId).toBeNull();
+  expect(migrated.story.completedEndingId).toBeNull();
   await page.reload();
   const reloaded=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  expect(reloaded.schemaVersion).toBe(9);
+  expect(reloaded.schemaVersion).toBe(10);
   expect(reloaded.story.unlockedPathIds).toEqual([]);
   expect(errors).toEqual([]);
 });
@@ -1309,5 +1310,60 @@ test('saved main-quest choice opens and traverses only its matching live story p
   const after=await readBrowserRunSnapshot(page);
   expect(after.playerX).toBeCloseTo(300,0);
   expect(after.playerY).toBeCloseTo(270,0);
+  expect(pageErrors).toEqual([]);
+});
+
+
+test('final story ending is completed only by the matching live final-boss victory and survives reload', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+
+  await page.evaluate(() => {
+    const host = (window as Window & { __BEYOND_VEIL_GAME__?: { registry: { get: (key: string) => unknown }; scene: { getScene: (key: string) => unknown } } }).__BEYOND_VEIL_GAME__;
+    if (!host) throw new Error('Game bridge unavailable.');
+    const manager = host.registry.get('saveManager') as { load: () => { data: any }; save: (value: any) => void };
+    const save = manager.load().data;
+    save.story.endingId = 'ending-mended-veil';
+    save.story.quests['castle-veil-heir'] = {
+      status: 'completed',
+      objectiveProgress: { 'decode-regent-seals': 3, 'face-veil-echoes': 3 },
+      chosenChoiceId: 'mend-the-veil',
+      outcomeId: 'veil-mended'
+    };
+    save.story.appliedOutcomeIds.push('veil-mended');
+    save.story.unlockedPathIds.push('castle-dawn-corridor');
+    save.story.bossEncounterIds.push('unwritten-regent-sealed');
+    manager.save(save);
+    const scene = host.scene.getScene('run') as { questSaveData?: unknown };
+    scene.questSaveData = save;
+  });
+
+  await page.evaluate(() => {
+    const host = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSpawnBossForRegion: (region: string, encounters?: string[]) => void; browserTestDamageBoss: (amount: number) => void } } } }).__BEYOND_VEIL_GAME__;
+    if (!host) throw new Error('Game bridge unavailable.');
+    const scene = host.scene.getScene('run');
+    scene.browserTestSpawnBossForRegion('cursed-castle', ['unwritten-regent-sealed']);
+    scene.browserTestDamageBoss(100000);
+  });
+  await expect.poll(async () => (await readBrowserRunSnapshot(page)).bossChestAvailable).toBe(true);
+  await moveToBrowserTestBossChest(page);
+  await expect.poll(async () => (await readBrowserRunSnapshot(page)).bossChestDiagnostics.collectOutcome, { timeout: 5_000 }).toBe('opened');
+
+  let queued = (await readBrowserRunSnapshot(page)).queuedLevels;
+  while (queued > 0) {
+    await page.locator('#game-container canvas').click({ position: { x: 520, y: 382 } });
+    await expect.poll(async () => (await readBrowserRunSnapshot(page)).queuedLevels).toBeLessThan(queued);
+    queued = (await readBrowserRunSnapshot(page)).queuedLevels;
+  }
+  await expect.poll(async () => (await readBrowserRunSnapshot(page)).lastRunSaved, { timeout: 8_000 }).toBe(true);
+  const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(saved.story.endingId).toBe('ending-mended-veil');
+  expect(saved.story.completedEndingId).toBe('ending-mended-veil');
+
+  await page.reload();
+  await expect(page.locator('#game-container canvas')).toBeVisible();
+  const reloaded = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(reloaded.story.completedEndingId).toBe('ending-mended-veil');
   expect(pageErrors).toEqual([]);
 });

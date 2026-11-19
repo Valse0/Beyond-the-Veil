@@ -19,10 +19,11 @@ export interface QuestStoryState {
   unlockedRewardIds: string[];
   unlockedAlternateQuestIds: string[];
   endingId: string | null;
+  completedEndingId: string | null;
   appliedOutcomeIds: string[];
 }
 export interface SaveData {
-  schemaVersion: 9;
+  schemaVersion: 10;
   profile: { createdAt: string; updatedAt: string };
   progression: {
     soulEssence: number;

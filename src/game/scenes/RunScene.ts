@@ -28,6 +28,7 @@ import { advanceRunEvent, createRunEventState, getRunEventName, getRunEventObjec
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import type { SaveData } from '../../systems/save/save-types.js';
 import { recordQuestEvent, startAvailableQuests } from '../../gameplay/quests/quest-runtime.js';
+import { completeEnding } from '../../gameplay/endings/ending-runtime.js';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
 import { createLevelUpControlState, drawLevelUpChoices as drawChoicesFromPool, spendLevelUpBanish, spendLevelUpReroll, spendLevelUpSkip, type LevelUpControlState } from '../../gameplay/level-up/level-up-controls.js';
 import { derivePermanentUpgradeEffects, type PermanentUpgradeEffects } from '../../gameplay/progression/permanent-upgrades.js';
@@ -2098,7 +2099,9 @@ export class RunScene extends Phaser.Scene {
       const loaded=manager.load();
       if(!('data' in loaded))return false;
       const runResult=applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,bossChestOpened:this.bossChestOpened,completedTreasureHunt:this.completedTreasureHunt,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length,enemyIdsEarned:this.runDiscoveredEnemyIds,weaponIdsEarned:this.runDiscoveredWeaponIds,loreIdsEarned:this.runDiscoveredLoreIds,discoveredPathIdsEarned:this.runDiscoveredPathIds});
-      manager.save({...runResult,story:{...runResult.story,...(this.questSaveData?.story??{}),unlockedPathIds:[...new Set([...runResult.story.unlockedPathIds,...(this.questSaveData?.story.unlockedPathIds??[])])]}});
+      const questStory=this.questSaveData?.story;
+      const mergedSave={...runResult,story:{...runResult.story,...(questStory??{}),unlockedPathIds:[...new Set([...runResult.story.unlockedPathIds,...(questStory?.unlockedPathIds??[])])],completedEndingId:runResult.story.completedEndingId??questStory?.completedEndingId??null}};
+      manager.save(completeEnding(mergedSave,{regionId:this.region.id,bossId:this.bossDefinition?.id??'',victory:won&&this.bossChestOpened}));
       return true;
     } catch {
       return false;
