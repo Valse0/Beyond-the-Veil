@@ -361,3 +361,17 @@ test('recovers and migrates a schema-v2 backup when the primary save is corrupt'
   assert.deepEqual(result.data.collections.relicIds, []);
   assert.equal(JSON.parse(storage.getItem(SAVE_STORAGE_KEY)).schemaVersion, 3);
 });
+
+
+test('loads a valid schema-v3 profile with relic fields and all permanent upgrades', () => {
+  const storage = new MemoryStorage();
+  const data = createInitialSaveData(fixedNow());
+  data.progression.permanentUpgrades = { maxHealth: 2, attackPower: 2, moveSpeed: 1, armor: 3, xpBonus: 2, rerolls: 2 };
+  data.progression.equippedRelicIds = [];
+  data.collections.relicIds = [];
+  storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(data));
+
+  const result = new SaveManager(storage, fixedNow).load();
+  assert.equal(result.status, 'loaded');
+  assert.deepEqual(result.data.progression.permanentUpgrades, data.progression.permanentUpgrades);
+});

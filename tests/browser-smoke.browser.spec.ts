@@ -554,7 +554,7 @@ test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls
   });
   await startBrowserTestRun(page);
   const initial = await readBrowserRunSnapshot(page);
-  expect(initial.saveLoadStatus).toBe('loaded');
+  expect(['loaded', 'migrated']).toContain(initial.saveLoadStatus);
   expect(initial.savedPermanentUpgradeLevels).toEqual({ maxHealth: 2, attackPower: 2, moveSpeed: 1, armor: 3, xpBonus: 2, rerolls: 2 });
   expect(initial.maxHealth).toBe(130);
   expect(initial.health).toBe(130);
