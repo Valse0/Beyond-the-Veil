@@ -146,7 +146,7 @@ export class RunScene extends Phaser.Scene {
     shotDiagnostics:{weaponId:string;damage:number}[];
     bossChestDiagnostics:{overlapCount:number;lastOverlapAtMs:number|null;collectCount:number;lastCollectAtMs:number|null;lastCollectObjectActive:boolean|null;lastCollectPending:boolean|null;collectOutcome:'none'|'entered'|'inactive'|'not-pending'|'opened';openedAtMs:number|null;finishScheduledAtMs:number|null;finishCallbackAtMs:number|null;finishTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null;sceneTime:{paused:boolean;now:number;active:boolean};playerBody:{x:number;y:number;width:number;height:number;enabled:boolean};chestBody:{x:number;y:number;width:number;height:number;enabled:boolean}|null};
     runEvents:{selected:RunEventKind[];active:{kind:RunEventKind;progress:number;stage:number;status:string}|null;completed:RunEventKind[];failed:RunEventKind[]};
-    controls:LevelUpControlState;
+    controls:LevelUpControlState;permanentUpgradeEffects:PermanentUpgradeEffects;savedPermanentUpgradeLevels:Record<string,number>;saveLoadStatus:string;
   } {
     this.assertBrowserTestMode();
     return {
@@ -178,7 +178,10 @@ export class RunScene extends Phaser.Scene {
         };
       })(),
       runEvents:{selected:[...this.runEventState.selectedEvents],active:this.runEventState.activeEvent?{kind:this.runEventState.activeEvent.kind,progress:this.runEventState.activeEvent.progress,stage:this.runEventState.activeEvent.stage,status:this.runEventState.activeEvent.status}:null,completed:[...this.runEventState.completedEvents],failed:[...this.runEventState.failedEvents]},
-      controls:{...this.levelUpControls,bannedChoiceIds:[...this.levelUpControls.bannedChoiceIds]}
+      controls:{...this.levelUpControls,bannedChoiceIds:[...this.levelUpControls.bannedChoiceIds]},
+      permanentUpgradeEffects:{...this.permanentUpgradeEffects},
+      savedPermanentUpgradeLevels:(()=>{const manager=this.registry.get('saveManager') as SaveManager|undefined;const loaded=manager?.load();return loaded&&'data' in loaded?{...loaded.data.progression.permanentUpgrades}:{};})(),
+      saveLoadStatus:String(this.registry.get('saveLoadStatus')??'unavailable')
     };
   }
 
