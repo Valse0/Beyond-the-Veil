@@ -402,3 +402,12 @@ No final UI art, balance sign-off, or physical-device validation is claimed by t
 ## Blacksmith Service v1
 
 The Hunter Hub's Demirci entry opens a dedicated in-scene service view. All five existing recipes show their weapon, region, description, Ruh Özü cost, matching material requirement and the player's current balances. A recipe is actionable only when its costs are met and its permanent variant is not already unlocked; completed recipes show an unlocked state. Crafting delegates to `SaveManager.craftRecipe()`, which validates and persists the resource deduction and variant unlock together. Keyboard arrows/Enter/Space, gamepad D-pad/left-stick/A, pointer and touch activation share the same selection/action flow; Escape/B returns to the Hunter Hub. No save-schema change, new dependency or separate crafting implementation is introduced. The Alchemist, Relic Master, merchants, final art/audio and physical-device QA remain future work.
+
+
+## Equipment Profiles v1
+
+The Hunter Hub includes an Equipment Profiles manager for each unlocked hunter. A hunter can keep up to five named profiles. Each profile stores a starting weapon, a starting passive and up to three relics that the hunter already owns. Weapon/passive IDs are checked against the authored catalogs, and relic selections are checked against the selected hunter's owned relics.
+
+Players can create, edit, activate and delete profiles; deletion requires confirmation. The active profile is stored separately for each hunter and is applied when a run starts. If the hunter has no active profile, the existing default loadout path is unchanged. Profiles use the existing local save schema; no migration, dependency, backend or online service is added.
+
+Browser coverage verifies profile creation, editing, activation, deletion, persistence after reload and application of the active profile to the live run-start path. CI [#44802787920](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44802787920) passed TypeScript, 265/265 unit tests, production build, Chromium Playwright 52/52 and npm audit with zero vulnerabilities. Physical controller/device testing, responsive-layout review and final visual polish remain separate QA tasks.
