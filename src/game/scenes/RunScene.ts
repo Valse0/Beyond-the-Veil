@@ -104,7 +104,7 @@ export class RunScene extends Phaser.Scene {
   private touchPointerId:number|null=null;
   private touchMoveX=0;
   private touchMoveY=0;
-  private touchControlObjects:Phaser.GameObjects.GameObject[]=[];
+  private touchControlObjects:(Phaser.GameObjects.Arc|Phaser.GameObjects.Text)[]=[];
   private overlay:Phaser.GameObjects.GameObject[]=[];
   private paused=false;
   private queuedLevels=0;
@@ -1208,7 +1208,7 @@ export class RunScene extends Phaser.Scene {
     const h=this.scale.height,w=this.scale.width;
     this.input.addPointer(2);
     const initiallyVisible=Boolean(this.sys.game.device.input.touch);
-    const showOnTouch=(object:Phaser.GameObjects.GameObject):void=>{
+    const showOnTouch=(object:Phaser.GameObjects.Arc|Phaser.GameObjects.Text):void=>{
       object.setAlpha(initiallyVisible?1:0);
       this.touchControlObjects.push(object);
     };
