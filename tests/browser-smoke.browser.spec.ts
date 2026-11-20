@@ -244,7 +244,7 @@ type BrowserRunSnapshot = {
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;
   regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Record<string,number>};evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
-  runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;bossMaxHealth:number|null;
+  runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;resultPresentation:{won:boolean;title:string;characterName:string;regionName:string;modeLabel:string;elapsedMs:number;level:number;kills:number;collectedSoulEssence:number;persistedSoulEssence:number;challengeBonus:number;relicNames:string[];materialRewards:{name:string;amount:number}[];unlockedRegionNames:string[];saved:boolean}|null;bossHealth:number|null;bossMaxHealth:number|null;
   questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
   questChoice:{questId:string;choiceIds:string[]}|null;questChoiceTexts:string[];questTrackerText:string;
   explorationLandmarks:{id:string;kind:string;name:string;description:string;motif:string;decorationVisible:boolean}[];
@@ -449,11 +449,16 @@ test('real level-up overlay supports XP, two rerolls, banish and one skip', asyn
     if(!game)throw new Error('Development browser test bridge is not available.');
     game.scene.getScene('run').browserTestFinishRun();
   });
-  await canvas.click({position:{x:640,y:446}});
+  await page.keyboard.press('Enter');
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).runFinished).toBe(false);
   await page.waitForTimeout(220);
   const restarted=await readBrowserRunSnapshot(page);
   expect(restarted.level).toBe(1);
   expect(restarted.controls).toEqual({rerollsRemaining:2,banishesRemaining:1,skipsRemaining:1,bannedChoiceIds:[]});
+  await finishBrowserTestRun(page);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await expect.poll(()=>page.evaluate(()=>Boolean((window as Window & {__BEYOND_VEIL_GAME__?:{scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__?.scene.isActive('main-menu')))).toBe(true);
   expect(pageErrors).toEqual([]);
 });
 
@@ -1132,6 +1137,9 @@ test('enemy defeat rewards survive death and a full page reload', async ({ page 
   const deathResult=await readBrowserRunSnapshot(page);
   expect(deathResult.runFinished).toBe(true);
   expect(deathResult.lastRunSaved).toBe(true);
+  expect(deathResult.resultPresentation).toMatchObject({won:false,title:'AVCI DÜŞTÜ',characterName:'Lanetli Avcı',regionName:'Lanetli Orman',level:1,kills:1,collectedSoulEssence:1,persistedSoulEssence:1,saved:true});
+  expect(deathResult.questChoiceTexts).toContain('AVCI DÜŞTÜ');
+  expect(deathResult.questChoiceTexts).toContain('İLERLEME KAYDEDİLDİ');
 
   const savedAfterDeath=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(savedAfterDeath.progression.soulEssence).toBe(1);
@@ -1215,6 +1223,10 @@ test('boss victory requires opening its chest and evolves an eligible weapon bef
   expect(victory.evolvedWeaponIds).toContain('veil-bolt');
   expect(victory.lastRunSaved).toBe(true);
   expect(victory.runRelicIds).toContain('matriarch-seed');
+  expect(victory.resultPresentation).toMatchObject({won:true,saved:true,characterName:'Lanetli Avcı',regionName:'Lanetli Orman',persistedSoulEssence:victory.runSoulEssence});
+  expect(victory.resultPresentation?.relicNames).toContain('Diken Ana’nın Tohumu');
+  expect(victory.resultPresentation?.unlockedRegionNames).toContain('Unutulmuş Mezarlık');
+  expect(victory.questChoiceTexts).toContain('KOŞU TAMAMLANDI');
 
   const savedVictory=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(savedVictory.schemaVersion).toBe(11);
@@ -1249,6 +1261,8 @@ test('run results clearly report when browser storage refuses to save rewards', 
   const failed=await readBrowserRunSnapshot(page);
   expect(failed.runFinished).toBe(true);
   expect(failed.lastRunSaved).toBe(false);
+  expect(failed.resultPresentation).toMatchObject({won:false,saved:false,collectedSoulEssence:1,persistedSoulEssence:0});
+  expect(failed.questChoiceTexts).toContain('KAYIT BAŞARISIZ  —  ÖDÜLLER KALICI OLARAK KAYDEDİLEMEDİ');
   const unchanged=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(unchanged.progression.soulEssence).toBe(0);
   expect(unchanged.progression.completedRuns).toBe(0);
@@ -2730,6 +2744,14 @@ test('touch-first hunter, region and run-preparation layouts keep large selectio
   expect(run.weapons[0]?.weaponId).toBe('gravecleaver');
   expect(run.passives[0]?.passiveId).toBe('storm-conductor');
   expect(run.equippedRelicIds).toEqual(['forest-heart']);
+  await finishBrowserTestRun(page);
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).resultPresentation?.saved).toBe(true);
+  await tapLogical(486,641);
+  await expect.poll(()=>isActive('run')).toBe(true);
+  const replayed=await readBrowserRunSnapshot(page);
+  expect(replayed.weapons[0]?.weaponId).toBe('gravecleaver');
+  expect(replayed.passives[0]?.passiveId).toBe('storm-conductor');
+  expect(replayed.equippedRelicIds).toEqual(['forest-heart']);
   expect(pageErrors).toEqual([]);
   await context.close();
 });

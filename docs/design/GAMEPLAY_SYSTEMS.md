@@ -457,3 +457,8 @@ The selected profile is scoped to the next run only: choosing a profile here doe
 Keyboard, pointer/touch, gamepad and supported TV remote actions use the same selection/start/back flow. Returning to region selection restores the chosen region, mode and challenge. No save-schema migration or new dependency is required.
 
 CI [#501](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44829154660) on commit `15cc65caa33d178fa5a57fcb544c6dcf4f6c1258` passed TypeScript, 269/269 unit tests, production build, Chromium Playwright 57/57 and npm audit (0 vulnerabilities). Browser coverage verifies that the selected profile actually supplies the run's weapon, passive and relics, while the explicit default option bypasses the saved active profile. Physical mobile/controller/TV validation remains outstanding.
+
+
+## Run results and reward presentation
+
+The end-of-run screen is a read-only summary of the actual run and the save result. It identifies the hunter, region, game mode, elapsed time, level and kills, then reports only permanent reward deltas confirmed by the saved profile: Soul Essence, newly owned relics, newly granted crafting materials and newly unlocked regions. Challenge victory bonuses are included in the persisted Soul Essence total and shown as a separate breakdown. Boss Hunt uses its restricted reward rules; it must not imply that ordinary campaign progression or crafting materials were granted. If local persistence fails, the screen distinguishes items collected during the run from rewards that were not saved and explicitly reports the failure. Retry preserves the same hunter, region, mode, challenge and selected equipment profile; main-menu navigation remains available to pointer/touch, keyboard and gamepad/remote input.
