@@ -358,3 +358,13 @@ No final UI art, balance sign-off, or physical-device validation is claimed by t
 - The selected outcome is applied through the existing quest runtime, including NPC fate, regional atmosphere, path IDs, boss encounter IDs, reward IDs, alternate quest unlocks, ending selection and authored Ruh Özü/lore rewards. The updated story state is written immediately through the local SaveManager before gameplay resumes; failed writes leave the decision open for retry.
 - Newly unlocked story quests for the current region are started after the parent choice. Existing save schema and quest IDs remain unchanged. No dependency, backend, final art or long-form dialogue/cutscene was added.
 - CI #434 (run `44711659596`, commit `cd5169dbc525e0c0a108109589cba1d7b3b05fbe`) verifies TypeScript, 253/253 unit tests, production build, Chromium Playwright 44/44 and npm audit (0 vulnerabilities). The live browser scenario verifies the tracker, objective lock, paused choice presentation, keyboard selection, NPC/atmosphere/path/boss/reward outcomes, Ruh Özü award and reload persistence.
+
+
+## Quest Journal v1
+
+- A dedicated Quest Journal scene is available from the Main Menu and the in-run pause menu. It is launched as an overlay scene and pauses the scene beneath it; closing it returns to the exact menu/run pause state.
+- Five region entries show unlock state and completed-quest counts. The selected region displays its authored quest definitions, objective targets and saved progress, branch choice and outcome summary, NPC fate, regional atmosphere, boss encounter variant, unlocked story paths and discovered regional lore IDs.
+- The header summarizes completed ending history and discovered lore. Locked regions, prerequisite-locked quests and story-gated alternate quests are explicitly distinguished from active, available and completed quests.
+- The journal is read-only: it derives its content from the existing schema-v11 local profile and does not mutate progression, start quests or apply outcomes. No save migration, dependency, backend or final art was added.
+- Keyboard arrows and gamepad D-pad/left-stick navigate regions; Escape/B closes the journal. Pointer/touch selects region cards and the close control.
+- Browser verification covers saved active objective progress, a completed branch and its NPC/atmosphere/boss/path/lore outcomes, ending history, keyboard region navigation, Main Menu return, and opening/closing over a paused run without resuming gameplay. CI verification pending.

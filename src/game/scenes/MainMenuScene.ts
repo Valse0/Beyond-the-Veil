@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { beginNewGamePlus, canStartNewGamePlus } from '../../gameplay/run/new-game-plus-runtime.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 
-type MainMenuItem = 'new-run' | 'hunter-hub' | 'new-game-plus';
+type MainMenuItem = 'new-run' | 'hunter-hub' | 'story-journal' | 'new-game-plus';
 
 export class MainMenuScene extends Phaser.Scene {
   private selectedItem: MainMenuItem = 'new-run';
@@ -12,6 +12,7 @@ export class MainMenuScene extends Phaser.Scene {
   private playButton?: Phaser.GameObjects.Text;
   private hubButton?: Phaser.GameObjects.Text;
   private newGamePlusButton?: Phaser.GameObjects.Text;
+  private journalButton?: Phaser.GameObjects.Text;
   private newGamePlusAvailable = false;
   private newGamePlusLevel = 0;
   private confirmationOpen = false;
@@ -50,6 +51,13 @@ export class MainMenuScene extends Phaser.Scene {
       fontFamily: 'Georgia, serif', fontSize: '20px', color: '#a9a0a0'
     });
 
+    this.journalButton = this.add.text(w - 72, 54, 'HİKÂYE DEFTERİ', {
+      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#d9c9aa',
+      backgroundColor: '#211b24', padding: { x: 18, y: 12 }
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    this.journalButton.on('pointerover', () => this.setSelectedItem('story-journal'));
+    this.journalButton.on('pointerup', () => this.openQuestJournal());
+
     this.playButton = this.add.text(82, h - 185, '▶  YENİ KOŞU', {
       fontFamily: 'Arial, sans-serif', fontSize: '22px', color: '#f2e8d4',
       backgroundColor: '#5b3d32', padding: { x: 25, y: 16 }
@@ -85,25 +93,28 @@ export class MainMenuScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#625d66'
     }).setOrigin(1, 0.5);
 
-    this.add.text(84, h - 125, 'OKLAR: SEÇ     ENTER / SPACE / A: ONAYLA', {
+    this.add.text(84, h - 125, 'OKLAR: SEÇ     ENTER / SPACE / A: ONAYLA     J: HİKÂYE DEFTERİ', {
       fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#a9977d'
     });
 
     this.input.keyboard?.on('keydown-LEFT', (event: KeyboardEvent) => {
       if (event.repeat) return;
       if (this.confirmationOpen) this.setConfirmationSelection(false);
-      else this.setSelectedItem('new-run');
+      else this.navigateMenu(-1);
     });
     this.input.keyboard?.on('keydown-UP', (event: KeyboardEvent) => {
-      if (!event.repeat && !this.confirmationOpen) this.setSelectedItem('new-run');
+      if (!event.repeat && !this.confirmationOpen) this.navigateMenu(-1);
     });
     this.input.keyboard?.on('keydown-RIGHT', (event: KeyboardEvent) => {
       if (event.repeat) return;
       if (this.confirmationOpen) this.setConfirmationSelection(true);
-      else this.setSelectedItem('hunter-hub');
+      else this.navigateMenu(1);
     });
     this.input.keyboard?.on('keydown-DOWN', (event: KeyboardEvent) => {
-      if (!event.repeat && !this.confirmationOpen) this.setSelectedItem(this.newGamePlusAvailable ? 'new-game-plus' : 'hunter-hub');
+      if (!event.repeat && !this.confirmationOpen) this.navigateMenu(1);
+    });
+    this.input.keyboard?.on('keydown-J', (event: KeyboardEvent) => {
+      if (!event.repeat && !this.confirmationOpen) this.openQuestJournal();
     });
     this.input.keyboard?.on('keydown-ESC', (event: KeyboardEvent) => {
       if (event.repeat) return;
@@ -165,11 +176,21 @@ export class MainMenuScene extends Phaser.Scene {
             : '';
 
     if (direction && direction !== this.previousPadNavigation) {
-      if (direction === 'left' || direction === 'up') this.setSelectedItem('new-run');
-      else if (direction === 'down' && this.newGamePlusAvailable) this.setSelectedItem('new-game-plus');
-      else this.setSelectedItem('hunter-hub');
+      this.navigateMenu(direction === 'left' || direction === 'up' ? -1 : 1);
     }
     this.previousPadNavigation = direction;
+  }
+
+  private menuItems(): MainMenuItem[] {
+    return this.newGamePlusAvailable
+      ? ['new-run', 'hunter-hub', 'story-journal', 'new-game-plus']
+      : ['new-run', 'hunter-hub', 'story-journal'];
+  }
+
+  private navigateMenu(direction: number): void {
+    const items = this.menuItems();
+    const current = Math.max(0, items.indexOf(this.selectedItem));
+    this.setSelectedItem(items[(current + direction + items.length) % items.length]!);
   }
 
   private setSelectedItem(item: MainMenuItem): void {
@@ -190,6 +211,11 @@ export class MainMenuScene extends Phaser.Scene {
       color: item === 'new-game-plus' ? '#fff0ce' : '#e7c98e',
       fontStyle: item === 'new-game-plus' ? 'bold' : 'normal'
     });
+    this.journalButton?.setStyle({
+      backgroundColor: item === 'story-journal' ? '#5b4938' : '#211b24',
+      color: item === 'story-journal' ? '#fff0ce' : '#d9c9aa',
+      fontStyle: item === 'story-journal' ? 'bold' : 'normal'
+    });
   }
 
   private activateSelectedItem(): void {
@@ -198,6 +224,7 @@ export class MainMenuScene extends Phaser.Scene {
       else this.closeNewGamePlusConfirmation();
     } else if (this.selectedItem === 'new-run') this.startNewRun();
     else if (this.selectedItem === 'new-game-plus') this.openNewGamePlusConfirmation();
+    else if (this.selectedItem === 'story-journal') this.openQuestJournal();
     else this.openHunterHub();
   }
 
@@ -277,6 +304,12 @@ export class MainMenuScene extends Phaser.Scene {
     } catch {
       this.confirmationStatus?.setText('KAYIT BAŞARISIZ. İLERLEMEN KORUNDU.');
     }
+  }
+
+  private openQuestJournal(): void {
+    if (this.confirmationOpen) return;
+    this.scene.pause();
+    this.scene.launch('quest-journal', { returnScene: 'main-menu' });
   }
 
   private openHunterHub(): void {

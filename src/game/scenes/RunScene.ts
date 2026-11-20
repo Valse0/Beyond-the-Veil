@@ -2636,9 +2636,16 @@ export class RunScene extends Phaser.Scene {
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.84).setScrollFactor(0).setDepth(200);
     const title=this.add.text(w/2,h*.36,'DURAKLATILDI',{fontFamily:'Georgia',fontSize:'34px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     this.overlay.push(shade,title);
-    this.createOverlayButton(w/2,h*.52,260,54,'DEVAM ET',()=>{this.clearOverlay();this.resumeRunWorld();});
-    this.createOverlayButton(w/2,h*.64,260,54,'ANA MENÜ',()=>this.scene.start('main-menu'));
+    this.createOverlayButton(w/2,h*.48,260,54,'DEVAM ET',()=>{this.clearOverlay();this.resumeRunWorld();});
+    this.createOverlayButton(w/2,h*.62,260,54,'HİKÂYE DEFTERİ',()=>this.openQuestJournal());
+    this.createOverlayButton(w/2,h*.76,260,54,'ANA MENÜ',()=>this.scene.start('main-menu'));
     this.overlayBackIndex=0;
+  }
+
+  private openQuestJournal():void {
+    if(!this.paused||this.runFinished)return;
+    this.scene.pause();
+    this.scene.launch('quest-journal',{returnScene:'run'});
   }
 
   private finishRun(won:boolean):void {

@@ -1,5 +1,31 @@
 import { expect, test } from '@playwright/test';
 
+type QuestJournalBrowserSnapshot = {
+  selectedRegionId: string;
+  regions: { id: string; unlocked: boolean; completedCount: number; questCount: number }[];
+  selected: {
+    id: string;
+    quests: { id: string; status: string; objectiveProgress: { id: string; current: number; target: number }[]; chosenChoiceLabel: string | null; outcomeSummary: string | null }[];
+    npcFateLabel: string | null;
+    atmosphereName: string | null;
+    bossVariantName: string | null;
+    unlockedPathNames: string[];
+    discoveredLoreIds: string[];
+  };
+  completedEndingIds: string[];
+  completedEndingLabels: string[];
+  discoveredLoreIds: string[];
+  returnScene: string;
+};
+
+async function readQuestJournalSnapshot(page: import('@playwright/test').Page): Promise<QuestJournalBrowserSnapshot> {
+  return page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => QuestJournalBrowserSnapshot } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('quest-journal').browserTestSnapshot();
+  });
+}
+
 test('player can select a hunter and an unlocked region before starting a run', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -1774,6 +1800,113 @@ test('completed story objectives open a pausing branch choice and persist the se
   const reloaded=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(reloaded.story.quests['forest-root-oath']).toMatchObject({status:'completed',chosenChoiceId:'claim-heartwood',outcomeId:'forest-claim'});
   expect(reloaded.story.unlockedPathIds).toContain('forest-heartwood-vault');
+  expect(pageErrors).toEqual([]);
+});
+
+test('quest journal reads saved branches, regional state and ending history from the main menu', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.goto('/?bv-test=1');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+
+  await page.evaluate(() => {
+    const key = 'beyond-the-veil.save';
+    const raw = window.localStorage.getItem(key);
+    if (!raw) throw new Error('First-launch save was not created.');
+    const save = JSON.parse(raw);
+    save.progression.unlockedRegionIds = ['cursed-forest', 'forgotten-graveyard'];
+    save.progression.completedEndingIds = ['ending-mended-veil'];
+    save.story.quests = {
+      'forest-root-oath': {
+        status: 'active',
+        objectiveProgress: { 'inspect-root-runes': 1 },
+        chosenChoiceId: null,
+        outcomeId: null
+      },
+      'grave-names-unforgotten': {
+        status: 'completed',
+        objectiveProgress: { 'recover-grave-names': 3, 'break-soul-chains': 2 },
+        chosenChoiceId: 'release-spirits',
+        outcomeId: 'grave-release'
+      }
+    };
+    save.story.npcFates = { 'mourner-acolyte': 'redeemed' };
+    save.story.regionAtmospheres = { 'forgotten-graveyard': 'restful' };
+    save.story.unlockedPathIds = ['grave-silent-gate'];
+    save.story.bossEncounterIds = ['ossuary-king-reckoning'];
+    save.story.unlockedRewardIds = ['namesake-charm'];
+    save.story.unlockedAlternateQuestIds = ['grave-lost-lament'];
+    save.story.appliedOutcomeIds = ['grave-release'];
+    save.collections.discoveredLoreIds = ['forgotten-graveyard-lore'];
+    window.localStorage.setItem(key, JSON.stringify(save));
+  });
+  await page.reload();
+  await expect(canvas).toBeVisible();
+  await page.mouse.click(1110, 60);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean; isPaused: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('quest-journal') && game.scene.isPaused('main-menu'));
+  });
+
+  const forest = await readQuestJournalSnapshot(page);
+  expect(forest.selectedRegionId).toBe('cursed-forest');
+  expect(forest.selected.quests.find(quest => quest.id === 'forest-root-oath')).toMatchObject({
+    status: 'active',
+    objectiveProgress: [{ id: 'inspect-root-runes', current: 1, target: 2 }]
+  });
+  expect(forest.completedEndingIds).toEqual(['ending-mended-veil']);
+
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(async () => (await readQuestJournalSnapshot(page)).selectedRegionId).toBe('forgotten-graveyard');
+  const graveyard = await readQuestJournalSnapshot(page);
+  expect(graveyard.selected.quests.find(quest => quest.id === 'grave-names-unforgotten')).toMatchObject({
+    status: 'completed',
+    chosenChoiceLabel: 'Ruhları serbest bırak',
+    outcomeSummary: 'Ruhlar özgür kalır.'
+  });
+  expect(graveyard.selected.npcFateLabel).toBe('RUHLARLA BİRLİKTE ARINDI');
+  expect(graveyard.selected.atmosphereName).toBe('Huzurlu Mezarlık');
+  expect(graveyard.selected.bossVariantName).toBeTruthy();
+  expect(graveyard.selected.unlockedPathNames).toContain('Sessiz Kapı');
+  expect(graveyard.selected.discoveredLoreIds).toContain('forgotten-graveyard-lore');
+
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean; isPaused: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('main-menu') && !game.scene.isActive('quest-journal') && !game.scene.isPaused('main-menu'));
+  });
+  expect(pageErrors).toEqual([]);
+});
+
+test('quest journal opens above the paused run and returns to the pause menu without resuming gameplay', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  const canvas = await startBrowserTestRun(page);
+  await page.keyboard.press('Escape');
+  await expect.poll(async () => (await readBrowserRunSnapshot(page)).paused).toBe(true);
+
+  await page.mouse.click(640, 446);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean; isPaused: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('quest-journal') && game.scene.isPaused('run'));
+  });
+  const opened = await readQuestJournalSnapshot(page);
+  expect(opened.returnScene).toBe('run');
+
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean; isPaused: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('run') && !game.scene.isActive('quest-journal') && !game.scene.isPaused('run'));
+  });
+  expect((await readBrowserRunSnapshot(page)).paused).toBe(true);
+  const paused = await readBrowserRunSnapshot(page);
+  await page.waitForTimeout(300);
+  expect((await readBrowserRunSnapshot(page)).elapsedMs).toBe(paused.elapsedMs);
+
+  await page.mouse.click(640, 346);
+  await expect.poll(async () => (await readBrowserRunSnapshot(page)).paused).toBe(false);
+  expect(await canvas.isVisible()).toBe(true);
   expect(pageErrors).toEqual([]);
 });
 
