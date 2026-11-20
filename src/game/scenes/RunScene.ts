@@ -213,6 +213,7 @@ export class RunScene extends Phaser.Scene {
   private weaponSynergyTriggers:string[]=[];
   private permanentUpgradeEffects:PermanentUpgradeEffects=derivePermanentUpgradeEffects(undefined);
   private equippedRelicIds:string[]=[];
+  private selectedEquipmentProfileId:string|null|undefined=undefined;
   private relicStats:RelicStats=deriveRelicStats([],'cursed-hunter');
   private runRelicIds:string[]=[];
   private bossChestOpened=false;
@@ -1041,7 +1042,8 @@ export class RunScene extends Phaser.Scene {
     this.finishRun(false);
   }
 
-  init(data:{characterId?:string;regionId?:RegionId;gameMode?:unknown;challengeId?:unknown}):void {
+  init(data:{characterId?:string;regionId?:RegionId;gameMode?:unknown;challengeId?:unknown;equipmentProfileId?:string|null}):void {
+    this.selectedEquipmentProfileId=data?.equipmentProfileId;
     this.questJournalOpen=false;
     this.journalCloseInputGuard=false;
     this.character=CHARACTERS.find(c=>c.id===data?.characterId)??STARTING_CHARACTER;
@@ -1066,7 +1068,13 @@ export class RunScene extends Phaser.Scene {
      this.bossEncounterIdsAtRegionEntry=loadedSave&&'data' in loadedSave?[...loadedSave.data.story.bossEncounterIds]:[];
      this.activeBossVariantId=null;
     this.permanentUpgradeEffects=derivePermanentUpgradeEffects(loadedSave&&'data' in loadedSave?loadedSave.data.progression.permanentUpgrades:undefined);
-    const activeEquipmentProfile=loadedSave&&'data' in loadedSave?getActiveEquipmentProfile(loadedSave.data.progression,this.character.id):null;
+    const activeEquipmentProfile=loadedSave&&'data' in loadedSave
+      ? this.selectedEquipmentProfileId !== undefined
+        ? this.selectedEquipmentProfileId === null
+          ? null
+          : loadedSave.data.progression.equipmentProfiles[this.character.id]?.find(profile=>profile.id===this.selectedEquipmentProfileId)??null
+        : getActiveEquipmentProfile(loadedSave.data.progression,this.character.id)
+      : null;
     this.equippedRelicIds=activeEquipmentProfile?[...activeEquipmentProfile.relicIds]:loadedSave&&'data' in loadedSave?[...loadedSave.data.progression.equippedRelicIds]:[];
     this.unlockedWeaponVariantIds=loadedSave&&'data' in loadedSave?[...loadedSave.data.collections.unlockedWeaponVariantIds]:[];
     this.relicStats=deriveRelicStats(this.equippedRelicIds,this.character.id);

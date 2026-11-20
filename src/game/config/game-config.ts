@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { MainMenuScene } from '../scenes/MainMenuScene.js';
 import { CharacterSelectScene } from '../scenes/CharacterSelectScene.js';
 import { RegionSelectScene } from '../scenes/RegionSelectScene.js';
+import { RunPreparationScene } from '../scenes/RunPreparationScene.js';
 import { HunterHubScene } from '../scenes/HunterHubScene.js';
 import { RunScene } from '../scenes/RunScene.js';
 import { QuestJournalScene } from '../scenes/QuestJournalScene.js';
@@ -17,6 +18,6 @@ export function createGameConfig(): Phaser.Types.Core.GameConfig {
     input: { gamepad: true },
     physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false } },
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, autoRound: true },
-    scene: [MainMenuScene, CharacterSelectScene, RegionSelectScene, HunterHubScene, RunScene, QuestJournalScene]
+    scene: [MainMenuScene, CharacterSelectScene, RegionSelectScene, RunPreparationScene, HunterHubScene, RunScene, QuestJournalScene]
   };
 }

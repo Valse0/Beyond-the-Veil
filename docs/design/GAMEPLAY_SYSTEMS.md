@@ -446,3 +446,12 @@ A platform input adapter normalizes smart-TV browser remote events when the brow
 Run controls support independent touch pointers: one pointer can steer from the left movement zone while another activates Dash or the character ability. The virtual stick and action targets are enlarged and anchored to the lower corners; their visual presence is enabled for touch-capable devices and revealed on touch when device detection is unavailable. Keyboard, mouse, gamepad, and touch remain separate input paths.
 
 Automated evidence covers remote-key normalization and responsive browser viewport behavior. It does not prove physical TV-remote delivery, Android back-button integration, touch ergonomics, notch/safe-area rendering on a physical phone, or controller latency; those remain device QA.
+
+
+## Run Preparation & Loadout v1
+
+The region-selection action opens a dedicated preparation screen rather than starting combat immediately. The screen summarizes the selected hunter, region, game mode and challenge, then offers the hunter's default starting loadout plus every saved equipment profile for that hunter. Each option shows its starting weapon, passive and relics.
+
+The selected profile is scoped to the next run only: choosing a profile here does not silently change the player's saved active profile. Selecting the default option explicitly bypasses any saved active profile and uses the character's authored starting weapon/passive plus the globally equipped relics. If the player enters the run through another existing path without an explicit per-run selection, the existing saved active-profile behavior is preserved.
+
+Keyboard, pointer/touch, gamepad and supported TV remote actions use the same selection/start/back flow. Returning to region selection restores the chosen region, mode and challenge. No save-schema migration or new dependency is required.

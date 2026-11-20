@@ -98,7 +98,15 @@ test('player can select a hunter and an unlocked region before starting a run', 
 
   // The region screen reopens on the first unlocked region; start it.
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(150);
+  await page.waitForFunction(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('run-preparation'));
+  });
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('run'));
+  });
   const runFrame = await canvas.screenshot();
   expect(runFrame.equals(lockedRegionFrame)).toBe(false);
 
@@ -285,6 +293,11 @@ async function startBrowserTestRun(page: import('@playwright/test').Page,unlocke
     await page.keyboard.press('Enter');
   }
   await page.waitForTimeout(180);
+  await page.waitForFunction(() => {
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('run-preparation'));
+  });
+  await page.keyboard.press('Enter');
   await page.waitForFunction(() => {
     const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('run'));
@@ -729,6 +742,93 @@ test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaffor
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('main-menu'));
   });
+  expect(pageErrors).toEqual([]);
+});
+
+
+test('run preparation selects a saved equipment profile and applies its real loadout to the run', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
+      schemaVersion: 11,
+      profile: { createdAt: '2026-11-19T00:00:00.000Z', updatedAt: '2026-11-19T00:00:00.000Z' },
+      progression: {
+        soulEssence: 0, completedRuns: 0, newGamePlusLevel: 0, completedEndingIds: [],
+        unlockedCharacterIds: ['cursed-hunter'], unlockedRegionIds: ['cursed-forest'],
+        completedDifficulties: {}, permanentUpgrades: {}, equippedRelicIds: [],
+        equipmentProfiles: {
+          'cursed-hunter': [{
+            id: 'prep-profile-1', characterId: 'cursed-hunter', name: 'Alev',
+            startingWeaponId: 'gravecleaver', startingPassiveId: 'storm-conductor',
+            relicIds: ['forest-heart']
+          }]
+        },
+        activeEquipmentProfileIds: {}
+      },
+      collections: {
+        characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: ['forest-heart'],
+        craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [],
+        achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [],
+        achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [],
+        discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: []
+      },
+      story: {
+        quests: {}, npcFates: {}, regionAtmospheres: {}, unlockedPathIds: [], bossEncounterIds: [],
+        unlockedRewardIds: [], unlockedAlternateQuestIds: [], endingId: null, completedEndingId: null,
+        appliedOutcomeIds: []
+      },
+      settings: {}
+    }));
+  });
+  await page.goto('/?bv-test=1');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  await page.mouse.click(160, 555);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('character-select'));
+  });
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('region-select'));
+  });
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('run-preparation'));
+  });
+  const initial = await page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedProfileId: string | null; selectedWeaponId: string; selectedPassiveId: string; selectedRelicIds: string[]; profileCount: number } } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run-preparation').browserTestSnapshot();
+  });
+  expect(initial.profileCount).toBe(1);
+  expect(initial.selectedProfileId).toBeNull();
+  await page.keyboard.press('ArrowRight');
+  const selected = await page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedProfileId: string | null; selectedWeaponId: string; selectedPassiveId: string; selectedRelicIds: string[] } } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run-preparation').browserTestSnapshot();
+  });
+  expect(selected).toMatchObject({
+    selectedProfileId: 'prep-profile-1',
+    selectedWeaponId: 'gravecleaver',
+    selectedPassiveId: 'storm-conductor',
+    selectedRelicIds: ['forest-heart']
+  });
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('run'));
+  });
+  const run = await readBrowserRunSnapshot(page);
+  expect(run.weapons[0]?.weaponId).toBe('gravecleaver');
+  expect(run.passives[0]?.passiveId).toBe('storm-conductor');
+  expect(run.equippedRelicIds).toEqual(['forest-heart']);
+  const activeProfile = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!).progression.activeEquipmentProfileIds['cursed-hunter'] ?? null);
+  expect(activeProfile).toBeNull();
   expect(pageErrors).toEqual([]);
 });
 
@@ -2376,6 +2476,11 @@ test('New Game+ unlocks after an ending, confirms the reset, and scales live ene
   await page.waitForFunction(()=>{
     const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('region-select'));
+  });
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('run-preparation'));
   });
   await page.keyboard.press('Enter');
   await page.waitForFunction(()=>{

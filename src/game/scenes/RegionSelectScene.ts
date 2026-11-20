@@ -22,17 +22,21 @@ export class RegionSelectScene extends Phaser.Scene {
 
   constructor() { super('region-select'); }
 
-  init(data: { characterId?: string }): void {
+  init(data: { characterId?: string; regionId?: string; gameMode?: unknown; challengeId?: unknown }): void {
     this.characterId = CHARACTERS.some(character => character.id === data?.characterId)
       ? data.characterId!
       : CHARACTERS[0]!.id;
-    this.selectedIndex = 0;
+    const regionIndex = REGIONS.findIndex(region => region.id === data?.regionId);
+    this.selectedIndex = regionIndex >= 0 ? regionIndex : 0;
     this.unlockedRegionIds = new Set([REGIONS[0]!.id]);
     this.frames = [];
     this.previousPad = { left: false, right: false, confirm: false, back: false, mode: false, challenge: false };
-    this.gameMode = 'survival';
+    const requestedMode = data?.gameMode;
+    this.gameMode = requestedMode === 'boss-hunt' || requestedMode === 'challenge' || requestedMode === 'endless' ? requestedMode : 'survival';
     this.modeButtons = [];
-    this.challengeId = 'limited-arsenal';
+    this.challengeId = CHALLENGES.some(challenge => challenge.id === data?.challengeId)
+      ? data.challengeId as ChallengeId
+      : 'limited-arsenal';
     this.challengeButtons = [];
     this.modeHelp = undefined;
     this.challengeLabel = undefined;
@@ -299,6 +303,6 @@ export class RegionSelectScene extends Phaser.Scene {
   private startRun(): void {
     const region = REGIONS[this.selectedIndex];
     if (!region || !this.unlockedRegionIds.has(region.id)) return;
-    this.scene.start('run', { characterId: this.characterId, regionId: region.id, gameMode: this.gameMode, challengeId: this.gameMode === 'challenge' ? this.challengeId : undefined });
+    this.scene.start('run-preparation', { characterId: this.characterId, regionId: region.id, gameMode: this.gameMode, challengeId: this.gameMode === 'challenge' ? this.challengeId : undefined });
   }
 }
