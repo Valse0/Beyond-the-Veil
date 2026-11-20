@@ -316,3 +316,6 @@ Cursed Challenges are selectable variants of the normal Survival run, not a sepa
 - **Hunters' Nightmare (Avcıların Kabusu):** normal enemies and the regional boss move 20% faster. Existing status slows, elite buffs, boss phase movement multipliers and environmental modifiers continue to compose with this multiplier.
 
 A challenge victory bonus of 200 Ruh Özü is added only when the run wins and the final boss chest is actually opened. Defeat or an unopened chest grants no challenge bonus; normal Survival run persistence remains unchanged. Challenges are repeatable, local and offline. No save migration or external service is required.
+
+
+CI verification: workflow run [#424](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44667058816) on commit `bdf743b6aad1312ac2214d9c5ca1662bdff03ba1` passed TypeScript, 239/239 unit tests, production build, Chromium Playwright 41/41 (including live Phaser probes for all three challenge rules), and npm audit with zero vulnerabilities.
