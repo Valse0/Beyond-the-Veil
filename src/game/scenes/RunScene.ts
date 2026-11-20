@@ -2622,7 +2622,7 @@ export class RunScene extends Phaser.Scene {
     try{
       const loaded=manager?.load();
       if(!manager||!loaded||!('data' in loaded))throw new Error('A valid local profile is not available.');
-      manager.save({...loaded.data,story:next.story});
+      manager.save({...loaded.data,progression:next.progression,collections:next.collections,story:next.story});
     }catch{
       this.questChoiceErrorText?.setText('KAYIT BAŞARISIZ — seçim korunmadı. Yeniden dene.').setVisible(true);
       return;
