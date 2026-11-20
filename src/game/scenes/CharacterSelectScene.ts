@@ -91,9 +91,9 @@ export class CharacterSelectScene extends Phaser.Scene {
       this.makeTouchArrow(142, 354, '‹', () => this.moveSelection(-1));
       this.makeTouchArrow(width - 142, 354, '›', () => this.moveSelection(1));
     }
-    this.makeButton(64, height - 88, this.touchLayout ? '‹  GERİ' : '‹  GERİ', () => this.scene.start('main-menu'), false, this.touchLayout ? 190 : 150, this.touchLayout ? 19 : 15, this.touchLayout ? 58 : 46);
-    this.makeButton(width - (this.touchLayout ? 292 : 250), height - 88, 'BÖLGEYE DEVAM ET  ›', () => this.continue(), false, this.touchLayout ? 228 : 186, this.touchLayout ? 18 : 15, this.touchLayout ? 58 : 46);
-    this.add.text(width / 2, height - 30, '← / → veya D-PAD: SEÇ     A / ENTER: DEVAM     B / ESC: GERİ', {
+    this.makeButton(64, height - 102, this.touchLayout ? '‹  GERİ' : '‹  GERİ', () => this.scene.start('main-menu'), false, this.touchLayout ? 190 : 150, this.touchLayout ? 19 : 15, this.touchLayout ? 82 : 46);
+    this.makeButton(width - (this.touchLayout ? 292 : 250), height - 88, 'BÖLGEYE DEVAM ET  ›', () => this.continue(), false, this.touchLayout ? 228 : 186, this.touchLayout ? 18 : 15, this.touchLayout ? 82 : 46);
+    this.add.text(width / 2, height - 8, '← / → veya D-PAD: SEÇ     A / ENTER: DEVAM     B / ESC: GERİ', {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '11px', color: '#77727a'
     }).setOrigin(0.5);
 
@@ -167,7 +167,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     const button = this.add.text(x, y, label, {
       fontFamily: 'Georgia, serif', fontSize: '56px', color: '#f2e8d4', backgroundColor: '#5b3d32',
       padding: { x: 18, y: 6 }
-    }).setOrigin(0.5).setFixedSize(76, 88).setInteractive({ useHandCursor: true });
+    }).setOrigin(0.5).setFixedSize(88, 96).setInteractive({ useHandCursor: true });
     button.on('pointerover', () => button.setStyle({ backgroundColor: '#79513c', color: '#ffffff' }));
     button.on('pointerout', () => button.setStyle({ backgroundColor: '#5b3d32', color: '#f2e8d4' }));
     button.on('pointerup', action);
