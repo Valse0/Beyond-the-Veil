@@ -73,7 +73,7 @@ export class RegionSelectScene extends Phaser.Scene {
     const margin = this.touchLayout ? 230 : 64;
     const cardWidth = this.touchLayout ? 820 : (width - margin * 2 - gap * 4) / 5;
     const cardY = this.touchLayout ? 112 : 142;
-    const cardHeight = this.touchLayout ? 290 : 355;
+    const cardHeight = this.touchLayout ? 320 : 355;
 
     REGIONS.forEach((region, index) => {
       if (this.touchLayout && index !== this.selectedIndex) return;
@@ -99,7 +99,7 @@ export class RegionSelectScene extends Phaser.Scene {
         fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '17px' : '11px', color: '#aaa2a0',
         wordWrap: { width: cardWidth - 32 }, align: 'center', lineSpacing: 3
       }).setOrigin(0.5, 0);
-      this.add.text(x + 14, cardY + (this.touchLayout ? 218 : 258),
+      this.add.text(x + 14, cardY + (this.touchLayout ? 222 : 258),
         `BOSS  ${region.bossId.replaceAll('-', ' ').toUpperCase()}\n${region.enemyIds.length} DÜŞMAN TÜRÜ\n${region.hazards.length} ÇEVRESEL TEHLİKE`, {
           fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '10px', color: '#d8c9ad',
           wordWrap: { width: cardWidth - 28 }, align: 'center', lineSpacing: 5
@@ -127,7 +127,7 @@ export class RegionSelectScene extends Phaser.Scene {
     });
 
     if (this.touchLayout) {
-      this.add.text(width / 2, 418, 'ZORLUK   NORMAL AÇIK   •   HARD: NORMAL TAMAMLANINCA   •   NIGHTMARE: HARD TAMAMLANINCA', {
+      this.add.text(width / 2, 442, 'ZORLUK   NORMAL AÇIK   •   HARD: NORMAL TAMAMLANINCA   •   NIGHTMARE: HARD TAMAMLANINCA', {
         fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#b9c99b', align: 'center', wordWrap: { width: 1120 }
       }).setOrigin(0.5);
     } else {
@@ -148,22 +148,22 @@ export class RegionSelectScene extends Phaser.Scene {
       });
     }
 
-    this.add.text(width / 2, this.touchLayout ? 455 : 558, 'OYUN MODU', {
+    this.add.text(width / 2, this.touchLayout ? 474 : 558, 'OYUN MODU', {
       fontFamily: 'Georgia, serif', fontSize: '15px', color: '#d9c9aa'
     }).setOrigin(0.5);
-    const modeY = this.touchLayout ? 485 : 588;
+    const modeY = this.touchLayout ? 502 : 588;
     const modeOffset = this.touchLayout ? 390 : 288;
     this.makeModeButton(width / 2 - modeOffset, modeY, 'SURVIVAL', 'survival');
     this.makeModeButton(width / 2 - (this.touchLayout ? 130 : 96), modeY, 'BOSS HUNT', 'boss-hunt');
     this.makeModeButton(width / 2 + (this.touchLayout ? 130 : 96), modeY, 'MEYDAN OKUMA', 'challenge');
     this.makeModeButton(width / 2 + modeOffset, modeY, 'SONSUZ', 'endless');
-    this.modeHelp = this.add.text(width / 2, this.touchLayout ? 522 : 616, 'Survival: standart koşu  •  M: mod değiştir', {
+    this.modeHelp = this.add.text(width / 2, this.touchLayout ? 540 : 616, 'Survival: standart koşu  •  M: mod değiştir', {
       fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#89818a'
     }).setOrigin(0.5);
     this.challengeLabel = this.add.text(width / 2, this.touchLayout ? 522 : 616, 'MEYDAN OKUMA SEÇ  •  C / LB / RB: SONRAKİ', {
       fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#c7ad7b'
     }).setOrigin(0.5).setVisible(false);
-    CHALLENGES.forEach((challenge, index) => this.makeChallengeButton(width / 2 - 190 + index * 190, this.touchLayout ? 560 : 640, challenge.id, challenge.name));
+    CHALLENGES.forEach((challenge, index) => this.makeChallengeButton(width / 2 - 190 + index * 190, this.touchLayout ? 574 : 640, challenge.id, challenge.name));
     this.refreshModeSelection();
 
     if (this.touchLayout) {
@@ -300,7 +300,7 @@ export class RegionSelectScene extends Phaser.Scene {
     const margin = this.touchLayout ? 230 : 64;
     const cardWidth = this.touchLayout ? 820 : (width - margin * 2 - gap * 4) / 5;
     const cardY = this.touchLayout ? 112 : 142;
-    const cardHeight = this.touchLayout ? 290 : 355;
+    const cardHeight = this.touchLayout ? 320 : 355;
     this.frames.forEach((frame, index) => {
       const x = this.touchLayout ? (width - cardWidth) / 2 : margin + index * (cardWidth + gap);
       const selected = this.touchLayout || index === this.selectedIndex;
