@@ -119,8 +119,9 @@ export class QuestJournalScene extends Phaser.Scene {
   private closeJournal(): void {
     if (!this.sys.isActive()) return;
     const returnScene = this.returnSceneKey;
+    if (returnScene === 'run') this.scene.get('run').events.emit('quest-journal-closed');
     this.scene.stop();
-    this.scene.resume(returnScene);
+    if (returnScene === 'main-menu') this.scene.resume(returnScene);
   }
 
   private getQuestStatus(questId: string, save: SaveData): JournalQuestStatus {

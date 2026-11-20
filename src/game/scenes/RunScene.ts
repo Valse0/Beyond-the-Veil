@@ -206,6 +206,7 @@ export class RunScene extends Phaser.Scene {
   private lastTraversedStoryPathId:string|null=null;
   private questSaveData?:SaveData;
   private questHud?:Phaser.GameObjects.Text;
+  private questJournalOpen=false;
   private questHudPanel?:Phaser.GameObjects.Rectangle;
   private pendingQuestChoiceId:string|null=null;
   private questChoiceErrorText?:Phaser.GameObjects.Text;
@@ -1024,6 +1025,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   update(time:number,delta:number):void {
+    if(this.questJournalOpen)return;
     const frame=this.readGamepadFrame();
     const gamepad=resolveGamepadInput(frame,this.previousGamepadFrame);
     this.previousGamepadFrame=frame;
@@ -2643,8 +2645,9 @@ export class RunScene extends Phaser.Scene {
   }
 
   private openQuestJournal():void {
-    if(!this.paused||this.runFinished)return;
-    this.scene.pause();
+    if(!this.paused||this.runFinished||this.questJournalOpen)return;
+    this.questJournalOpen=true;
+    this.events.once('quest-journal-closed',()=>{this.questJournalOpen=false;});
     this.scene.launch('quest-journal',{returnScene:'run'});
   }
 

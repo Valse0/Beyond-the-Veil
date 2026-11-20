@@ -1889,7 +1889,7 @@ test('quest journal opens above the paused run and returns to the pause menu wit
   await page.mouse.click(640, 446);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean; isPaused: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
-    return Boolean(game?.scene.isActive('quest-journal') && game.scene.isPaused('run'));
+    return Boolean(game?.scene.isActive('quest-journal') && game.scene.isActive('run'));
   });
   const opened = await readQuestJournalSnapshot(page);
   expect(opened.returnScene).toBe('run');
@@ -1897,7 +1897,7 @@ test('quest journal opens above the paused run and returns to the pause menu wit
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean; isPaused: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
-    return Boolean(game?.scene.isActive('run') && !game.scene.isActive('quest-journal') && !game.scene.isPaused('run'));
+    return Boolean(game?.scene.isActive('run') && !game.scene.isActive('quest-journal'));
   });
   expect((await readBrowserRunSnapshot(page)).paused).toBe(true);
   const paused = await readBrowserRunSnapshot(page);
