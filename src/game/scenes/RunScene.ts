@@ -12,6 +12,7 @@ import { CRAFTING_MATERIALS } from '../../data/crafting.js';
 import { ELEMENTS } from '../../data/elements.js';
 import { REGIONS } from '../../data/regions.js';
 import { resolveEnvironment, getElementWeatherMultiplier, getEnvironmentLabel } from '../../gameplay/world/environment-runtime.js';
+import { resolveCharacterAbility } from '../../gameplay/characters/character-ability-runtime.js';
 import { getEnvironmentalLoreLandmark, type EnvironmentalLoreLandmark } from '../../data/environmental-lore.js';
 import { resolveUnlockedRegionPaths } from '../../gameplay/world/region-path-runtime.js';
 import { resolveStoryWorldState } from '../../gameplay/world/story-world-state.js';
@@ -90,6 +91,11 @@ export class RunScene extends Phaser.Scene {
   private dashReady=0;
   private dashUntil=0;
   private abilityReady=0;
+  private abilityGuardUntil=0;
+  private abilityGuardDamageMultiplier=.35;
+  private abilityLastEffect='';
+  private abilityLastDamage=0;
+  private abilityLastHealing=0;
   private lastHud=0;
   private waveDirector:WaveDirectorState=createWaveDirector(1);
   private runEventState:RunEventState=createRunEventState(1);
@@ -228,7 +234,30 @@ export class RunScene extends Phaser.Scene {
     this.scene.restart({characterId:this.character.id,regionId:regionId as RegionId});
   }
 
+  browserTestRestartCharacter(characterId:string):void {
+    this.assertBrowserTestMode();
+    if(!CHARACTERS.some(character=>character.id===characterId))throw new Error('Unknown test character: '+characterId);
+    this.scene.restart({characterId,regionId:this.region.id});
+  }
+
+  browserTestAbilityProbe():{effect:string;beforeHealth:number;afterHealth:number;beforePlayerX:number;afterPlayerX:number;targetVelocity:number;targetHealthBefore:number;targetHealthAfter:number;guardActive:boolean;markedTargetCount:number;cooldownRemainingMs:number} {
+    this.assertBrowserTestMode();
+    this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};
+    for(const child of [...this.enemies.getChildren()]){const enemy=child as Phaser.Physics.Arcade.Sprite;(enemy.getData('eliteMarker') as Phaser.GameObjects.GameObject|undefined)?.destroy();enemy.destroy();}
+    const definition=ENEMIES.find(item=>item.regionId===this.region.id);
+    if(!definition)throw new Error('The active region has no ability probe target.');
+    const targets=[this.createEnemy(this.player.x+64,this.player.y,definition,10),this.createEnemy(this.player.x+90,this.player.y+42,definition,10),this.createEnemy(this.player.x+112,this.player.y-38,definition,10)];
+    for(const target of targets)target.setData('abilityProbeTarget',true).setVelocity(0,0);
+    const beforeHealth=this.character.id==='blood-priestess'?this.state.maxHealth*.7:this.state.health;
+    this.state={...this.state,health:beforeHealth};
+    const beforePlayerX=this.player.x,targetHealthBefore=Number(targets[0]!.getData('health'));
+    this.useAbility();
+    const target=targets[0]!,targetVelocity=(target.body as Phaser.Physics.Arcade.Body).velocity.length();
+    return {effect:this.abilityLastEffect,beforeHealth,afterHealth:this.state.health,beforePlayerX,afterPlayerX:this.player.x,targetVelocity,targetHealthBefore,targetHealthAfter:target.active?Number(target.getData('health')):0,guardActive:this.time.now<this.abilityGuardUntil,markedTargetCount:targets.filter(item=>Number(item.getData('abilityMarkedUntil')??0)>this.time.now).length,cooldownRemainingMs:Math.max(0,this.abilityReady-this.time.now)};
+  }
+
   browserTestSnapshot():{
+    ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number};
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Partial<Record<ElementId,number>>};
     regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};
@@ -246,6 +275,7 @@ export class RunScene extends Phaser.Scene {
   } {
     this.assertBrowserTestMode();
     return {
+      ability:{effect:this.character.ability.effect,cooldownRemainingMs:Math.max(0,this.abilityReady-this.time.now),guardActive:this.time.now<this.abilityGuardUntil,lastDamage:this.abilityLastDamage,lastHealing:this.abilityLastHealing,markedTargetCount:this.activeTargets().filter(target=>Number(target.getData('abilityMarkedUntil')??0)>this.time.now).length},
       level:this.state.level,experience:this.state.experience,experienceToNext:this.state.experienceToNext,
       regionMap:{regionId:this.mapLayout.regionId,roomIds:this.mapLayout.rooms.map(room=>room.id),wallCount:this.mapBoundaryCount,connected:this.mapConnected,playerWalkable:isRegionMapWalkable(this.mapLayout,this.player.x,this.player.y,-24)},
       queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,environment:{timeOfDay:this.environmentState.timeOfDay,weather:this.environmentState.weather,timeLabel:this.environmentState.timeLabel,weatherLabel:this.environmentState.weatherLabel,enemyMoveSpeedMultiplier:this.environmentState.enemyMoveSpeedMultiplier,elementDamageMultipliers:{...this.environmentState.elementDamageMultipliers}},paused:this.paused,bossSpawned:this.bossSpawned,bossVariantId:this.activeBossVariantId,bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
@@ -756,7 +786,7 @@ export class RunScene extends Phaser.Scene {
     const startingPassive=PASSIVES.find(p=>p.id===(activeEquipmentProfile?.startingPassiveId??this.character.startingPassiveId))??PASSIVES[0]!;
     this.build=addWeapon(this.build,startingWeapon);this.build=addPassive(this.build,startingPassive);
     this.runDiscoveredWeaponIds=[startingWeapon.id];
-    this.paused=false;this.queuedLevels=0;this.levelUpControls=createLevelUpControlState(this.permanentUpgradeEffects.extraRerolls);this.currentLevelChoices=[];this.banishMode=false;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;
+    this.paused=false;this.queuedLevels=0;this.levelUpControls=createLevelUpControlState(this.permanentUpgradeEffects.extraRerolls);this.currentLevelChoices=[];this.banishMode=false;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;this.abilityGuardUntil=0;this.abilityGuardDamageMultiplier=.35;this.abilityLastEffect='';this.abilityLastDamage=0;this.abilityLastHealing=0;
     this.previousGamepadFrame=EMPTY_GAMEPAD_FRAME;this.gamepadMoveX=0;this.gamepadMoveY=0;this.clearOverlay();
     const requestedSeed=this.registry.get('runSeed');
     this.runSeed=typeof requestedSeed==='number'&&Number.isFinite(requestedSeed)?requestedSeed>>>0:((Date.now()^Math.floor(Math.random()*0xffffffff))>>>0);
@@ -906,17 +936,43 @@ export class RunScene extends Phaser.Scene {
   }
 
   private useAbility():void {
-    if(this.time.now<this.abilityReady||this.paused)return;
-    const stats=this.currentBuildStats();this.abilityReady=this.time.now+this.character.ability.cooldownMs*stats.abilityCooldownMultiplier*this.relicStats.abilityCooldownMultiplier;
-    const element=this.character.elementSynergies[0];
-    const targets=this.activeTargets();
-    for(const enemy of targets){
-      if(Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)>this.character.ability.range)continue;
-      this.damageEnemy(enemy,this.state.damage*this.character.ability.damageMultiplier*stats.damageMultiplier*this.character.stats.damageMultiplier*this.relicStats.damageMultiplier*getRelicDamageMultiplier(this.equippedRelicIds,this.character.id,element),element);
-      const a=Phaser.Math.Angle.Between(this.player.x,this.player.y,enemy.x,enemy.y);
-      enemy.setVelocity(Math.cos(a)*150,Math.sin(a)*150);
+    if(this.time.now<this.abilityReady||this.paused||this.runFinished)return;
+    const stats=this.currentBuildStats(),definition=this.character.ability,element=this.character.elementSynergies[0];
+    const targets=this.activeTargets(),velocity=(this.player.body as Phaser.Physics.Arcade.Body).velocity;
+    const resolution=resolveCharacterAbility(definition.effect,{origin:{x:this.player.x,y:this.player.y},targets:targets.map((target,index)=>({id:String(index),x:target.x,y:target.y})),range:definition.range,maxHealth:this.state.maxHealth,currentHealth:this.state.health,aim:{x:velocity.x,y:velocity.y}});
+    this.abilityReady=this.time.now+definition.cooldownMs*stats.abilityCooldownMultiplier*this.relicStats.abilityCooldownMultiplier;
+    this.abilityLastEffect=definition.effect;this.abilityLastDamage=0;this.abilityLastHealing=0;
+    const damage=this.state.damage*definition.damageMultiplier*stats.damageMultiplier*this.character.stats.damageMultiplier*this.relicStats.damageMultiplier*getRelicDamageMultiplier(this.equippedRelicIds,this.character.id,element);
+    if(resolution.effect==='radial-knockback'){
+      resolution.targetIndexes.forEach((index,slot)=>{const target=targets[index];if(!target?.active)return;this.abilityLastDamage+=this.damageEnemy(target,damage,element);const impulse=resolution.knockback[slot];if(impulse)target.setVelocity(impulse.x,impulse.y);});
+      this.cameras.main.shake(130,.004);
+    }else if(resolution.effect==='guard-and-stagger'){
+      this.abilityGuardUntil=this.time.now+resolution.guardDurationMs;this.abilityGuardDamageMultiplier=resolution.guardDamageMultiplier;
+      for(const index of resolution.targetIndexes){const target=targets[index];if(!target?.active)continue;this.abilityLastDamage+=this.damageEnemy(target,damage*.7,element);target.setData('abilityStaggeredUntil',this.time.now+resolution.staggerDurationMs).setVelocity(0,0);}
+      this.showAbilityFeedback('KARA SİPER  •  HASAR AZALTILDI');this.cameras.main.shake(160,.005);
+    }else if(resolution.effect==='delayed-spirit-zone'&&resolution.delayedZone){
+      const zone=resolution.delayedZone,marker=this.add.circle(zone.x,zone.y,zone.radius,0x73d7c8,.16).setStrokeStyle(3,0x9be8dc,.9).setDepth(4);
+      this.tweens.add({targets:marker,alpha:.38,scale:.92,duration:zone.delayMs,yoyo:true,repeat:0});
+      this.time.delayedCall(zone.delayMs,()=>{if(this.runFinished){marker.destroy();return;}for(const target of this.activeTargets())if(Phaser.Math.Distance.Between(zone.x,zone.y,target.x,target.y)<=zone.radius)this.abilityLastDamage+=this.damageEnemy(target,damage,element);marker.setFillStyle(0x73d7c8,.3).setStrokeStyle(4,0xb8fff2,1);this.cameras.main.flash(120,70,170,160);this.time.delayedCall(zone.visualDurationMs,()=>marker.destroy());});
+      this.cameras.main.shake(70,.0015);
+    }else if(resolution.effect==='blink-and-mark'){
+      const destination=resolution.blinkDestination!,safe=resolveRegionMapPosition(this.mapLayout,destination.x,destination.y,30);
+      this.player.setPosition(safe.x,safe.y);(this.player.body as Phaser.Physics.Arcade.Body).reset(safe.x,safe.y);this.player.setVelocity(0,0);
+      const marked=resolution.markedTargetIndex===null?undefined:targets[resolution.markedTargetIndex];
+      if(marked?.active){marked.setData('abilityMarkedUntil',this.time.now+resolution.markDurationMs).setTint(0x9b78c8);this.abilityLastDamage+=this.damageEnemy(marked,damage*.45,element);this.cameras.main.flash(100,110,75,160);}
+      this.cameras.main.shake(90,.0025);
+    }else if(resolution.effect==='health-sacrifice-lifesteal'){
+      this.state={...this.state,health:Math.max(1,this.state.health-resolution.healthCost)};
+      let dealt=0;for(const index of resolution.targetIndexes){const target=targets[index];if(target?.active)dealt+=this.damageEnemy(target,damage,element);}
+      const before=this.state.health;this.healPlayer(dealt*resolution.lifestealRatio);this.abilityLastDamage=dealt;this.abilityLastHealing=this.state.health-before;
+      this.cameras.main.flash(150,190,35,65);this.cameras.main.shake(140,.004);
     }
-    this.cameras.main.shake(110,.003);
+    this.refreshHud();
+  }
+
+  private showAbilityFeedback(message:string):void {
+    const label=this.add.text(this.scale.width/2,this.scale.height*.28,message,{fontFamily:'Arial',fontSize:'15px',color:'#e6d3a9',backgroundColor:'#241d22',padding:{x:10,y:6}}).setOrigin(.5).setScrollFactor(0).setDepth(125);
+    this.time.delayedCall(950,()=>label.destroy());
   }
 
   private moveEnemies(time:number):void {
@@ -962,7 +1018,8 @@ export class RunScene extends Phaser.Scene {
       const enemySlow=Number(enemy.getData('enemySlowUntil')??0)>time?Number(enemy.getData('enemySlowMultiplier')??1):1;
       const moveBuff=Number(enemy.getData('moveSpeedBuffUntil')??0)>time?Number(enemy.getData('moveSpeedBuff')??1):1;
       vx*=enemySlow*moveBuff;vy*=enemySlow*moveBuff;
-      enemy.setVelocity(effects.stunned||effects.frozen?0:vx,effects.stunned||effects.frozen?0:vy);
+      const abilityStaggered=Number(enemy.getData('abilityStaggeredUntil')??0)>time;
+      enemy.setVelocity(effects.stunned||effects.frozen||abilityStaggered?0:vx,effects.stunned||effects.frozen||abilityStaggered?0:vy);
       if(effects.damage>0)this.damageEnemy(enemy,effects.damage);
       const concealed=intent.state.burrowed||Number(enemy.getData('untargetableUntil')??0)>time;
       enemy.setAlpha(concealed?.28:1);
@@ -1444,24 +1501,25 @@ export class RunScene extends Phaser.Scene {
     }
   }
 
-  private damageEnemy(enemy:Phaser.Physics.Arcade.Sprite,baseDamage:number,element?:ElementId):void {
-    if(!enemy.active||this.runFinished||Number(enemy.getData('untargetableUntil')??0)>this.time.now)return;
-    if(enemy.getData('isBoss')){this.damageBossTarget(enemy,baseDamage,element);return;}
-    const def=this.enemyDefinition(enemy);if(!def)return;
+  private damageEnemy(enemy:Phaser.Physics.Arcade.Sprite,baseDamage:number,element?:ElementId):number {
+    if(!enemy.active||this.runFinished||Number(enemy.getData('untargetableUntil')??0)>this.time.now)return 0;
+    if(enemy.getData('isBoss'))return this.damageBossTarget(enemy,baseDamage,element);
+    const def=this.enemyDefinition(enemy);if(!def)return 0;
     const actor=this.enemyStates.get(enemy);
-    if(actor?.burrowed||(!enemy.getData('mimicRevealed')&&def.behavior==='mimic'))return;
+    if(actor?.burrowed||(!enemy.getData('mimicRevealed')&&def.behavior==='mimic'))return 0;
     const existing=this.elementStates.get(enemy)??{};
     const curse=existing.dark&&existing.dark.expiresAt>this.time.now?existing.dark.stacks:0;
     const poison=existing.poison&&existing.poison.expiresAt>this.time.now?existing.poison.stacks:0;
     let damage=baseDamage*(1+curse*.06+poison*.025);
     if(actor&&def.behavior!=='mimic'&&actor.exposedUntil>this.time.now)damage*=1.25;
+    if(Number(enemy.getData('abilityMarkedUntil')??0)>this.time.now)damage*=1.3;
     const armorBroken=Number(enemy.getData('armorBrokenUntil')??0)>this.time.now;
     if((def.behavior==='shield-advance'||def.behavior==='rune-guardian')&&!armorBroken&&element!=='lightning'&&this.isEnemyFacingPlayer(enemy,actor))damage*=.35;
     if(def.behavior==='rune-guardian'&&element==='lightning')enemy.setData('armorBrokenUntil',this.time.now+5200);
     if(def.behavior==='pursue'&&this.isEnemyFacingPlayer(enemy,actor)&&!element)damage*=.8;
     if(def.behavior==='duelist'&&Number(enemy.getData('parryUntil')??0)>this.time.now&&element!=='lightning')damage*=.35;
     if(def.behavior==='duelist'&&element==='lightning')enemy.setData('parryUntil',0);
-    if(def.behavior==='burrow'&&actor?.burrowed)return;
+    if(def.behavior==='burrow'&&actor?.burrowed)return 0;
     const anchor=this.activeTargets().find(other=>other!==enemy&&this.enemyDefinition(other)?.behavior==='soul-anchor'&&Phaser.Math.Distance.Between(other.x,other.y,enemy.x,enemy.y)<200);
     if(anchor)damage*=.88;
     if(element){
@@ -1481,9 +1539,9 @@ export class RunScene extends Phaser.Scene {
     if(element==='fire'&&isPassiveSpecialActive(this.build,'ashen-heart')){const fire=PASSIVES.find(item=>item.id==='ashen-heart')!.specialUpgrade.mechanic;if(fire.kind==='fire-explosion'){const ready=tryPassiveCooldown(this.passiveSpecialState,'ember-core',this.time.now,fire.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)for(const nearby of this.activeTargets()){if(nearby!==enemy&&Phaser.Math.Distance.Between(enemy.x,enemy.y,nearby.x,nearby.y)<=fire.radius)this.damageEnemy(nearby,damage*fire.damageMultiplier);}}}
     const ice=PASSIVES.find(item=>item.id==='frostbound-sigil')!.specialUpgrade.mechanic;
     if(ice.kind==='ice-shatter'&&isPassiveSpecialActive(this.build,'frostbound-sigil')&&baseDamage>=ice.minimumHitDamage&&isFrozenTarget(existing.ice?.expiresAt,this.time.now)&&Number(enemy.getData('iceShatteredUntil')??0)<(existing.ice?.expiresAt??0)){damage+=baseDamage*ice.damageMultiplier;enemy.setData('iceShatteredUntil',existing.ice!.expiresAt);}
-    const hp=Number(enemy.getData('health'))-damage;enemy.setData('health',hp).setTint(element?elementTint[element]:0xffffff);
+    const previousHealth=Number(enemy.getData('health'));const hp=previousHealth-damage;enemy.setData('health',hp).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(enemy.active){if(enemy.getData('isElite'))enemy.setTint(enemy.getData('eliteEnraged')?0xf2a85c:0xd9ad5c);else enemy.clearTint();}});
-    if(hp>0)return;
+    if(hp>0)return Math.min(previousHealth,damage);
     if(def.behavior==='volatile-bomber'){
       const radius=enemy.getData('primed')?112:58;const blast=this.add.circle(enemy.x,enemy.y,radius,0xe3a64e,.22).setDepth(7);
       if(Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)<radius+18)this.receiveCombatDamage(def.attack.damage*(enemy.getData('primed')?1:.5));
@@ -1498,6 +1556,7 @@ export class RunScene extends Phaser.Scene {
     if(enemy.getData('isElite')&&isPassiveSpecialActive(this.build,'hollow-crown'))this.applyCrownOfAshes(enemy);
     const eliteMarker=enemy.getData('eliteMarker') as Phaser.GameObjects.GameObject|undefined;eliteMarker?.destroy();
     this.dropExperience(enemy,experience);this.state=recordKill(this.state);enemy.destroy();
+    return Math.max(0,Math.min(previousHealth,damage));
   }
 
   private resolveElementReaction(source:Phaser.Physics.Arcade.Sprite,reaction:import('../../core/types/content.js').ElementReactionDefinition&{damage:number}):void {
@@ -1525,11 +1584,12 @@ export class RunScene extends Phaser.Scene {
     if(next&&Phaser.Math.Distance.Between(source.x,source.y,next.x,next.y)<=190)this.damageEnemy(next,damage);
   }
 
-  private damageBossTarget(boss:Phaser.Physics.Arcade.Sprite,baseDamage:number,element?:ElementId):void {
-    if(!this.bossDefinition||!this.bossState||this.bossState.defeated)return;
+  private damageBossTarget(boss:Phaser.Physics.Arcade.Sprite,baseDamage:number,element?:ElementId):number {
+    if(!this.bossDefinition||!this.bossState||this.bossState.defeated)return 0;
     const curse=this.bossElementState.dark&&this.bossElementState.dark.expiresAt>this.time.now?this.bossElementState.dark.stacks:0;
     const poison=this.bossElementState.poison&&this.bossElementState.poison.expiresAt>this.time.now?this.bossElementState.poison.stacks:0;
     let damage=baseDamage*(1+curse*.06+poison*.025);
+    if(Number(boss.getData('abilityMarkedUntil')??0)>this.time.now)damage*=1.3;
     if(element){
       const elementDef=ELEMENTS.find(e=>e.id===element)!;
       const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier*this.relicStats.elementalBuildupMultiplier};
@@ -1549,13 +1609,14 @@ export class RunScene extends Phaser.Scene {
     if(ice.kind==='ice-shatter'&&isPassiveSpecialActive(this.build,'frostbound-sigil')&&baseDamage>=ice.minimumHitDamage&&isFrozenTarget(this.bossElementState.ice?.expiresAt,this.time.now)&&Number(boss.getData('iceShatteredUntil')??0)<(this.bossElementState.ice?.expiresAt??0)){damage+=baseDamage*ice.damageMultiplier;boss.setData('iceShatteredUntil',this.bossElementState.ice!.expiresAt);}
     if(element&&this.bossDefinition.weakness.includes(element))damage*=1.3;
     damage*=getBossArenaDamageMultiplier(this.bossArenaState,this.time.now);
-    const transition=damageBoss(this.bossState,this.bossDefinition,damage,this.time.now);this.bossState=transition.state;
+    const previousHealth=this.bossState.health;const transition=damageBoss(this.bossState,this.bossDefinition,damage,this.time.now);this.bossState=transition.state;
     boss.setData('health',transition.state.health).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(boss.active)boss.clearTint();});
     if(transition.changed&&!transition.state.defeated){this.bossPhaseText?.setText(transition.current.name);this.bossArenaState=this.bossArenaState?transitionBossArenaPhase(this.bossArenaState,transition.state.phaseIndex):undefined;this.updateBossArenaVisuals();this.eventHud?.setText(this.bossArenaHint()).setVisible(true);this.cameras.main.flash(320,90,38,55);
       for(const id of transition.current.addEnemyIds){if(this.enemies.countActive(true)>=42)break;const def=ENEMIES.find(e=>e.id===id);if(def)this.createEnemy(boss.x+Phaser.Math.Between(-90,90),boss.y+Phaser.Math.Between(-90,90),def,1.2);}}
     this.bossHealth?.setSize(300*Phaser.Math.Clamp(transition.state.health/transition.state.maxHealth,0,1),5);
     if(transition.state.defeated)this.defeatBoss(boss);
+    return Math.max(0,previousHealth-transition.state.health);
   }
 
   private defeatBoss(boss:Phaser.Physics.Arcade.Sprite):void {
@@ -1912,6 +1973,7 @@ export class RunScene extends Phaser.Scene {
       this.passiveSpecialState=result.state;
       if(result.blocked){this.showPassiveSpecialFeedback('MÜHÜRLÜ PLAKA  •  HASAR ENGELLENDİ');return;}
     }
+    if(this.time.now<this.abilityGuardUntil)amount*=this.abilityGuardDamageMultiplier;
     if(this.time.now<this.weaponSynergyGuardUntil)amount*=1-this.weaponSynergyGuardReduction;
     const armor=this.currentBuildStats().armor+this.character.stats.armor+this.permanentUpgradeEffects.armorBonus+this.relicStats.armorBonus;
     const reduced=Math.max(1,amount*(1-armor/(armor+100)));
@@ -2420,7 +2482,8 @@ export class RunScene extends Phaser.Scene {
     if(!this.hud||!this.clock||!this.health)return;
     const seconds=Math.floor(this.state.elapsedMs/1000);
     this.clock.setText(String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0'));
-    this.hud.setText(this.character.name+'  •  LV '+this.state.level+'\nXP '+Math.floor(this.state.experience)+' / '+this.state.experienceToNext+'  •  Düşman '+this.state.kills+'\n'+this.region.name+'  •  Silah '+this.build.weapons.length+'/6  •  Pasif '+this.build.passives.length+'/6');
+    const abilityRemaining=Math.max(0,this.abilityReady-this.time.now);
+    this.hud.setText(this.character.name+'  •  LV '+this.state.level+'\nXP '+Math.floor(this.state.experience)+' / '+this.state.experienceToNext+'  •  Düşman '+this.state.kills+'\n'+this.region.name+'  •  Silah '+this.build.weapons.length+'/6  •  Pasif '+this.build.passives.length+'/6\nE: '+this.character.activeAbility+'  •  '+(abilityRemaining>0?(abilityRemaining/1000).toFixed(1)+'s':'HAZIR'));
     this.health.setSize(160*Phaser.Math.Clamp(this.state.health/this.state.maxHealth,0,1),8);
     if(this.bossState){this.bossHud?.setVisible(true);this.bossHealth?.setVisible(true);this.bossHealth?.setSize(300*Phaser.Math.Clamp(this.bossState.health/this.bossState.maxHealth,0,1),5);}
   }

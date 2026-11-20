@@ -281,3 +281,16 @@ Weather changes in four-minute blocks using a region-authored sequence:
 Weather modifiers are deliberately modest: rain slightly reduces Fire and strengthens Lightning; storms strengthen Lightning further; snow strengthens Ice; ashfall slightly strengthens Fire and reduces Lightning; hot steam slightly favors Fire over Ice. At night, pursuit-oriented normal enemies (pursuers, flankers, swarms, ambushers and spectral hunters) gain 4% movement speed; other enemies and bosses are unchanged. Boss movement and authored attack patterns are unchanged.
 
 The HUD reports the current time-of-day and weather. Separate low-opacity weather and time-of-day color overlays are capped and sit below HUD and combat telegraphs; fog never hides attacks or changes combat visibility. Environment resolution is engine-independent and deterministic from region ID plus elapsed run time. Final weather art, particles, audio, seasonal systems, boss pattern changes and physical-device balance remain separate work.
+
+
+## Character active abilities
+
+The five hunters now use five separate, data-selected active-ability behaviors rather than sharing one radial damage action:
+
+- **Lanetli Avcı — Ruh Darbesi:** a close radial spirit pulse that damages nearby targets and pushes them outward.
+- **Kara Şövalye — Kara Siper:** a short defensive window reduces incoming damage to 35% before armor, staggers nearby enemies, and deals a smaller counter-impact.
+- **Ruh Büyücüsü — Ruh Yarığı:** places a visible spirit field at the cast location; it detonates after 650 ms and damages enemies still inside its authored radius.
+- **Gölge Suikastçı — Gölgeli Geçiş:** blinks toward the nearest target (or along current movement when no target is in range), resolves the destination against walkable region geometry, and marks a target to take 30% more damage for 3.2 seconds.
+- **Kan Rahibesi — Kızıl Ayin:** spends up to 12% maximum health without ever reducing the hunter below 1 HP, damages nearby enemies with Blood affinity, and returns 35% of actual damage dealt as healing.
+
+Ability cooldowns continue to use the selected hunter's authored cooldown and existing build/relic cooldown modifiers. The active ability remains on the existing E/touch action and controller left-face-button mapping. The runtime resolver is engine-independent; RunScene owns Phaser timing, visuals, physics movement, damage and healing. No save migration or dependency is required. Placeholder effects are functional feedback, not final character art/audio.

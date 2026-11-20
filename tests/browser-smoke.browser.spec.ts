@@ -202,6 +202,7 @@ test('region selection reads unlocked regions from the persisted profile', async
 });
 
 type BrowserRunSnapshot = {
+  ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number};
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;
   regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Record<string,number>};evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
@@ -1470,6 +1471,48 @@ test('all five organic region maps load connected rooms and keep the hunter insi
     const afterMove=await readBrowserRunSnapshot(page);
     expect(afterMove.playerX).toBeLessThan(beforeMove.playerX-100);
     expect(afterMove.regionMap.playerWalkable).toBe(true);
+  }
+  expect(pageErrors).toEqual([]);
+});
+
+test('five hunter active abilities have distinct live Phaser combat effects',async({page})=>{
+  const pageErrors:string[]=[];page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  const hunters=[
+    {id:'cursed-hunter',effect:'radial-knockback'},
+    {id:'black-knight',effect:'guard-and-stagger'},
+    {id:'spirit-mage',effect:'delayed-spirit-zone'},
+    {id:'shadow-assassin',effect:'blink-and-mark'},
+    {id:'blood-priestess',effect:'health-sacrifice-lifesteal'}
+  ];
+  for(const hunter of hunters){
+    await page.evaluate(id=>{
+      const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestRestartCharacter:(characterId:string)=>void}}}}).__BEYOND_VEIL_GAME__;
+      if(!game)throw new Error('Development browser test bridge is not available.');
+      game.scene.getScene('run').browserTestRestartCharacter(id);
+    },hunter.id);
+    await expect.poll(async()=>(await readBrowserRunSnapshot(page)).ability.effect).toBe(hunter.effect);
+    const probe=await page.evaluate(()=>{
+      const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestAbilityProbe:()=>{effect:string;beforeHealth:number;afterHealth:number;beforePlayerX:number;afterPlayerX:number;targetVelocity:number;targetHealthBefore:number;targetHealthAfter:number;guardActive:boolean;markedTargetCount:number;cooldownRemainingMs:number}}}}}).__BEYOND_VEIL_GAME__;
+      if(!game)throw new Error('Development browser test bridge is not available.');
+      return game.scene.getScene('run').browserTestAbilityProbe();
+    });
+    expect(probe.effect).toBe(hunter.effect);
+    expect(probe.cooldownRemainingMs).toBeGreaterThan(0);
+    if(hunter.id==='cursed-hunter')expect(probe.targetVelocity).toBeGreaterThan(100);
+    if(hunter.id==='black-knight')expect(probe.guardActive).toBe(true);
+    if(hunter.id==='spirit-mage'){
+      await page.waitForTimeout(800);
+      expect((await readBrowserRunSnapshot(page)).ability.lastDamage).toBeGreaterThan(0);
+    }
+    if(hunter.id==='shadow-assassin'){
+      expect(Math.abs(probe.afterPlayerX-probe.beforePlayerX)).toBeGreaterThan(20);
+      expect(probe.markedTargetCount).toBeGreaterThan(0);
+    }
+    if(hunter.id==='blood-priestess'){
+      expect(probe.afterHealth).toBeGreaterThan(probe.beforeHealth-15);
+      expect(probe.afterHealth).toBeGreaterThan(1);
+    }
   }
   expect(pageErrors).toEqual([]);
 });
