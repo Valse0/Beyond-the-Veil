@@ -137,12 +137,15 @@ test('player can select a hunter and an unlocked region before starting a run', 
   expect(stablePausedSnapshot.playerX).toBeCloseTo(pausedSnapshot.playerX, 3);
   expect(stablePausedSnapshot.playerY).toBeCloseTo(pausedSnapshot.playerY, 3);
 
-  const clockClip = { x: 580, y: 8, width: 120, height: 48 };
-  const resumedClockStart = await page.screenshot({ clip: clockClip });
-  await page.mouse.click(640, 374);
-  await page.waitForTimeout(1_200);
-  const resumedClockLater = await page.screenshot({ clip: clockClip });
-  expect(resumedClockLater.equals(resumedClockStart)).toBe(false);
+  // Click the actual center of the "DEVAM ET" button (y = 48% of the 720px canvas).
+  // Assert the live Phaser state rather than relying on a small clock screenshot changing.
+  await page.mouse.click(640, 346);
+  await expect.poll(async () => (await readBrowserRunSnapshot(page)).paused, {
+    message: 'clicking DEVAM ET should resume the run'
+  }).toBe(false);
+  await expect.poll(async () => (await readBrowserRunSnapshot(page)).elapsedMs, {
+    message: 'the run clock should advance after resuming'
+  }).toBeGreaterThan(pausedSnapshot.elapsedMs);
 
   expect(pageErrors).toEqual([]);
 });
