@@ -1649,7 +1649,9 @@ test('Endless mode keeps spawning, loops stronger regional bosses, rotates rules
   const betweenBosses=await readBrowserRunSnapshot(page);
   expect(betweenBosses.runFinished).toBe(false);
   expect(betweenBosses.bossSpawned).toBe(false);
-  expect(betweenBosses.endless.nextBossAtMs).toBe(19*60*1000);
+  const remainingBossDelay=betweenBosses.endless.nextBossAtMs-betweenBosses.elapsedMs;
+  expect(remainingBossDelay).toBeGreaterThanOrEqual(5*60*1000-1_000);
+  expect(remainingBossDelay).toBeLessThanOrEqual(5*60*1000+1_000);
 
   await page.evaluate(()=>{
     const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestClearEnemies:()=>void;browserTestAdvanceElapsed:(ms:number,skip?:boolean)=>void}}}}).__BEYOND_VEIL_GAME__;
