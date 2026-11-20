@@ -1121,7 +1121,10 @@ export class RunScene extends Phaser.Scene {
       } else if (action === 'yellow') {
         if (this.paused) this.navigateOverlay(1);
         else this.useAbility();
-      } else if (action === 'blue' && !this.paused) this.openQuestJournal();
+      } else if (action === 'blue' && !this.paused) {
+        this.openPause();
+        this.activateOverlayOption(1);
+      }
     });
     this.physics.add.overlap(this.shots,this.enemies,(a,b)=>this.hitEnemy(a as Phaser.Physics.Arcade.Sprite,b as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.shots,this.bossArenaObjects,(a,b)=>this.hitBossArenaObject(a as Phaser.Physics.Arcade.Sprite,b as Phaser.Physics.Arcade.Sprite));
