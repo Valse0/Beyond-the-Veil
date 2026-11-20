@@ -203,7 +203,8 @@ test('region selection reads unlocked regions from the persisted profile', async
 
 type BrowserRunSnapshot = {
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
-  paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
+  paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;
+  regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
   runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
   health:number;maxHealth:number;damage:number;moveSpeed:number;permanentUpgradeEffects:{maxHealthBonus:number;damageMultiplier:number;moveSpeedMultiplier:number;armorBonus:number;xpGainMultiplier:number;extraRerolls:number};passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
   availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
@@ -1443,4 +1444,30 @@ test('five regions apply their authored environmental hazards through the live P
     expect(result.lastDamage).toBeGreaterThan(0);
     expect(result.health).toBeLessThan(result.maxHealth);
   }
+});
+
+test('all five organic region maps load connected rooms and keep the hunter inside walkable geometry',async({page})=>{
+  const pageErrors:string[]=[];page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  const regions=['cursed-forest','forgotten-graveyard','deep-dungeon','rotten-swamp','cursed-castle'];
+  for(const regionId of regions){
+    await page.evaluate(id=>{
+      const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestRestartRegion:(region:string)=>void}}}}).__BEYOND_VEIL_GAME__;
+      if(!game)throw new Error('Development browser test bridge is not available.');
+      game.scene.getScene('run').browserTestRestartRegion(id);
+    },regionId);
+    await expect.poll(async()=> (await readBrowserRunSnapshot(page)).regionMap.regionId,{timeout:5_000}).toBe(regionId);
+    const map=(await readBrowserRunSnapshot(page)).regionMap;
+    expect(map.roomIds).toHaveLength(6);
+    expect(map.wallCount).toBeGreaterThan(100);
+    expect(map.connected).toBe(true);
+    expect(map.playerWalkable).toBe(true);
+    await page.keyboard.down('ArrowLeft');
+    await page.waitForTimeout(3_500);
+    await page.keyboard.up('ArrowLeft');
+    const afterMove=await readBrowserRunSnapshot(page);
+    expect(afterMove.playerX).toBeLessThan(850);
+    expect(afterMove.regionMap.playerWalkable).toBe(true);
+  }
+  expect(pageErrors).toEqual([]);
 });

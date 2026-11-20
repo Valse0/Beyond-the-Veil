@@ -14,6 +14,7 @@ import { REGIONS } from '../../data/regions.js';
 import { getEnvironmentalLoreLandmark, type EnvironmentalLoreLandmark } from '../../data/environmental-lore.js';
 import { resolveUnlockedRegionPaths } from '../../gameplay/world/region-path-runtime.js';
 import { resolveStoryWorldState } from '../../gameplay/world/story-world-state.js';
+import { resolveRegionMap, getRegionMapLayout, resolveRegionMapPosition, isRegionMapWalkable, type RegionMapLayout } from '../../gameplay/world/region-map-runtime.js';
 import { resolveBossVariant } from '../../gameplay/bosses/boss-variant-runtime.js';
 import { findNearestTarget } from '../../gameplay/combat/combat-rules.js';
 import { advanceRun, applyUpgrade, createRunState, gainExperience, recordKill } from '../../gameplay/run/run-model.js';
@@ -168,6 +169,10 @@ export class RunScene extends Phaser.Scene {
   private runDiscoveredLoreIds:string[]=[];
   private runDiscoveredPathIds:string[]=[];
   private activeStoryPaths:RegionPathDefinition[]=[];
+  private mapLayout:RegionMapLayout=getRegionMapLayout(this.region.id);
+  private mapWalls!:Phaser.Physics.Arcade.StaticGroup;
+  private mapBoundaryCount=0;
+  private mapConnected=false;
   private activeStoryWorldState:ReturnType<typeof resolveStoryWorldState>|null=null;
   private storyWorldObjectCount=0;
   private lastTraversedStoryPathId:string|null=null;
@@ -211,8 +216,15 @@ export class RunScene extends Phaser.Scene {
   }
 
   /** Development-only bridge used by Playwright; never callable in production builds. */
+  browserTestRestartRegion(regionId:string):void {
+    this.assertBrowserTestMode();
+    if(!REGIONS.some(region=>region.id===regionId))throw new Error('Unknown region map: '+regionId);
+    this.scene.restart({characterId:this.character.id,regionId:regionId as RegionId});
+  }
+
   browserTestSnapshot():{
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
+    regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};
     paused:boolean;bossSpawned:boolean;bossVariantId:string|null;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
     runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
     questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
@@ -228,6 +240,7 @@ export class RunScene extends Phaser.Scene {
     this.assertBrowserTestMode();
     return {
       level:this.state.level,experience:this.state.experience,experienceToNext:this.state.experienceToNext,
+      regionMap:{regionId:this.mapLayout.regionId,roomIds:this.mapLayout.rooms.map(room=>room.id),wallCount:this.mapBoundaryCount,connected:this.mapConnected,playerWalkable:isRegionMapWalkable(this.mapLayout,this.player.x,this.player.y,-24)},
       queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,paused:this.paused,bossSpawned:this.bossSpawned,bossVariantId:this.activeBossVariantId,bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
       evolvedWeaponIds:this.build.weapons.filter(weapon=>weapon.evolved).map(weapon=>weapon.weaponId),
       choices:this.currentLevelChoices.map(({id,title,kind,contentId,branchId})=>({id,title,kind,contentId,branchId})),
@@ -743,15 +756,25 @@ export class RunScene extends Phaser.Scene {
     this.bossElementState={};this.bossArenaState=undefined;this.playerPoisonStacks=0;this.playerPoisonExpiresAt=0;this.playerPoisonNextTickAt=0;this.arenaInteractionReadyAt=0;this.lastBossArenaVisualsAt=0;this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;this.weaponSynergyGuardUntil=0;this.weaponSynergyGuardReduction=.28;this.weaponSynergyTriggers=[];
     this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.hazardTargetForced=false;this.hazardPoisonStacks=0;this.hazardPoisonExpiresAt=0;this.hazardPoisonNextTickAt=0;this.hazardLastEffectId='';this.hazardLastDamage=0;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.runDiscoveredLoreIds=[];this.runDiscoveredPathIds=[];this.activeStoryPaths=[];this.lastTraversedStoryPathId=null;this.activeStoryWorldState=null;this.storyWorldObjectCount=0;this.bossChestOpened=false;this.completedTreasureHunt=false;this.runCraftingMaterials={};this.lastRunSaved=null;
+    const resolvedMap=resolveRegionMap(this.region.id);this.mapLayout=resolvedMap.layout;this.mapBoundaryCount=resolvedMap.boundary.length;this.mapConnected=resolvedMap.connected;
     this.makeTextures();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
+    this.mapWalls=this.physics.add.staticGroup();
+    for(const point of resolvedMap.boundary){const wall=this.mapWalls.create(point.x,point.y,'map-wall') as Phaser.Physics.Arcade.Image;wall.setDepth(-3);(wall.body as Phaser.Physics.Arcade.StaticBody).setCircle(20);}
+    const mapDrawing=this.add.graphics().setDepth(-4);mapDrawing.lineStyle(7,0x756653,.38);
+    for(const room of this.mapLayout.rooms){mapDrawing.strokeEllipse(room.x,room.y,room.radiusX*2,room.radiusY*2);}
+    mapDrawing.lineStyle(9,0x756653,.24);
+    for(const corridor of this.mapLayout.corridors){const from=this.mapLayout.rooms.find(room=>room.id===corridor.from)!;const to=this.mapLayout.rooms.find(room=>room.id===corridor.to)!;mapDrawing.beginPath();mapDrawing.moveTo(from.x,from.y);mapDrawing.quadraticBezierTo(corridor.controlX,corridor.controlY,to.x,to.y);mapDrawing.strokePath();}
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
     const floor=this.add.graphics();floor.fillStyle(0x19171d,1);floor.fillRect(0,0,WORLD_W,WORLD_H);
     floor.lineStyle(1,0x3a3337,0.12);
     for(let i=0;i<28;i++){const x=Phaser.Math.Between(80,WORLD_W-80),y=Phaser.Math.Between(80,WORLD_H-80);floor.lineStyle(2,0x8a795d,0.08);floor.strokeCircle(x,y,Phaser.Math.Between(18,64));}
     floor.setDepth(-10);
     this.enemies=this.physics.add.group();this.shots=this.physics.add.group({maxSize:100});this.orbs=this.physics.add.group({maxSize:80});this.eventObjects=this.physics.add.group();this.bossArenaObjects=this.physics.add.group();this.bossTraceObjects=this.add.group();
-    this.player=this.physics.add.sprite(WORLD_W/2,WORLD_H/2,'hunter').setCircle(12).setCollideWorldBounds(true).setDepth(3);
+    const start=resolveRegionMapPosition(this.mapLayout,WORLD_W/2,WORLD_H/2,24);
+    this.player=this.physics.add.sprite(start.x,start.y,'hunter').setCircle(12).setCollideWorldBounds(true).setDepth(3);
+    this.physics.add.collider(this.player,this.mapWalls);
+    this.physics.add.collider(this.enemies,this.mapWalls);
     this.cameras.main.startFollow(this.player,true,0.08,0.08);
     this.cursors=this.input.keyboard!.createCursorKeys();
     this.keys=this.input.keyboard!.addKeys('W,A,S,D,SPACE,E,ESC,ENTER') as Record<string,Phaser.Input.Keyboard.Key>;
@@ -773,7 +796,7 @@ export class RunScene extends Phaser.Scene {
       const g=this.add.graphics();g.fillStyle(color,1);g.fillCircle(r+3,r+3,r);g.lineStyle(2,0xe8d7b6,.75);g.strokeCircle(r+3,r+3,r);
       g.generateTexture(key,(r+3)*2,(r+3)*2);g.destroy();
     };
-    make('hunter',0xc2a36d,13);make('shot',0xe8c77a,5);make('orb',0x69b7a5,5);
+    make('hunter',0xc2a36d,13);make('shot',0xe8c77a,5);make('orb',0x69b7a5,5);make('map-wall',0x51483e,20);
     for(const boss of BOSSES)make('boss-'+boss.id,0x8e4567,31);
     make('arena-root-pillar',0x78964a,22);make('arena-grave-marker',0x9b8a75,22);make('arena-gear',0xb57b43,22);make('arena-water-island',0x4b9d9a,28);make('arena-seal',0x8062a6,22);
     if(!this.textures.exists('boss-chest')){
@@ -1025,7 +1048,8 @@ export class RunScene extends Phaser.Scene {
       const x=Phaser.Math.Clamp(this.player.x+Math.cos(angle)*distance,35,WORLD_W-35);
       const y=Phaser.Math.Clamp(this.player.y+Math.sin(angle)*distance,35,WORLD_H-35);
       const definition=pool[plan.enemyIndices[i]??0]!;
-      this.createEnemy(x,y,definition,scale,plan.eliteDue&&i===0);
+      const spawn=resolveRegionMapPosition(this.mapLayout,x,y,definition.radius+24);
+      this.createEnemy(spawn.x,spawn.y,definition,scale,plan.eliteDue&&i===0);
     }
   }
 
@@ -1037,21 +1061,23 @@ export class RunScene extends Phaser.Scene {
     const distance=390+waveRandom(this.runSeed,0,32)*180;
     const x=Phaser.Math.Clamp(this.player.x+Math.cos(angle)*distance,35,WORLD_W-35);
     const y=Phaser.Math.Clamp(this.player.y+Math.sin(angle)*distance,35,WORLD_H-35);
-    this.createEnemy(x,y,def,1);
+    const spawn=resolveRegionMapPosition(this.mapLayout,x,y,def.radius+24);
+    this.createEnemy(spawn.x,spawn.y,def,1);
   }
 
   private createEnemy(x:number,y:number,def:EnemyDefinition,scale:number,isElite=false):Phaser.Physics.Arcade.Sprite {
     const healthScale=scale*(isElite?2.4:1);
     const maxHealth=Math.round(def.health*healthScale);
     const experience=Math.round(def.experience*(isElite?3:1));
-    const enemy=this.enemies.create(x,y,'enemy-'+def.id) as Phaser.Physics.Arcade.Sprite;
+    const safe=resolveRegionMapPosition(this.mapLayout,x,y,def.radius+24);
+    const enemy=this.enemies.create(safe.x,safe.y,'enemy-'+def.id) as Phaser.Physics.Arcade.Sprite;
     enemy.setDepth(2).setCircle(def.radius).setData('enemyType',def.id).setData('health',maxHealth).setData('maxHealth',maxHealth).setData('experience',experience);
     if(isElite){
-      const marker=this.add.circle(x,y,def.radius+8,0xd9ad5c,.12).setStrokeStyle(3,0xe8c77a,.95).setDepth(1);
+      const marker=this.add.circle(safe.x,safe.y,def.radius+8,0xd9ad5c,.12).setStrokeStyle(3,0xe8c77a,.95).setDepth(1);
       enemy.setTint(0xd9ad5c).setData('isElite',true) .setData('eliteId',this.region.elite.id).setData('eliteName',this.region.elite.name).setData('eliteBehavior',this.region.elite.behavior).setData('eliteReward',this.region.elite.reward).setData('eliteMarker',marker).setData('eliteAttackReady',this.time.now+2400).setData('eliteEnraged',false);
     }
     if(def.behavior==='mimic'&&!isElite){enemy.setAlpha(.2).setTint(0xd5bd8b).setData('mimicRevealed',false);}
-    this.enemyStates.set(enemy,{x,y,health:maxHealth,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false,nextSpecialAt:this.time.now+1800,attackCount:0});
+    this.enemyStates.set(enemy,{x:safe.x,y:safe.y,health:maxHealth,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false,nextSpecialAt:this.time.now+1800,attackCount:0});
     return enemy;
   }
 
@@ -1651,16 +1677,18 @@ export class RunScene extends Phaser.Scene {
   }
 
   private createStoryPathGate(path:RegionPathDefinition):void {
-    const marker=this.add.circle(path.entry.x,path.entry.y,20,0x7651a0,.92).setStrokeStyle(4,0xd7b8ff,.95).setDepth(5);
+    const entry=resolveRegionMapPosition(this.mapLayout,path.entry.x,path.entry.y,28);
+    const destination=resolveRegionMapPosition(this.mapLayout,path.destination.x,path.destination.y,28);
+    const marker=this.add.circle(entry.x,entry.y,20,0x7651a0,.92).setStrokeStyle(4,0xd7b8ff,.95).setDepth(5);
     this.physics.add.existing(marker);
     const body=marker.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);body.setImmovable(true);body.setCircle(22);
     marker.setData('eventObjectType','story-path-gate').setData('storyPathId',path.id);
-    const label=this.add.text(path.entry.x,path.entry.y-34,path.name.toLocaleUpperCase('tr-TR'),{fontSize:'11px',fontStyle:'bold',color:'#ead8ff',stroke:'#17131a',strokeThickness:3}).setOrigin(.5).setDepth(7);
+    const label=this.add.text(entry.x,entry.y-34,path.name.toLocaleUpperCase('tr-TR'),{fontSize:'11px',fontStyle:'bold',color:'#ead8ff',stroke:'#17131a',strokeThickness:3}).setOrigin(.5).setDepth(7);
     marker.setData('eventObjectLabel',label);
     this.eventObjects.add(marker);
-    this.add.circle(path.destination.x,path.destination.y,28,0x7651a0,.2).setStrokeStyle(3,0xd7b8ff,.72).setDepth(1);
-    this.add.text(path.destination.x,path.destination.y-38,'GEÇİT SONU',{fontSize:'10px',fontStyle:'bold',color:'#d7c1ef',stroke:'#17131a',strokeThickness:3}).setOrigin(.5).setDepth(2);
+    this.add.circle(destination.x,destination.y,28,0x7651a0,.2).setStrokeStyle(3,0xd7b8ff,.72).setDepth(1);
+    this.add.text(destination.x,destination.y-38,'GEÇİT SONU',{fontSize:'10px',fontStyle:'bold',color:'#d7c1ef',stroke:'#17131a',strokeThickness:3}).setOrigin(.5).setDepth(2);
   }
 
   private createExplorationPoint(x:number,y:number,type:'exploration-lore'|'exploration-secret',pointId:string,landmark:EnvironmentalLoreLandmark):void {
@@ -1740,7 +1768,8 @@ export class RunScene extends Phaser.Scene {
       this.lastTraversedStoryPathId=path.id;
       (object.getData('eventObjectLabel') as Phaser.GameObjects.GameObject|undefined)?.destroy();
       object.destroy();
-      this.player.setPosition(path.destination.x,path.destination.y).setVelocity(0,0);
+      const destination=resolveRegionMapPosition(this.mapLayout,path.destination.x,path.destination.y,28);
+      this.player.setPosition(destination.x,destination.y).setVelocity(0,0);
       this.eventHud?.setText('HİKÂYE YOLU AÇILDI  •  '+path.name.toLocaleUpperCase('tr-TR')).setVisible(true);
       return;
     }

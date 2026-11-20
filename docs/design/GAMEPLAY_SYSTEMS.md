@@ -37,7 +37,7 @@ Engine-independent gameplay modules provide:
 
 The Phaser run scene now consumes these modules for its selected character and region: region-specific enemy spawning, AI movement and shaped attack telegraphs, elemental weapon hits/reactions/status ticks (burn, poison, ice slow, dark vulnerability, spirit healing, timed lightning stun pulses and blood sustain), six-slot weapon/passive acquisition and upgrades, weapon-specific attacks, boss phase transitions/adds/health display, region hazard warnings, and pause-safe overlay timing. The scene accepts `characterId` and `regionId` in its scene start data; the current main menu still launches the default hunter and first region.
 
-This is an integrated gameplay foundation, not completion of all GDD requirements. Region-specific maps and bespoke hazard mechanics, full character selection UI, all-region/boss playthroughs, weapon branches and special passive upgrades, final boss-chest interaction, persistent profile rewards, balance tuning, and browser/device playtesting remain outstanding. All in-scene visuals are temporary procedural shapes; no final art is claimed.
+This is an integrated gameplay foundation, not completion of all GDD requirements. Organic multi-room region geometry and bespoke hazard mechanics now have first functional implementations; full character selection UI, all-region/boss playthroughs, persistent profile presentation, balance tuning, final art/audio and browser/device playtesting remain outstanding. All in-scene visuals are temporary procedural shapes; no final art is claimed.
 
 
 ### Enemy behavior implementation pass
@@ -224,7 +224,7 @@ The ten story links are: Thorn Matriarch (awakened/corrupted), Ossuary King (rec
 - The story-path catalog is deliberately separate from exploration discovery IDs (for example, `cursed-forest-secret`); discovering a lore marker or secret point does not fabricate a story branch.
 - In the current 2400×1800 Phaser play area, an unlocked passage is represented by a temporary portal marker and a destination beacon. Entering the marker uses the real Arcade overlap path to move the hunter to its authored destination point.
 - Passage traversal does not mutate save data: the branch outcome remains the persistent unlock, and the same route is available again on a later region entry.
-- This is the first gameplay integration inside the existing play area, not the final organic multi-room region map. Physical corridors, sub-area geometry, final art/audio, natural-run balance and mobile/TV validation remain outstanding.
+- Organic multi-room geometry is now implemented in `src/data/region-layouts.ts` and `src/gameplay/world/region-map-runtime.ts`; the Phaser scene consumes the room boundaries and clamps gate positions to walkable space. The passage visuals remain temporary placeholders; final art/audio, natural-run balance and mobile/TV validation remain outstanding.
 
 
 ## Ending Outcome Runtime v1
@@ -256,3 +256,12 @@ The five regions now resolve their 20 existing hazard IDs into distinct live gam
 - **Cursed Castle:** cursed seals pulse and slow; dark flame sweeps a long line; shifting passages strike crossing lanes and push; phase arenas pulse a larger ring and knock the hunter away.
 
 Every warning displays the authored counter instruction. The player can avoid the damaging shapes by leaving the marked line, cross or area before activation. Poison and slow are temporary; summoned enemies remain ordinary killable enemies and grant no duplicate XP from the hazard spawn. All visuals remain replaceable Phaser placeholders. No save data, stable hazard IDs, boss rules or dependencies change.
+
+
+## Organic region map geometry v1
+
+Each of the five regions now resolves a hand-authored, six-room layout: one central starting basin, four named landmark chambers, and one hidden subregion. Five curved quadratic corridors connect the rooms; the hidden chamber uses a narrower neck. Layout coordinates and room dimensions are deterministic and remain separate from Phaser presentation.
+
+`src/data/region-layouts.ts` owns the authored geometry and walkability rules. `src/gameplay/world/region-map-runtime.ts` resolves a region layout, generates a deterministic perimeter boundary, checks connectivity, and relocates requested placements to safe walkable positions. The Phaser run scene draws temporary room/corridor contours and static boundary stones, then collides the player and enemy group against those boundaries. Enemy creation and story-gate entry/destination placement are clamped to walkable geometry. Existing region, exploration, quest, boss, and story-path IDs are unchanged; no save migration or dependency is introduced.
+
+The 32-pixel sampling used to derive collision boundary stones is an internal geometry technique only; no visible tile grid is rendered. The current six-room layouts and collision stones are functional placeholders, not final environment art. Natural-run pacing, detailed subregion content, final art/audio, and physical-device collision feel remain separate validation/production work.
