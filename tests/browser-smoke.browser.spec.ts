@@ -2475,3 +2475,38 @@ test('responsive shell fits landscape viewports and guides portrait mobile orien
   expect(landscapeBox!.width).toBeLessThanOrEqual(844);
   expect(landscapeBox!.height).toBeLessThanOrEqual(390);
 });
+
+
+test('smart TV remote keys navigate menu, journal, hunter and region screens', async ({ page }) => {
+  await page.goto('/?bv-test=1');
+  await page.locator('#game-container canvas').waitFor();
+
+  const sendRemoteKey = async (key: string): Promise<void> => {
+    await page.evaluate((remoteKey) => {
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: remoteKey,
+        code: remoteKey,
+        bubbles: true,
+        cancelable: true
+      }));
+    }, key);
+  };
+  const isActive = (scene: string) => page.evaluate((sceneKey) => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive(sceneKey));
+  }, scene);
+
+  await sendRemoteKey('ColorF2Yellow');
+  await expect.poll(() => isActive('quest-journal')).toBe(true);
+  await sendRemoteKey('BrowserBack');
+  await expect.poll(() => isActive('main-menu')).toBe(true);
+
+  await sendRemoteKey('OK');
+  await expect.poll(() => isActive('character-select')).toBe(true);
+  await sendRemoteKey('ColorF1Green');
+  await expect.poll(() => isActive('region-select')).toBe(true);
+  await sendRemoteKey('ColorF0Red');
+  await expect.poll(() => isActive('character-select')).toBe(true);
+  await sendRemoteKey('ColorF0Red');
+  await expect.poll(() => isActive('main-menu')).toBe(true);
+});
