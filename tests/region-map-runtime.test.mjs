@@ -24,7 +24,8 @@ test('all five regions have connected organic room-and-corridor layouts',()=>{
 
 test('all existing story gates and destinations resolve to safe walkable map positions',()=>{
   for(const path of REGION_PATHS){
-    const layout=REGION_MAP_LAYOUTS.find(item=>item.regionId===path.regionId)!;
+    const layout=REGION_MAP_LAYOUTS.find(item=>item.regionId===path.regionId);
+    assert.ok(layout,path.id+' region layout');
     for(const point of [path.entry,path.destination]){
       const safe=resolveRegionMapPosition(layout,point.x,point.y,28);
       assert.ok(isRegionMapWalkable(layout,safe.x,safe.y,28),path.id+' resolved point');
