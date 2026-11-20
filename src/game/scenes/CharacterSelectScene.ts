@@ -6,6 +6,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   private selectedIndex = 0;
   private frames: Phaser.GameObjects.Graphics[] = [];
   private previousPad = { left: false, right: false, confirm: false, back: false };
+  private touchLayout = false;
 
   constructor() { super('character-select'); }
 
@@ -13,12 +14,14 @@ export class CharacterSelectScene extends Phaser.Scene {
     const index = CHARACTERS.findIndex(character => character.id === data?.characterId);
     this.selectedIndex = index >= 0 ? index : 0;
     this.frames = [];
+    this.touchLayout = false;
     this.previousPad = { left: false, right: false, confirm: false, back: false };
   }
 
   create(): void {
     const width = this.scale.width;
     const height = this.scale.height;
+    this.touchLayout = this.sys.game.device.input.touch;
     this.cameras.main.setBackgroundColor('#0b0b10');
 
     const backdrop = this.add.graphics();
@@ -35,14 +38,15 @@ export class CharacterSelectScene extends Phaser.Scene {
     });
 
     const gap = 14;
-    const margin = 64;
-    const cardWidth = (width - margin * 2 - gap * 4) / 5;
-    const cardY = 190;
-    const cardHeight = 350;
+    const margin = this.touchLayout ? 230 : 64;
+    const cardWidth = this.touchLayout ? 820 : (width - margin * 2 - gap * 4) / 5;
+    const cardY = this.touchLayout ? 142 : 190;
+    const cardHeight = this.touchLayout ? 430 : 350;
     const accents = [0xc2a36d, 0x8793a7, 0x75b9b2, 0x8e77b8, 0xc65c70];
 
     CHARACTERS.forEach((character, index) => {
-      const x = margin + index * (cardWidth + gap);
+      if (this.touchLayout && index !== this.selectedIndex) return;
+      const x = this.touchLayout ? (width - cardWidth) / 2 : margin + index * (cardWidth + gap);
       const frame = this.add.graphics();
       this.frames.push(frame);
 
@@ -54,24 +58,24 @@ export class CharacterSelectScene extends Phaser.Scene {
       emblem.lineBetween(x + cardWidth / 2 - 13, cardY + 72, x + cardWidth / 2 + 13, cardY + 72);
       emblem.lineBetween(x + cardWidth / 2, cardY + 59, x + cardWidth / 2, cardY + 85);
       this.add.text(x + cardWidth / 2, cardY + 72, character.name.slice(0, 1), {
-        fontFamily: 'Georgia, serif', fontSize: '27px', color: '#eee1c8', fontStyle: 'bold'
+        fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '34px' : '27px', color: '#eee1c8', fontStyle: 'bold'
       }).setOrigin(0.5);
 
-      this.add.text(x + 14, cardY + 132, character.name, {
-        fontFamily: 'Georgia, serif', fontSize: '18px', color: '#f0e6d6', fontStyle: 'bold',
+      this.add.text(x + 14, cardY + (this.touchLayout ? 148 : 132), character.name, {
+        fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '30px' : '18px', color: '#f0e6d6', fontStyle: 'bold',
         wordWrap: { width: cardWidth - 28 }, align: 'center'
       }).setOrigin(0.5, 0);
-      this.add.text(x + 14, cardY + 178, character.role, {
-        fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#c7ad7b',
+      this.add.text(x + 14, cardY + (this.touchLayout ? 202 : 178), character.role, {
+        fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '19px' : '12px', color: '#c7ad7b',
         wordWrap: { width: cardWidth - 28 }, align: 'center'
       }).setOrigin(0.5, 0);
-      this.add.text(x + 17, cardY + 220, character.description, {
-        fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#aaa2a0',
-        wordWrap: { width: cardWidth - 34 }, lineSpacing: 4, align: 'center'
+      this.add.text(x + 36, cardY + (this.touchLayout ? 250 : 220), character.description, {
+        fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '19px' : '12px', color: '#aaa2a0',
+        wordWrap: { width: cardWidth - 72 }, lineSpacing: this.touchLayout ? 8 : 4, align: 'center'
       }).setOrigin(0.5, 0);
-      this.add.text(x + 18, cardY + 292,
+      this.add.text(x + 18, cardY + (this.touchLayout ? 360 : 292),
         `CAN  ${character.health}   •   HIZ  ${character.moveSpeed}\nYETENEK  ${character.activeAbility}`, {
-          fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#d9c9aa',
+          fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '17px' : '11px', color: '#d9c9aa',
           wordWrap: { width: cardWidth - 36 }, align: 'center', lineSpacing: 5
         }).setOrigin(0.5, 0);
 
@@ -83,10 +87,14 @@ export class CharacterSelectScene extends Phaser.Scene {
       });
     });
 
-    this.makeButton(64, height - 82, '‹  GERİ', () => this.scene.start('main-menu'), false, 150);
-    this.makeButton(width - 250, height - 82, 'BÖLGEYE DEVAM ET  ›', () => this.continue(), false, 186);
-    this.add.text(width / 2, height - 54, '← / → veya D-PAD: SEÇ     A / ENTER: DEVAM     B / ESC: GERİ', {
-      fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#77727a'
+    if (this.touchLayout) {
+      this.makeTouchArrow(142, 354, '‹', () => this.moveSelection(-1));
+      this.makeTouchArrow(width - 142, 354, '›', () => this.moveSelection(1));
+    }
+    this.makeButton(64, height - 88, this.touchLayout ? '‹  GERİ' : '‹  GERİ', () => this.scene.start('main-menu'), false, this.touchLayout ? 190 : 150, this.touchLayout ? 19 : 15, this.touchLayout ? 58 : 46);
+    this.makeButton(width - (this.touchLayout ? 292 : 250), height - 88, 'BÖLGEYE DEVAM ET  ›', () => this.continue(), false, this.touchLayout ? 228 : 186, this.touchLayout ? 18 : 15, this.touchLayout ? 58 : 46);
+    this.add.text(width / 2, height - 30, '← / → veya D-PAD: SEÇ     A / ENTER: DEVAM     B / ESC: GERİ', {
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '11px', color: '#77727a'
     }).setOrigin(0.5);
 
     this.input.keyboard?.on('keydown-LEFT', () => this.moveSelection(-1));
@@ -119,20 +127,30 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
 
   private moveSelection(direction: number): void {
-    this.selectedIndex = Phaser.Math.Wrap(this.selectedIndex + direction, 0, CHARACTERS.length);
+    const nextIndex = Phaser.Math.Wrap(this.selectedIndex + direction, 0, CHARACTERS.length);
+    if (this.touchLayout) {
+      this.scene.restart({ characterId: CHARACTERS[nextIndex]!.id });
+      return;
+    }
+    this.selectedIndex = nextIndex;
     this.refreshSelection();
+  }
+
+  browserTestSnapshot(): { selectedIndex: number; characterId: string; layoutMode: 'touch' | 'desktop' } {
+    if (this.registry.get('browserTestMode') !== true) throw new Error('Browser test bridge is disabled.');
+    return { selectedIndex: this.selectedIndex, characterId: CHARACTERS[this.selectedIndex]!.id, layoutMode: this.touchLayout ? 'touch' : 'desktop' };
   }
 
   private refreshSelection(): void {
     const width = this.scale.width;
     const gap = 14;
-    const margin = 64;
-    const cardWidth = (width - margin * 2 - gap * 4) / 5;
-    const cardY = 190;
-    const cardHeight = 350;
+    const margin = this.touchLayout ? 230 : 64;
+    const cardWidth = this.touchLayout ? 820 : (width - margin * 2 - gap * 4) / 5;
+    const cardY = this.touchLayout ? 142 : 190;
+    const cardHeight = this.touchLayout ? 430 : 350;
     this.frames.forEach((frame, index) => {
-      const x = margin + index * (cardWidth + gap);
-      const selected = index === this.selectedIndex;
+      const x = this.touchLayout ? (width - cardWidth) / 2 : margin + index * (cardWidth + gap);
+      const selected = this.touchLayout || index === this.selectedIndex;
       frame.clear();
       frame.fillStyle(selected ? 0x30251f : 0x17161b, selected ? 0.98 : 0.88);
       frame.fillRoundedRect(x, cardY, cardWidth, cardHeight, 12);
@@ -145,14 +163,24 @@ export class CharacterSelectScene extends Phaser.Scene {
     });
   }
 
-  private makeButton(x: number, y: number, label: string, action: () => void, disabled: boolean, width: number): void {
+  private makeTouchArrow(x: number, y: number, label: string, action: () => void): void {
     const button = this.add.text(x, y, label, {
-      fontFamily: 'Arial, sans-serif', fontSize: '15px',
+      fontFamily: 'Georgia, serif', fontSize: '56px', color: '#f2e8d4', backgroundColor: '#5b3d32',
+      padding: { x: 18, y: 6 }
+    }).setOrigin(0.5).setFixedSize(76, 88).setInteractive({ useHandCursor: true });
+    button.on('pointerover', () => button.setStyle({ backgroundColor: '#79513c', color: '#ffffff' }));
+    button.on('pointerout', () => button.setStyle({ backgroundColor: '#5b3d32', color: '#f2e8d4' }));
+    button.on('pointerup', action);
+  }
+
+  private makeButton(x: number, y: number, label: string, action: () => void, disabled: boolean, width: number, fontSize = 15, height = 46): void {
+    const button = this.add.text(x, y, label, {
+      fontFamily: 'Arial, sans-serif', fontSize: `${fontSize}px`,
       color: disabled ? '#77727a' : '#f2e8d4',
       backgroundColor: disabled ? '#29262a' : '#5b3d32',
       padding: { x: 18, y: 13 }
     }).setInteractive({ useHandCursor: !disabled });
-    button.setFixedSize(width, 46);
+    button.setFixedSize(width, height);
     if (!disabled) {
       button.on('pointerover', () => button.setStyle({ backgroundColor: '#79513c', color: '#ffffff' }));
       button.on('pointerout', () => button.setStyle({ backgroundColor: '#5b3d32', color: '#f2e8d4' }));
