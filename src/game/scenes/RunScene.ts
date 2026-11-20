@@ -881,6 +881,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   init(data:{characterId?:string;regionId?:RegionId;gameMode?:unknown;challengeId?:unknown}):void {
+    this.questJournalOpen=false;
     this.character=CHARACTERS.find(c=>c.id===data?.characterId)??STARTING_CHARACTER;
     this.region=REGIONS.find(r=>r.id===data?.regionId)??REGIONS[0]!;
     const requestedMode=resolveGameMode(data?.gameMode);
