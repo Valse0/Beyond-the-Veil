@@ -2648,7 +2648,7 @@ export class RunScene extends Phaser.Scene {
   private openQuestJournal():void {
     if(!this.paused||this.runFinished||this.questJournalOpen)return;
     this.questJournalOpen=true;
-    this.events.once('quest-journal-closed',()=>{this.questJournalOpen=false;});
+    this.events.once('quest-journal-closed',()=>{this.previousGamepadFrame=this.readGamepadFrame();this.questJournalOpen=false;});
     this.scene.launch('quest-journal',{returnScene:'run'});
   }
 
