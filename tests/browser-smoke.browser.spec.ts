@@ -1140,7 +1140,7 @@ test('boss HUD displays health, phase progression and arena counter-hint in live
   const damaged=await readHud();
   expect(damaged.boss.health).toBeLessThan(initial.boss.health!);
   expect(damaged.boss.barRatio).toBeLessThan(initial.boss.barRatio);
-  await callBossArena(page,'browserTestDamageBoss',[1000]);
+  await callBossArena(page,'browserTestDamageBoss',[1500]);
   const phaseTwo=await readHud();
   expect(phaseTwo.boss.phase).toContain('FAZ 2 / 3');
   expect(phaseTwo.boss.phase).not.toBe(initial.boss.phase);
