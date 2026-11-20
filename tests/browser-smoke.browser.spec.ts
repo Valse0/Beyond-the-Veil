@@ -1758,6 +1758,18 @@ test('final story ending is completed only by the matching live final-boss victo
   expect(saved.story.endingId).toBe('ending-mended-veil');
   expect(saved.story.completedEndingId).toBe('ending-mended-veil');
 
+  // A duplicate finish callback must not persist the same run rewards twice.
+  await page.evaluate(() => {
+    const host = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => unknown } } }).__BEYOND_VEIL_GAME__;
+    if (!host) throw new Error('Game bridge unavailable.');
+    const scene = host.scene.getScene('run') as { finishRun: (won: boolean) => void };
+    scene.finishRun(true);
+  });
+  const afterDuplicateFinish = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(afterDuplicateFinish.progression.soulEssence).toBe(saved.progression.soulEssence);
+  expect(afterDuplicateFinish.progression.completedRuns).toBe(saved.progression.completedRuns);
+  expect(afterDuplicateFinish.story.completedEndingId).toBe('ending-mended-veil');
+
   await page.reload();
   await expect(page.locator('#game-container canvas')).toBeVisible();
   const reloaded = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
