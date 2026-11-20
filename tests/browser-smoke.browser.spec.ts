@@ -1519,9 +1519,10 @@ test('five hunter active abilities have distinct live Phaser combat effects',asy
 test('dynamic day and regional weather cycles stay deterministic across all five regions',async({page})=>{
   const pageErrors:string[]=[];page.on('pageerror',error=>pageErrors.push(error.message));
   await startBrowserTestRun(page);
+  // Start away from the initial run's region so the first restart cannot pass on a stale region snapshot.
   const cases=[
-    {id:'cursed-forest',weather:['clear','rain','fog','storm']},
     {id:'forgotten-graveyard',weather:['clear','dense-fog','drizzle']},
+    {id:'cursed-forest',weather:['clear','rain','fog','storm']},
     {id:'deep-dungeon',weather:['dry','ashfall','steam']},
     {id:'rotten-swamp',weather:['rain','dense-fog','storm']},
     {id:'cursed-castle',weather:['fog','snow','storm','clear']}
@@ -1533,6 +1534,7 @@ test('dynamic day and regional weather cycles stay deterministic across all five
       game.scene.getScene('run').browserTestRestartRegion(id);
     },item.id);
     await expect.poll(async()=>(await readBrowserRunSnapshot(page)).regionMap.regionId).toBe(item.id);
+    await expect.poll(async()=>(await readBrowserRunSnapshot(page)).elapsedMs,{timeout:5_000}).toBeLessThan(1_000);
     for(let i=0;i<4;i++){
       const current=await readBrowserRunSnapshot(page);
       const target=i*240000+60_000;

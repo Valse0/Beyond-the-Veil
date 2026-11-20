@@ -979,6 +979,8 @@ export class RunScene extends Phaser.Scene {
   private moveEnemies(time:number):void {
     for(const child of this.enemies.getChildren()){
       const enemy=child as Phaser.Physics.Arcade.Sprite;if(!enemy.active)continue;
+      // Ability probe dummies stay fixed so delayed area effects are tested against a stable hit area.
+      if(enemy.getData('abilityProbeTarget')===true){enemy.setVelocity(0,0);continue;}
       if(enemy.getData('isBoss')){this.moveBoss(enemy,time);continue;}
       const def=this.enemyDefinition(enemy);if(!def)continue;
       const old=this.enemyStates.get(enemy)??{x:enemy.x,y:enemy.y,health:Number(enemy.getData('health')),nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false};
