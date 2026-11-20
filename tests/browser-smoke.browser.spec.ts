@@ -774,7 +774,7 @@ test('Hunter Hub equipment profiles create, edit, activate, persist and delete p
   await press('ArrowDown'); // Starting weapon.
   await press('ArrowRight'); // Gravecleaver.
   await press('ArrowDown'); // Starting passive.
-  await press('ArrowRight'); // Frostbound Sigil.
+  await press('ArrowRight'); // Storm Conductor.
   await press('ArrowDown'); // Relic slot 1.
   await press('ArrowRight'); // The owned Forest Heart.
   for (let index = 0; index < 3; index += 1) await press('ArrowDown'); // Save.
@@ -785,7 +785,7 @@ test('Hunter Hub equipment profiles create, edit, activate, persist and delete p
   let profile = saved.progression.equipmentProfiles['cursed-hunter'][0];
   expect(profile.name).toBe('Alev');
   expect(profile.startingWeaponId).toBe('gravecleaver');
-  expect(profile.startingPassiveId).toBe('frostbound-sigil');
+  expect(profile.startingPassiveId).toBe('storm-conductor');
   expect(profile.relicIds).toEqual(['forest-heart']);
 
   // Edit the same profile and verify that its identity remains stable.

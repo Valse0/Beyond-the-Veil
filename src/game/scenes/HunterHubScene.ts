@@ -104,8 +104,8 @@ export class HunterHubScene extends Phaser.Scene {
     if (this.currentScreen === 'equipment-editor') {
       if (up && !this.previousPad.up) this.equipmentEditorSelectedIndex = Math.max(0, this.equipmentEditorSelectedIndex - 1);
       if (down && !this.previousPad.down) this.equipmentEditorSelectedIndex = Math.min(7, this.equipmentEditorSelectedIndex + 1);
-      if ((keyboardLeft || padLeft) && !this.previousPad.left) this.cycleEquipmentEditorOption(-1);
-      if ((keyboardRight || padRight) && !this.previousPad.right) this.cycleEquipmentEditorOption(1);
+      if (this.equipmentEditorSelectedIndex > 0 && this.equipmentEditorSelectedIndex < 6 && (keyboardLeft || padLeft) && !this.previousPad.left) this.cycleEquipmentEditorOption(-1);
+      if (this.equipmentEditorSelectedIndex > 0 && this.equipmentEditorSelectedIndex < 6 && (keyboardRight || padRight) && !this.previousPad.right) this.cycleEquipmentEditorOption(1);
       if (confirm && !this.previousPad.confirm) {
         if (this.equipmentEditorSelectedIndex === 0) this.equipmentNameInput?.focus();
         else if (this.equipmentEditorSelectedIndex === 6) this.saveEquipmentEditor();
@@ -125,7 +125,7 @@ export class HunterHubScene extends Phaser.Scene {
       }
       if (confirm && !this.previousPad.confirm) this.confirmEquipmentDelete();
       if (back && !this.previousPad.back) this.renderEquipmentProfiles();
-      this.previousPad = { up, down, left: padLeft, right: padRight, confirm, back };
+      this.previousPad = { up, down, left: keyboardLeft || padLeft, right: keyboardRight || padRight, confirm, back };
       return;
     }
 
@@ -321,7 +321,7 @@ export class HunterHubScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#d9c9aa',
       backgroundColor: '#2b2528', padding: { x: 18, y: 10 }
     }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
-    this.respecButton.on('pointerover', () => { this.selectedIndex = UPGRADES.length + 1; this.highlightSelected(); });
+    this.respecButton.on('pointerover', () => { this.selectedIndex = UPGRADES.length + 2; this.highlightSelected(); });
     this.respecButton.on('pointerout', () => this.highlightSelected());
     this.respecButton.on('pointerup', () => this.openRespecDialog());
 
@@ -719,7 +719,7 @@ export class HunterHubScene extends Phaser.Scene {
       left: (canvasRect.left + 360 * scaleX) + 'px',
       top: (canvasRect.top + 145 * scaleY) + 'px',
       width: ((width - 460) * scaleX) + 'px',
-      height: (38 * scaleY) + 'px',
+      height: Math.max(32, 38 * scaleY) + 'px',
       boxSizing: 'border-box',
       padding: '6px 12px',
       border: '1px solid #b99a61',
