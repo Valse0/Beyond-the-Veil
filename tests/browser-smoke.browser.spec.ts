@@ -2608,8 +2608,30 @@ test('smart TV remote keys navigate menu, journal, hunter and region screens', a
 
   await sendRemoteKey('OK');
   await expect.poll(() => isActive('character-select')).toBe(true);
+  const hunterBefore = await page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number } } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Game bridge unavailable.');
+    return game.scene.getScene('character-select').browserTestSnapshot().selectedIndex;
+  });
+  await sendRemoteKey('ArrowRight');
+  await expect.poll(() => page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number } } } } }).__BEYOND_VEIL_GAME__;
+    return game?.scene.getScene('character-select').browserTestSnapshot().selectedIndex;
+  })).toBe((hunterBefore + 1) % 5);
+  await sendRemoteKey('ArrowLeft');
   await sendRemoteKey('ColorF1Green');
   await expect.poll(() => isActive('region-select')).toBe(true);
+  const regionBefore = await page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number } } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Game bridge unavailable.');
+    return game.scene.getScene('region-select').browserTestSnapshot().selectedIndex;
+  });
+  await sendRemoteKey('ArrowRight');
+  await expect.poll(() => page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number } } } } }).__BEYOND_VEIL_GAME__;
+    return game?.scene.getScene('region-select').browserTestSnapshot().selectedIndex;
+  })).toBe((regionBefore + 1) % 5);
+  await sendRemoteKey('ArrowLeft');
   await sendRemoteKey('ColorF0Red');
   await expect.poll(() => isActive('character-select')).toBe(true);
   await sendRemoteKey('ColorF0Red');
@@ -2681,6 +2703,8 @@ test('touch-first hunter, region and run-preparation layouts keep large selectio
   await expect.poll(async () => (await snapshot('character-select')).selectedIndex).toBe(1);
   const secondHunter = await snapshot('character-select') as { selectedIndex: number; characterId: string; layoutMode: string };
   expect(secondHunter.characterId).not.toBe(firstHunter.characterId);
+  await tapLogical(142, 354);
+  await expect.poll(async () => (await snapshot('character-select')).selectedIndex).toBe(0);
 
   await tapLogical(1102, 660);
   await expect.poll(() => isActive('region-select')).toBe(true);
