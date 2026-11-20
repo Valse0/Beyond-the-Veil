@@ -238,7 +238,7 @@ type BrowserRunSnapshot = {
   regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Record<string,number>};evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
   runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;bossMaxHealth:number|null;
   questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
-  questChoice:{questId:string;choiceIds:string[]}|null;questTrackerText:string;
+  questChoice:{questId:string;choiceIds:string[]}|null;questChoiceTexts:string[];questTrackerText:string;
   explorationLandmarks:{id:string;kind:string;name:string;description:string;motif:string;decorationVisible:boolean}[];
   health:number;maxHealth:number;damage:number;moveSpeed:number;permanentUpgradeEffects:{maxHealthBonus:number;damageMultiplier:number;moveSpeedMultiplier:number;armorBonus:number;xpGainMultiplier:number;extraRerolls:number};passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
   availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
@@ -2166,6 +2166,10 @@ test('completed story objectives open a pausing branch choice and persist the se
   expect(pending.paused).toBe(true);
   expect(pending.ability.sceneTimePaused).toBe(true);
   expect(pending.questChoice).toEqual({questId:'forest-root-oath',choiceIds:['spare-warden','claim-heartwood']});
+  expect(pending.questChoiceTexts).toContain('LANETLİ ORMAN  •  ANA GÖREV');
+  expect(pending.questChoiceTexts).toContain('Köklerin Yemini');
+  expect(pending.questChoiceTexts).toContain('Bekçi yaşar; orman sakinleşir ve Diken Ana\'nın uyanmış biçimiyle karşılaşırsın.');
+  expect(pending.questChoiceTexts).toContain('Bekçi kaybolur; orman solar ve Diken Ana\'nın yozlaşmış yolu açılır.');
 
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter');
@@ -2185,6 +2189,34 @@ test('completed story objectives open a pausing branch choice and persist the se
   const reloaded=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(reloaded.story.quests['forest-root-oath']).toMatchObject({status:'completed',chosenChoiceId:'claim-heartwood',outcomeId:'forest-claim'});
   expect(reloaded.story.unlockedPathIds).toContain('forest-heartwood-vault');
+  expect(pageErrors).toEqual([]);
+});
+
+
+test('story choice mercy branch persists its authored world outcome',async({page})=>{
+  const pageErrors:string[]=[];page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  await page.evaluate(()=>{
+    const game=(window as Window&{__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestCompleteQuestObjectives:(id:string)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestCompleteQuestObjectives('forest-root-oath');
+  });
+  await expect.poll(async()=>(await readBrowserRunSnapshot(page)).questChoice).not.toBeNull();
+  await page.keyboard.press('Enter');
+  await expect.poll(async()=>(await readBrowserRunSnapshot(page)).questChoice).toBeNull();
+  const saved=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(saved.story.quests['forest-root-oath']).toMatchObject({status:'completed',chosenChoiceId:'spare-warden',outcomeId:'forest-mercy'});
+  expect(saved.story.npcFates['briar-warden']).toBe('spared');
+  expect(saved.story.regionAtmospheres['cursed-forest']).toBe('quiet-growth');
+  expect(saved.story.bossEncounterIds).toContain('thorn-matriarch-awakened');
+  expect(saved.story.unlockedPathIds).toContain('forest-mercy-path');
+  expect(saved.story.unlockedRewardIds).toContain('root-warden-token');
+  expect(saved.progression.soulEssence).toBeGreaterThanOrEqual(40);
+  await page.reload();
+  await expect(page.locator('#game-container canvas')).toBeVisible();
+  const reloaded=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(reloaded.story.quests['forest-root-oath']).toMatchObject({chosenChoiceId:'spare-warden',outcomeId:'forest-mercy'});
+  expect(reloaded.story.npcFates['briar-warden']).toBe('spared');
   expect(pageErrors).toEqual([]);
 });
 

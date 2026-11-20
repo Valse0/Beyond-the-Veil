@@ -642,3 +642,11 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Unit coverage validates both narrative variants and rejects unknown ending IDs. Live Phaser browser coverage completes each final boss branch, checks its distinct text and confirms the New Game+ return path.
 - CI [#44809428891](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44809428891), commit `b052138514f49e8e65cebd8f0ae00759868919db`: TypeScript PASS; 268/268 unit tests PASS; production build PASS; Chromium Playwright 53/53 PASS; npm audit 0 vulnerabilities.
 - This is functional text presentation, not final art or animation sign-off. Final illustration, cinematic transitions, audio, responsive visual review and physical mobile/controller/TV validation remain deferred.
+
+## Quest Choice Presentation v1 — implementation pending CI (2026-11-20)
+
+- Reworked the mandatory quest-decision overlay to show region, quest category, quest title and quest context, then two clearer choice cards with separate action and possible-consequence text.
+- Expanded the authored descriptions and consequence summaries across the quest catalog. Stable quest/choice/outcome IDs and all actual world-state, reward, unlock and Ruh Özü payloads remain unchanged.
+- Added browser assertions against the rendered Phaser text and a separate live branch test for the default mercy choice, including NPC fate, atmosphere, boss variant, path, reward, Ruh Özü and reload persistence. Existing keyboard branch test continues to verify the alternate outcome.
+- Pointer/touch, keyboard and gamepad continue to use the existing shared overlay navigation. No save migration, dependency, backend or final art was added. Responsive review and physical-device/controller/TV validation remain outstanding.
+- CI evidence pending.

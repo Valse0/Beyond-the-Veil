@@ -353,8 +353,8 @@ No final UI art, balance sign-off, or physical-device validation is claimed by t
 ## Quest Choice Interaction v1
 
 - The active regional quest is shown in a compact in-run tracker with objective progress and target counts. The tracker hides when no quest is active in the current region.
-- When every objective of an active quest reaches its authored target, the run pauses and presents its two authored story choices as large selectable cards. The choice cannot be dismissed without selecting an outcome.
-- Choice cards support pointer/touch, keyboard arrows plus Enter/Space, and the existing D-pad/left-stick plus confirm overlay navigation. The first option receives initial focus; Escape/back is intentionally unavailable for a permanent story decision.
+- When every objective of an active quest reaches its authored target, the run pauses and presents a focused story-decision screen. The header identifies the region, quest category and quest title; each of the two selectable cards separates the player's action from an authored "possible consequence" summary.
+- Choice cards support pointer/touch, keyboard arrows plus Enter/Space, and the existing D-pad/left-stick plus confirm overlay navigation. The first option receives initial focus; Escape/back is intentionally unavailable for a permanent story decision. The two branches retain their authored IDs and outcome payloads; only explanatory copy and presentation change.
 - The selected outcome is applied through the existing quest runtime, including NPC fate, regional atmosphere, path IDs, boss encounter IDs, reward IDs, alternate quest unlocks, ending selection and authored Ruh Özü/lore rewards. The updated story state is written immediately through the local SaveManager before gameplay resumes; failed writes leave the decision open for retry.
 - Newly unlocked story quests for the current region are started after the parent choice. Existing save schema and quest IDs remain unchanged. No dependency, backend, final art or long-form dialogue/cutscene was added.
 - CI #434 (run `44711659596`, commit `cd5169dbc525e0c0a108109589cba1d7b3b05fbe`) verifies TypeScript, 253/253 unit tests, production build, Chromium Playwright 44/44 and npm audit (0 vulnerabilities). The live browser scenario verifies the tracker, objective lock, paused choice presentation, keyboard selection, NPC/atmosphere/path/boss/reward outcomes, Ruh Özü award and reload persistence.
@@ -427,3 +427,11 @@ The presentation content is data-driven in `src/gameplay/endings/ending-presenta
 Unit tests cover both authored variants and unknown IDs. Live Phaser browser tests defeat the final boss through each saved branch and verify the distinct epilogue plus the New Game+ return path. CI [#44809428891](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44809428891) passed TypeScript, 268/268 unit tests, production build, Chromium Playwright 53/53 and npm audit with zero vulnerabilities.
 
 This is functional text presentation only. Final illustrations, cinematic transitions, voice/audio, and responsive visual sign-off remain deferred to the dedicated presentation/art phase; physical mobile, controller and TV checks are also outstanding.
+
+### Quest Choice Presentation v1
+
+- The permanent decision screen now identifies the current region, quest category and quest title before showing the two authored choices.
+- Each choice card separates its action description from an explicit possible-consequence summary. The quest catalog copy explains the trade-off without changing choice IDs, outcome IDs, reward amounts, unlocks or world-state payloads.
+- The shared overlay selection layer remains the single input path for pointer/touch, keyboard and gamepad navigation. The first card is initially selected and the decision remains non-dismissible until saved.
+- Browser coverage reads the actual rendered Phaser text, checks both consequence summaries, exercises the keyboard-selected branch and separately verifies the default mercy branch's NPC fate, atmosphere, boss variant, path, reward, Ruh Özü and reload persistence.
+- No save-schema migration, dependency, backend, final art or cinematic sequence is included. Responsive visual review and physical mobile/controller/TV testing remain outstanding.

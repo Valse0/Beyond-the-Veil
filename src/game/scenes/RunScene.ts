@@ -394,7 +394,7 @@ export class RunScene extends Phaser.Scene {
       runSoulEssence:this.runSoulEssence,runRelicIds:[...this.runRelicIds],equippedRelicIds:[...this.equippedRelicIds],runCraftingMaterials:{...this.runCraftingMaterials},kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
       bossHealth:this.bossState?.health??null,bossMaxHealth:this.bossState?.maxHealth??null,endless:{bossCyclesCompleted:this.endlessState.bossCyclesCompleted,nextBossAtMs:this.endlessState.nextBossAtMs,ruleId:getEndlessRule(this.state.elapsedMs)?.id??null,ruleName:getEndlessRule(this.state.elapsedMs)?.name??null,ruleModifiers:getEndlessRuleModifiers(this.state.elapsedMs)},health:this.state.health,maxHealth:this.state.maxHealth,damage:this.state.damage,moveSpeed:this.state.moveSpeed,
       questProgress:Object.fromEntries(Object.entries(this.questSaveData?.story.quests??{}).map(([id,progress])=>[id,{status:progress.status,objectiveProgress:{...progress.objectiveProgress}}])),
-      questChoice:this.pendingQuestChoiceId?{questId:this.pendingQuestChoiceId,choiceIds:QUEST_BY_ID.get(this.pendingQuestChoiceId)?.choices.map(choice=>choice.id)??[]}:null,questTrackerText:String(this.questHud?.text??''),
+      questChoice:this.pendingQuestChoiceId?{questId:this.pendingQuestChoiceId,choiceIds:QUEST_BY_ID.get(this.pendingQuestChoiceId)?.choices.map(choice=>choice.id)??[]}:null,questChoiceTexts:this.overlay.filter(object=>object instanceof Phaser.GameObjects.Text).map(object=>String((object as Phaser.GameObjects.Text).text)),questTrackerText:String(this.questHud?.text??''),
       discoveredLoreIds:[...this.runDiscoveredLoreIds],discoveredPathIds:[...this.runDiscoveredPathIds],explorationLandmarks:this.eventObjects.getChildren().filter(object=>object.getData('eventObjectType')==='exploration-lore'||object.getData('eventObjectType')==='exploration-secret').map(object=>({id:String(object.getData('explorationPointId')),kind:String(object.getData('eventObjectType')),name:String(object.getData('explorationName')),description:String(object.getData('explorationDescription')),motif:String(object.getData('explorationMotif')),decorationVisible:Boolean((object.getData('eventObjectDecoration') as Phaser.GameObjects.GameObject|undefined)?.active)})),availableStoryPathIds:this.activeStoryPaths.map(path=>path.id),lastTraversedStoryPathId:this.lastTraversedStoryPathId,
       storyWorldState:{npcId:this.activeStoryWorldState?.npc?.definition.id??null,npcName:this.activeStoryWorldState?.npc?.definition.name??null,npcFateId:this.activeStoryWorldState?.npc?.fateId??null,npcFateLabel:this.activeStoryWorldState?.npc?.fate.label??null,atmosphereId:this.activeStoryWorldState?.atmosphere?.id??null,atmosphereName:this.activeStoryWorldState?.atmosphere?.name??null,renderedObjectCount:this.storyWorldObjectCount},
       bossChestDiagnostics:(()=>{
@@ -2883,16 +2883,24 @@ export class RunScene extends Phaser.Scene {
     this.pendingQuestChoiceId=quest.id;this.pauseRunWorld();this.clearOverlay();
     const w=this.scale.width,h=this.scale.height;
     this.overlay.push(this.add.rectangle(w/2,h/2,w,h,0x08070b,.9).setScrollFactor(0).setDepth(200));
-    this.overlay.push(this.add.text(w/2,h*.23,'HİKÂYE KARARI',{fontFamily:'Georgia',fontSize:'32px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
-    this.overlay.push(this.add.text(w/2,h*.32,quest.title,{fontFamily:'Georgia',fontSize:'22px',color:'#f0d9ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
-    this.overlay.push(this.add.text(w/2,h*.405,quest.description,{fontSize:'15px',color:'#c9bda9',align:'center',wordWrap:{width:Math.min(720,w*.72)}}).setOrigin(.5).setScrollFactor(0).setDepth(201));
-    const cardWidth=Math.min(420,w*.42),cardHeight=Math.min(190,h*.29),cardY=h*.63;
+    const regionLabel=this.region.name.toLocaleUpperCase('tr-TR');
+    const categoryLabel=quest.category==='main'?'ANA GÖREV':quest.category==='side'?'YAN GÖREV':quest.category==='character'?'KARAKTER GÖREVİ':'KEŞİF GÖREVİ';
+    this.overlay.push(this.add.text(w/2,h*.15,'HİKÂYE KARARI',{fontFamily:'Georgia',fontSize:'30px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    this.overlay.push(this.add.text(w/2,h*.22,regionLabel+'  •  '+categoryLabel,{fontSize:'13px',fontStyle:'bold',color:'#b9a17d',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    this.overlay.push(this.add.text(w/2,h*.29,quest.title,{fontFamily:'Georgia',fontSize:'22px',color:'#f0d9ad',align:'center',wordWrap:{width:w*.82}}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    this.overlay.push(this.add.text(w/2,h*.36,quest.description,{fontSize:'14px',color:'#c9bda9',align:'center',wordWrap:{width:Math.min(760,w*.76)}}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    const cardWidth=Math.min(440,w*.42),cardHeight=Math.min(270,h*.52),cardY=h*.68,gap=Math.min(24,w*.03);
     quest.choices.forEach((choice,index)=>{
-      const x=w/2+(index===0?-1:1)*(cardWidth/2+24);
+      const x=w/2+(index===0?-1:1)*(cardWidth/2+gap/2);
       const card=this.add.rectangle(x,cardY,cardWidth,cardHeight,0x28212a,.98).setStrokeStyle(2,0x9b8059).setScrollFactor(0).setDepth(201).setInteractive({useHandCursor:true});
-      const label=this.add.text(x,cardY-35,choice.label,{fontFamily:'Georgia',fontSize:'19px',color:'#f0d9ad',align:'center',wordWrap:{width:cardWidth-34}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-      const description=this.add.text(x,cardY+28,choice.description,{fontSize:'14px',color:'#c9bda9',align:'center',wordWrap:{width:cardWidth-38}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-      this.overlay.push(card,label,description);this.registerOverlayOption(card,()=>this.commitQuestBranch(quest.id,choice.id));
+      const number=this.add.text(x,cardY-cardHeight*.42,index===0?'KARAR I':'KARAR II',{fontSize:'11px',fontStyle:'bold',color:'#b99a70',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      const label=this.add.text(x,cardY-cardHeight*.29,choice.label,{fontFamily:'Georgia',fontSize:'19px',color:'#f0d9ad',align:'center',wordWrap:{width:cardWidth-34}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      const description=this.add.text(x,cardY-cardHeight*.015,choice.description,{fontSize:'14px',color:'#c9bda9',align:'center',wordWrap:{width:cardWidth-38}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      const divider=this.add.rectangle(x,cardY+cardHeight*.13,cardWidth*.82,1,0x8c765b,.8).setScrollFactor(0).setDepth(202);
+      const consequenceLabel=this.add.text(x,cardY+cardHeight*.22,'OLASI SONUÇ',{fontSize:'11px',fontStyle:'bold',color:'#d1b47f',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      const consequence=this.add.text(x,cardY+cardHeight*.36,choice.outcome.summary,{fontSize:'13px',color:'#e0d2bd',align:'center',wordWrap:{width:cardWidth-38}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      this.overlay.push(card,number,label,description,divider,consequenceLabel,consequence);
+      this.registerOverlayOption(card,()=>this.commitQuestBranch(quest.id,choice.id));
     });
     this.questChoiceErrorText=this.add.text(w/2,h*.83,'',{fontSize:'13px',color:'#e29a8d',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(203).setVisible(false);
     this.overlay.push(this.questChoiceErrorText);this.overlayBackIndex=null;
