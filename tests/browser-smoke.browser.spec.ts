@@ -1463,11 +1463,12 @@ test('all five organic region maps load connected rooms and keep the hunter insi
     expect(map.wallCount).toBeGreaterThan(100);
     expect(map.connected).toBe(true);
     expect(map.playerWalkable).toBe(true);
+    const beforeMove=await readBrowserRunSnapshot(page);
     await page.keyboard.down('ArrowLeft');
     await page.waitForTimeout(6_000);
     await page.keyboard.up('ArrowLeft');
     const afterMove=await readBrowserRunSnapshot(page);
-    expect(afterMove.playerX).toBeLessThan(800);
+    expect(afterMove.playerX).toBeLessThan(beforeMove.playerX-100);
     expect(afterMove.regionMap.playerWalkable).toBe(true);
   }
   expect(pageErrors).toEqual([]);
