@@ -11,6 +11,7 @@ import { RELICS } from '../../data/relics.js';
 import { CRAFTING_MATERIALS } from '../../data/crafting.js';
 import { ELEMENTS } from '../../data/elements.js';
 import { REGIONS } from '../../data/regions.js';
+import { resolveEnvironment, getElementWeatherMultiplier, getEnvironmentLabel } from '../../gameplay/world/environment-runtime.js';
 import { getEnvironmentalLoreLandmark, type EnvironmentalLoreLandmark } from '../../data/environmental-lore.js';
 import { resolveUnlockedRegionPaths } from '../../gameplay/world/region-path-runtime.js';
 import { resolveStoryWorldState } from '../../gameplay/world/story-world-state.js';
@@ -94,6 +95,10 @@ export class RunScene extends Phaser.Scene {
   private runEventState:RunEventState=createRunEventState(1);
   private eventObjects!:Phaser.Physics.Arcade.Group;
   private eventHud?:Phaser.GameObjects.Text;
+  private environmentHud?:Phaser.GameObjects.Text;
+  private environmentOverlay?:Phaser.GameObjects.Rectangle;
+  private environmentKey='';
+  private environmentState=resolveEnvironment('cursed-forest',0);
   private eventSetupPending=false;
   private pendingCursedStage=1;
   private runSeed=1;
@@ -224,6 +229,7 @@ export class RunScene extends Phaser.Scene {
 
   browserTestSnapshot():{
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
+    environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Record<string,number>};
     regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};
     paused:boolean;bossSpawned:boolean;bossVariantId:string|null;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
     runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
@@ -241,7 +247,7 @@ export class RunScene extends Phaser.Scene {
     return {
       level:this.state.level,experience:this.state.experience,experienceToNext:this.state.experienceToNext,
       regionMap:{regionId:this.mapLayout.regionId,roomIds:this.mapLayout.rooms.map(room=>room.id),wallCount:this.mapBoundaryCount,connected:this.mapConnected,playerWalkable:isRegionMapWalkable(this.mapLayout,this.player.x,this.player.y,-24)},
-      queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,paused:this.paused,bossSpawned:this.bossSpawned,bossVariantId:this.activeBossVariantId,bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
+      queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,environment:{timeOfDay:this.environmentState.timeOfDay,weather:this.environmentState.weather,timeLabel:this.environmentState.timeLabel,weatherLabel:this.environmentState.weatherLabel,enemyMoveSpeedMultiplier:this.environmentState.enemyMoveSpeedMultiplier,elementDamageMultipliers:{...this.environmentState.elementDamageMultipliers}},paused:this.paused,bossSpawned:this.bossSpawned,bossVariantId:this.activeBossVariantId,bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
       evolvedWeaponIds:this.build.weapons.filter(weapon=>weapon.evolved).map(weapon=>weapon.weaponId),
       choices:this.currentLevelChoices.map(({id,title,kind,contentId,branchId})=>({id,title,kind,contentId,branchId})),
       passives:this.build.passives.map(item=>({...item})),activePassiveSpecialIds:this.build.passives.filter(item=>item.special).map(item=>item.passiveId),
@@ -392,6 +398,7 @@ export class RunScene extends Phaser.Scene {
     this.assertBrowserTestMode();
     if(!Number.isFinite(milliseconds)||milliseconds<0)throw new Error('Test time must be a non-negative finite number.');
     this.state={...this.state,elapsedMs:Math.min(RUN_MS,this.state.elapsedMs+milliseconds)};
+    this.updateEnvironment();
     if(skipTimedSystems){this.runEventState={...this.runEventState,nextEventIndex:3,activeEvent:null};this.eventSetupPending=false;this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};}
     else this.updateRunEvent(this.time.now);
     if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
@@ -788,6 +795,7 @@ export class RunScene extends Phaser.Scene {
     this.spawnExplorationPoints(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
     this.spawnUnlockedStoryPaths(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
     this.spawnStoryWorldState(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
+    this.environmentState=resolveEnvironment(this.region.id,this.state.elapsedMs);
     this.createHud();this.createTouchControls();this.spawnEnemy();this.waveDirector={...this.waveDirector,spawnIndex:1,nextSpawnAtMs:1500};this.refreshBuildStats();
   }
 
@@ -825,6 +833,9 @@ export class RunScene extends Phaser.Scene {
     this.bossHealth=this.add.rectangle(w/2-150,82,300,5,0xb94b5b).setOrigin(0,.5).setScrollFactor(0).setDepth(111).setVisible(false);
     this.bossPhaseText=this.add.text(w/2,96,'',{fontSize:'11px',color:'#c8b69d'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
     this.eventHud=this.add.text(w/2,122,'',{fontSize:'13px',color:'#d9c69d',backgroundColor:'#211b20',padding:{x:8,y:4},align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(112).setVisible(false);
+    this.environmentHud=this.add.text(w/2+118,22,'',{fontFamily:'Arial',fontSize:'12px',color:'#c9d2d6',align:'left'}).setOrigin(0,.5).setScrollFactor(0).setDepth(100);
+    this.environmentOverlay=this.add.rectangle(w/2,h/2,w,h,0xffffff,0).setScrollFactor(0).setDepth(90).setOrigin(.5);
+    this.updateEnvironment(true);
     this.refreshHud();
   }
 
@@ -851,7 +862,7 @@ export class RunScene extends Phaser.Scene {
     if(gamepad.southPressed)this.tryDash();
     if(gamepad.westPressed)this.useAbility();
     if(gamepad.startPressed){this.openPause();return;}
-    this.state=advanceRun(this.state,delta);this.updateRunEvent(time);
+    this.state=advanceRun(this.state,delta);this.updateEnvironment();this.updateRunEvent(time);
     this.move(time);if(this.paused)return;this.moveEnemies(time);this.updateEnemyZones(time);this.updatePassiveZones(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
     this.expireShots(time);this.magnetize();this.updateElementStatuses(time);this.updateRegionHazard(time);this.updateBossArena(time);
     if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
@@ -937,7 +948,7 @@ export class RunScene extends Phaser.Scene {
       const status=this.elementStates.get(enemy)??{};
       const effects=tickElementStatuses(status,time);this.elementStates.set(enemy,effects.state);
       const slow=effects.slowed?.55:1;
-      let vx=intent.velocityX*slow,vy=intent.velocityY*slow;
+      let vx=intent.velocityX*slow*this.environmentState.enemyMoveSpeedMultiplier,vy=intent.velocityY*slow*this.environmentState.enemyMoveSpeedMultiplier;
       if(isElite){const boost=enemy.getData('eliteEnraged')?1.32:1.12;vx*=boost;vy*=boost;}
       if(Number(enemy.getData('pounceUntil')??0)>time){vx=Number(enemy.getData('pounceX'))*def.speed*3.1;vy=Number(enemy.getData('pounceY'))*def.speed*3.1;}
       if(def.behavior==='swarm'){
@@ -1452,7 +1463,7 @@ export class RunScene extends Phaser.Scene {
     if(element){
       const elementDef=ELEMENTS.find(e=>e.id===element)!;
       const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier*this.relicStats.elementalBuildupMultiplier};
-      const hit=applyElementHit(existing,tuned,damage,def.resistances[element]??0,this.time.now,ELEMENTS);
+      const hit=applyElementHit(existing,tuned,damage,def.resistances[element]??0,this.time.now,ELEMENTS,getElementWeatherMultiplier(this.environmentState,element));
       this.elementStates.set(enemy,hit.state);damage=hit.damage+(hit.reaction?.damage??0);if(hit.reaction){this.lastElementReactionId=hit.reaction.id;this.resolveElementReaction(enemy,hit.reaction);}
       if(isPassiveSpecialActive(this.build,'venom-vial')&&isPoisonBloomReady(hit.state.poison?.stacks??0,5)){const bloom=PASSIVES.find(item=>item.id==='venom-vial')!.specialUpgrade.mechanic;if(bloom.kind==='poison-spores'){const ready=tryPassiveCooldown(this.passiveSpecialState,'toxic-bloom',this.time.now,bloom.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)this.spawnPassiveZone(enemy.x,enemy.y,bloom);}}
       if(hit.triggered&&element==='spirit')this.healPlayer(Math.max(1,this.state.maxHealth*.025));
@@ -1518,7 +1529,7 @@ export class RunScene extends Phaser.Scene {
     if(element){
       const elementDef=ELEMENTS.find(e=>e.id===element)!;
       const tuned={...elementDef,buildupPerHit:elementDef.buildupPerHit*this.currentBuildStats().elementalBuildupMultiplier*this.relicStats.elementalBuildupMultiplier};
-      const hit=applyElementHit(this.bossElementState,tuned,damage,this.bossDefinition.resistance[element]??0,this.time.now,ELEMENTS);
+      const hit=applyElementHit(this.bossElementState,tuned,damage,this.bossDefinition.resistance[element]??0,this.time.now,ELEMENTS,getElementWeatherMultiplier(this.environmentState,element));
       this.bossElementState=hit.state;damage=hit.damage+(hit.reaction?.damage??0);if(hit.reaction){this.lastElementReactionId=hit.reaction.id;this.resolveElementReaction(boss,hit.reaction);}
       if(isPassiveSpecialActive(this.build,'venom-vial')&&isPoisonBloomReady(hit.state.poison?.stacks??0,5)){const bloom=PASSIVES.find(item=>item.id==='venom-vial')!.specialUpgrade.mechanic;if(bloom.kind==='poison-spores'){const ready=tryPassiveCooldown(this.passiveSpecialState,'toxic-bloom',this.time.now,bloom.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)this.spawnPassiveZone(boss.x,boss.y,bloom);}}
       if(hit.triggered&&element==='spirit')this.healPlayer(Math.max(1,this.state.maxHealth*.025));
@@ -2380,6 +2391,23 @@ export class RunScene extends Phaser.Scene {
   }
 
   private clearOverlay():void {this.overlay.forEach(o=>o.destroy());this.overlay=[];this.overlayButtons=[];this.overlayActions=[];this.overlaySelectionIndex=0;this.overlayBackIndex=null;}
+
+  private updateEnvironment(force=false):void {
+    const next=resolveEnvironment(this.region.id,this.state.elapsedMs);
+    const key=next.timeOfDay+':'+next.weather;
+    this.environmentState=next;
+    if(!force&&key===this.environmentKey)return;
+    this.environmentKey=key;
+    const visual:Record<string,{color:number;alpha:number}> = {
+      clear:{color:0x000000,alpha:0},rain:{color:0x40566f,alpha:.025},fog:{color:0xb9c4c8,alpha:.035},
+      storm:{color:0x34465c,alpha:.035},drizzle:{color:0x607080,alpha:.02},dry:{color:0x9a7952,alpha:.018},
+      ashfall:{color:0x82756d,alpha:.04},steam:{color:0xb8b4a6,alpha:.035},snow:{color:0xb8d4e6,alpha:.03},
+      'dense-fog':{color:0xc3c9c6,alpha:.045}
+    };
+    const tint=visual[next.weather]??visual.clear!;
+    this.environmentOverlay?.setFillStyle(tint.color,tint.alpha);
+    this.environmentHud?.setText(getEnvironmentLabel(next)).setColor(next.timeOfDay==='night'?'#c8b8df':'#c9d2d6');
+  }
 
   private refreshHud():void {
     if(!this.hud||!this.clock||!this.health)return;

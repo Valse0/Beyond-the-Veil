@@ -3,6 +3,7 @@
 Source of truth: Game Design Document.md (Sections 1–30) and PLAN.md. Every requirement must be independently verifiable; a section heading is not completion.
 
 Allowed states: NOT_STARTED · IN_PROGRESS · IMPLEMENTED_UNVERIFIED · VERIFIED · BLOCKED · DEFERRED_WITH_APPROVAL
+| WORLD-04 | Dynamic world environment | §4, §7 | One accelerated run clock, four day phases, region weather, bounded elemental and night modifiers, readable visuals. | IMPLEMENTED_UNVERIFIED | src/data/environment-profiles.ts; src/gameplay/world/environment-runtime.ts; src/gameplay/elements/element-runtime.ts; src/game/scenes/RunScene.ts; tests/environment-runtime.test.mjs; tests/browser-smoke.browser.spec.ts | Pending CI. | 16-minute deterministic day; weather changes in four-minute blocks; weather modifiers are bounded; boss timing remains at 14:00; no save migration or dependency. Device balance and final environmental art/audio remain. |
 
 ## Atomic requirement inventory
 

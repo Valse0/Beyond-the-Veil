@@ -21,10 +21,11 @@ export function applyElementHit(
   baseDamage:number,
   resistance:number,
   now:number,
-  catalog:readonly ElementDefinition[]
+  catalog:readonly ElementDefinition[],
+  damageMultiplier=1
 ):ElementHitResult {
   const resist=Math.max(-.5,Math.min(element.resistanceCap,resistance));
-  const damage=Math.max(0,baseDamage*(1-resist));
+  const damage=Math.max(0,baseDamage*(1-resist)*Math.max(0,damageMultiplier));
   const current=state[element.id]??{buildup:0,stacks:0,expiresAt:0,nextTickAt:now+1000};
   const buildup=current.buildup+element.buildupPerHit;
   const triggered=buildup>=element.threshold;

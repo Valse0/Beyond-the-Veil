@@ -204,7 +204,7 @@ test('region selection reads unlocked regions from the persisted profile', async
 type BrowserRunSnapshot = {
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;
-  regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
+  regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Record<string,number>};evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
   runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
   health:number;maxHealth:number;damage:number;moveSpeed:number;permanentUpgradeEffects:{maxHealthBonus:number;damageMultiplier:number;moveSpeedMultiplier:number;armorBonus:number;xpGainMultiplier:number;extraRerolls:number};passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
   availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
@@ -1470,6 +1470,40 @@ test('all five organic region maps load connected rooms and keep the hunter insi
     const afterMove=await readBrowserRunSnapshot(page);
     expect(afterMove.playerX).toBeLessThan(beforeMove.playerX-100);
     expect(afterMove.regionMap.playerWalkable).toBe(true);
+  }
+  expect(pageErrors).toEqual([]);
+});
+
+test('dynamic day and regional weather cycles stay deterministic across all five regions',async({page})=>{
+  const pageErrors:string[]=[];page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  const cases=[
+    {id:'cursed-forest',weather:['clear','rain','fog','storm']},
+    {id:'forgotten-graveyard',weather:['clear','dense-fog','drizzle']},
+    {id:'deep-dungeon',weather:['dry','ashfall','steam']},
+    {id:'rotten-swamp',weather:['rain','dense-fog','storm']},
+    {id:'cursed-castle',weather:['fog','snow','storm','clear']}
+  ];
+  for(const item of cases){
+    await page.evaluate(id=>{
+      const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestRestartRegion:(region:string)=>void}}}}).__BEYOND_VEIL_GAME__;
+      if(!game)throw new Error('Development browser test bridge is not available.');
+      game.scene.getScene('run').browserTestRestartRegion(id);
+    },item.id);
+    await expect.poll(async()=>(await readBrowserRunSnapshot(page)).regionMap.regionId).toBe(item.id);
+    for(let i=0;i<4;i++){
+      const current=await readBrowserRunSnapshot(page);
+      const target=(i+1)*240000;
+      await page.evaluate(delta=>{
+        const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number,skip?:boolean)=>void}}}}).__BEYOND_VEIL_GAME__;
+        if(!game)throw new Error('Development browser test bridge is not available.');
+        game.scene.getScene('run').browserTestAdvanceElapsed(delta,true);
+      },target-current.elapsedMs);
+      const snapshot=await readBrowserRunSnapshot(page);
+      expect(snapshot.environment.weather).toBe(item.weather[i]);
+      expect(snapshot.environment.timeOfDay).toBe(['dawn','day','sunset','night'][i]);
+      expect(snapshot.environment.weatherLabel.length).toBeGreaterThan(0);
+    }
   }
   expect(pageErrors).toEqual([]);
 });

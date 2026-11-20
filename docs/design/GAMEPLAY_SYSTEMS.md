@@ -265,3 +265,19 @@ Each of the five regions now resolves a hand-authored, six-room layout: one cent
 `src/data/region-layouts.ts` owns the authored geometry and walkability rules. `src/gameplay/world/region-map-runtime.ts` resolves a region layout, generates a deterministic perimeter boundary, checks connectivity, and relocates requested placements to safe walkable positions. The Phaser run scene draws temporary room/corridor contours and static boundary stones, then collides the player and enemy group against those boundaries. Enemy creation and story-gate entry/destination placement are clamped to walkable geometry. Existing region, exploration, quest, boss, and story-path IDs are unchanged; no save migration or dependency is introduced.
 
 The 32-pixel sampling used to derive collision boundary stones is an internal geometry technique only; no visible tile grid is rendered. The current six-room layouts and collision stones are functional placeholders, not final environment art. Natural-run pacing, detailed subregion content, final art/audio, and physical-device collision feel remain separate validation/production work. CI #402 (run `44645193043`) verifies the five live Phaser layouts, connected rooms, walkable boundaries and story-path traversal: TypeScript PASS, 215/215 unit tests PASS, production build PASS, Chromium Playwright 35/35 PASS and npm audit 0 vulnerabilities.
+
+
+## Dynamic world environment
+
+Each run uses the existing elapsed-run clock; no wall clock or second timer is introduced. One accelerated day lasts 16 minutes and cycles through dawn, day, sunset and night in four-minute phases. The cycle continues through the boss encounter and wraps deterministically.
+
+Weather changes in four-minute blocks using a region-authored sequence:
+- Cursed Forest: clear, rain, fog, storm.
+- Forgotten Graveyard: clear, dense fog, drizzle.
+- Deep Dungeon: dry heat, ashfall, hot steam.
+- Rotten Swamp: rain, dense fog, storm.
+- Cursed Castle: fog, snow, storm, clear.
+
+Weather modifiers are deliberately modest: rain slightly reduces Fire and strengthens Lightning; storms strengthen Lightning further; snow strengthens Ice; ashfall slightly strengthens Fire and reduces Lightning; hot steam slightly favors Fire over Ice. Night increases normal enemy movement speed by 4%. Boss movement and authored attack patterns are unchanged.
+
+The HUD reports the current time-of-day and weather. Ambient color overlays are capped at low opacity and sit below HUD and combat telegraphs; fog never hides attacks or changes combat visibility. Environment resolution is engine-independent and deterministic from region ID plus elapsed run time. Final weather art, particles, audio, seasonal systems, boss pattern changes and physical-device balance remain separate work.
