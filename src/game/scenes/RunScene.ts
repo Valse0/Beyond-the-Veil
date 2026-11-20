@@ -86,8 +86,12 @@ export class RunScene extends Phaser.Scene {
   private hud!:Phaser.GameObjects.Text;
   private clock!:Phaser.GameObjects.Text;
   private health!:Phaser.GameObjects.Rectangle;
+  private bossPanel?:Phaser.GameObjects.Rectangle;
   private bossHud?:Phaser.GameObjects.Text;
+  private bossHealthTrack?:Phaser.GameObjects.Rectangle;
   private bossHealth?:Phaser.GameObjects.Rectangle;
+  private bossHealthText?:Phaser.GameObjects.Text;
+  private bossHintText?:Phaser.GameObjects.Text;
   private joystick!:Phaser.GameObjects.Arc;
   private thumb!:Phaser.GameObjects.Arc;
   private touchStart?:Phaser.Math.Vector2;
@@ -117,6 +121,12 @@ export class RunScene extends Phaser.Scene {
   private runEventState:RunEventState=createRunEventState(1);
   private eventObjects!:Phaser.Physics.Arcade.Group;
   private eventHud?:Phaser.GameObjects.Text;
+  private eventPanel?:Phaser.GameObjects.Rectangle;
+  private eventTitleText?:Phaser.GameObjects.Text;
+  private eventObjectiveText?:Phaser.GameObjects.Text;
+  private eventProgressTrack?:Phaser.GameObjects.Rectangle;
+  private eventProgressFill?:Phaser.GameObjects.Rectangle;
+  private eventTimerText?:Phaser.GameObjects.Text;
   private environmentHud?:Phaser.GameObjects.Text;
   private environmentOverlay?:Phaser.GameObjects.Rectangle;
   private environmentPhaseOverlay?:Phaser.GameObjects.Rectangle;
@@ -327,6 +337,18 @@ export class RunScene extends Phaser.Scene {
       enemyMoveSpeedMultiplier:modifiers.enemyMoveSpeedMultiplier,maxHealth:this.state.maxHealth,
       expectedMaxHealth:Math.max(1,Math.floor(baseMaxHealth*modifiers.maxHealthMultiplier)),
       weaponSlotsUsed:3,weaponAddChoiceCount,enemySpeedRatio,bossSpeedRatio:baseBossSpeed>0?actualBossSpeed/baseBossSpeed:0
+    };
+  }
+
+  browserTestHudSnapshot():{
+    boss:{visible:boolean;title:string;phase:string;healthText:string;hint:string;health:number|null;maxHealth:number|null;barRatio:number};
+    event:{visible:boolean;title:string;objective:string;timer:string;progressRatio:number};
+  } {
+    this.assertBrowserTestMode();
+    const bossWidth=this.bossHealthTrack?.width??0,eventWidth=this.eventProgressTrack?.width??0;
+    return {
+      boss:{visible:Boolean(this.bossPanel?.visible),title:String(this.bossHud?.text??''),phase:String(this.bossPhaseText?.text??''),healthText:String(this.bossHealthText?.text??''),hint:String(this.bossHintText?.text??''),health:this.bossState?.health??null,maxHealth:this.bossState?.maxHealth??null,barRatio:bossWidth>0?(this.bossHealth?.width??0)/bossWidth:0},
+      event:{visible:Boolean(this.eventPanel?.visible),title:String(this.eventTitleText?.text??''),objective:String(this.eventObjectiveText?.text??''),timer:String(this.eventTimerText?.text??''),progressRatio:eventWidth>0?(this.eventProgressFill?.width??0)/eventWidth:0}
     };
   }
 
@@ -993,24 +1015,40 @@ export class RunScene extends Phaser.Scene {
   }
 
   private createHud():void {
-    const w=this.scale.width;
+    const w=this.scale.width,center=w/2;
+    const bossWidth=Math.min(400,w-32),bossBarWidth=bossWidth-56,bossLeft=center-bossBarWidth/2;
+    const eventWidth=Math.min(460,w-32),eventBarWidth=eventWidth-44,eventLeft=center-eventBarWidth/2;
     this.hud=this.add.text(22,18,'',{fontFamily:'Arial',fontSize:'15px',color:'#eee5d6',lineSpacing:6}).setScrollFactor(0).setDepth(100);
-    this.clock=this.add.text(w/2,18,'00:00',{fontFamily:'Georgia',fontSize:'23px',color:'#d4b777'}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
+    this.clock=this.add.text(center,18,'00:00',{fontFamily:'Georgia',fontSize:'23px',color:'#d4b777'}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
     this.add.rectangle(w-130,32,180,12,0x352d32).setScrollFactor(0).setDepth(100);
     this.health=this.add.rectangle(w-220,32,160,8,0xb95d62).setOrigin(0,.5).setScrollFactor(0).setDepth(101);
-    const pause=this.add.text(w-34,68,'Ⅱ',{fontSize:'25px',color:'#d6c8b3'}).setOrigin(.5).setScrollFactor(0).setDepth(110).setInteractive();
+    const pause=this.add.text(w-34,68,'Ⅱ',{fontSize:'25px',color:'#d6c8b3'}).setOrigin(.5).setScrollFactor(0).setDepth(120).setInteractive();
     pause.on('pointerup',()=>this.openPause());
-    this.bossHud=this.add.text(w/2,56,'',{fontSize:'13px',color:'#e7c9a1',align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
-    this.add.rectangle(w/2,82,300,8,0x352d32).setScrollFactor(0).setDepth(109).setVisible(false);
-    this.bossHealth=this.add.rectangle(w/2-150,82,300,5,0xb94b5b).setOrigin(0,.5).setScrollFactor(0).setDepth(111).setVisible(false);
-    this.bossPhaseText=this.add.text(w/2,96,'',{fontSize:'11px',color:'#c8b69d'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
-    this.eventHud=this.add.text(w/2,122,'',{fontSize:'13px',color:'#d9c69d',backgroundColor:'#211b20',padding:{x:8,y:4},align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(112).setVisible(false);
+
+    this.bossPanel=this.add.rectangle(center,99,bossWidth,94,0x171319,.94).setStrokeStyle(1,0x8d6d55,.78).setScrollFactor(0).setDepth(108).setVisible(false);
+    this.bossHud=this.add.text(center,57,'',{fontFamily:'Georgia',fontSize:'15px',color:'#f0d5ad',align:'center',fontStyle:'bold'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.bossPhaseText=this.add.text(center,81,'',{fontFamily:'Arial',fontSize:'11px',color:'#d5c1a6',align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.bossHealthTrack=this.add.rectangle(bossLeft,108,bossBarWidth,7,0x45353b).setOrigin(0,.5).setScrollFactor(0).setDepth(109).setVisible(false);
+    this.bossHealth=this.add.rectangle(bossLeft,108,bossBarWidth,5,0xc85b68).setOrigin(0,.5).setScrollFactor(0).setDepth(111).setVisible(false);
+    this.bossHealthText=this.add.text(center,119,'',{fontFamily:'Arial',fontSize:'10px',color:'#e6d7c5',align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.bossHintText=this.add.text(center,137,'',{fontFamily:'Arial',fontSize:'10px',color:'#d6b985',align:'center',wordWrap:{width:bossWidth-24}}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
+
+    this.eventPanel=this.add.rectangle(center,205,eventWidth,82,0x171b20,.94).setStrokeStyle(1,0x657c75,.8).setScrollFactor(0).setDepth(108).setVisible(false);
+    this.eventTitleText=this.add.text(eventLeft,171,'',{fontFamily:'Georgia',fontSize:'13px',color:'#b9e1d4',fontStyle:'bold'}).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.eventObjectiveText=this.add.text(eventLeft,193,'',{fontFamily:'Arial',fontSize:'11px',color:'#e5dfd2'}).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.eventTimerText=this.add.text(eventLeft+eventBarWidth,193,'',{fontFamily:'Arial',fontSize:'11px',color:'#e7c68e'}).setOrigin(1,0).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.eventProgressTrack=this.add.rectangle(eventLeft,222,eventBarWidth,6,0x34413e).setOrigin(0,.5).setScrollFactor(0).setDepth(109).setVisible(false);
+    this.eventProgressFill=this.add.rectangle(eventLeft,222,eventBarWidth,4,0x83c9ad).setOrigin(0,.5).setScrollFactor(0).setDepth(111).setVisible(false);
+    this.eventHud=this.add.text(center,258,'',{fontSize:'12px',color:'#d9c69d',backgroundColor:'#211b20',padding:{x:8,y:4},align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(112).setVisible(false);
+
     this.questHudPanel=this.add.rectangle(198,160,352,82,0x171319,.86).setStrokeStyle(1,0x756653,.7).setScrollFactor(0).setDepth(98).setVisible(false);
     this.questHud=this.add.text(34,123,'',{fontFamily:'Arial',fontSize:'12px',color:'#e7dccb',lineSpacing:4,wordWrap:{width:326}}).setScrollFactor(0).setDepth(99).setVisible(false);
     this.environmentHud=this.add.text(w/2+118,22,'',{fontFamily:'Arial',fontSize:'12px',color:'#c9d2d6',align:'left'}).setOrigin(0,.5).setScrollFactor(0).setDepth(100);
-    this.environmentOverlay=this.add.rectangle(w/2,this.scale.height/2,w,this.scale.height,0xffffff,0).setScrollFactor(0).setDepth(90).setOrigin(.5);
-    this.environmentPhaseOverlay=this.add.rectangle(w/2,this.scale.height/2,w,this.scale.height,0xffffff,0).setScrollFactor(0).setDepth(89).setOrigin(.5);
+    this.environmentOverlay=this.add.rectangle(center,this.scale.height/2,w,this.scale.height,0xffffff,0).setScrollFactor(0).setDepth(90).setOrigin(.5);
+    this.environmentPhaseOverlay=this.add.rectangle(center,this.scale.height/2,w,this.scale.height,0xffffff,0).setScrollFactor(0).setDepth(89).setOrigin(.5);
     this.updateEnvironment(true);
+    this.refreshBossHud();
+    this.refreshRunEventHud();
     this.refreshHud();
   }
 
@@ -1434,10 +1472,10 @@ export class RunScene extends Phaser.Scene {
     const element=shot.getData('element') as ElementId|undefined;
     const result=damageBossArenaObject(this.bossArenaState,id,Number(shot.getData('damage')??0),element,this.time.now);
     this.bossArenaState=result.state;shot.destroy();
-    if(result.revealedObjectId)this.eventHud?.setText('GERÇEK MÜHÜR ORTAYA ÇIKTI  •  RUH VEYA KANLA KIR').setVisible(true);
-    else if(result.disabledUntil)this.eventHud?.setText('DİŞLİ DURDURULDU  •  '+Math.ceil((result.disabledUntil-this.time.now)/1000)+' SN').setVisible(true);
-    else if(result.destroyed)this.eventHud?.setText('ARENA MEKANİĞİ KIRILDI').setVisible(true);
-    else if(result.resisted)this.eventHud?.setText(this.bossArenaHint()).setVisible(true);
+    if(result.revealedObjectId){this.eventHud?.setText('GERÇEK MÜHÜR ORTAYA ÇIKTI  •  RUH VEYA KANLA KIR').setVisible(true);this.bossHintText?.setText('GERÇEK MÜHÜR AÇIĞA ÇIKTI  •  RUH VEYA KANLA KIR').setVisible(true);}
+    else if(result.disabledUntil){this.eventHud?.setText('DİŞLİ DURDURULDU  •  '+Math.ceil((result.disabledUntil-this.time.now)/1000)+' SN').setVisible(true);this.bossHintText?.setText('DİŞLİ DURDURULDU  •  DİĞER DİŞLİLERİ DE BUZLA DURDUR').setVisible(true);}
+    else if(result.destroyed){this.eventHud?.setText('ARENA MEKANİĞİ KIRILDI').setVisible(true);this.bossHintText?.setText('ARENA MEKANİĞİ KIRILDI  •  BOSS SAVUNMASI AZALDI').setVisible(true);}
+    else if(result.resisted){this.eventHud?.setText(this.bossArenaHint()).setVisible(true);this.bossHintText?.setText(this.bossArenaHint()).setVisible(true);}
     this.updateBossArenaVisuals();
     if(result.changed)this.cameras.main.shake(80,.0012);
   }
@@ -1459,8 +1497,7 @@ export class RunScene extends Phaser.Scene {
       this.bossArenaState=tick.state;
       if(tick.healing>0){
         const health=Math.min(this.bossState.maxHealth,this.bossState.health+tick.healing);
-        this.bossState={...this.bossState,health};this.bossSprite.setData('health',health);
-        this.bossHealth?.setSize(300*Phaser.Math.Clamp(health/this.bossState.maxHealth,0,1),5);
+        this.bossState={...this.bossState,health};this.bossSprite.setData('health',health);this.refreshBossHud();
       }
     }
     if(this.playerPoisonStacks>0){
@@ -1484,9 +1521,10 @@ export class RunScene extends Phaser.Scene {
      this.bossState=createBossEncounter(this.bossDefinition);
     const boss=this.enemies.create(this.player.x+330,this.player.y,'boss-'+this.bossDefinition.id) as Phaser.Physics.Arcade.Sprite;
     boss.setDepth(4).setCircle(32).setData('isBoss',true).setData('health',this.bossDefinition.health).setData('experience',80);
-    this.bossSprite=boss;this.bossSpawned=true;this.bossHud?.setText(this.bossDefinition.name).setVisible(true);this.bossHealth?.setVisible(true);this.bossPhaseText?.setText(this.bossDefinition.phases[0]!.name).setVisible(true);
+    this.bossSprite=boss;this.bossSpawned=true;this.refreshBossHud();
     this.bossArenaState=createBossArena(this.bossDefinition.id,this.runSeed);this.spawnBossArenaObjects(boss.x,boss.y);this.spawnBossTraces(boss.x,boss.y);
     this.eventHud?.setText(this.bossArenaHint()).setVisible(true);
+    this.bossHintText?.setText(this.bossArenaHint()).setVisible(true);
     this.cameras.main.flash(450,70,25,40);
   }
 
@@ -1778,9 +1816,9 @@ export class RunScene extends Phaser.Scene {
     const previousHealth=this.bossState.health;const transition=damageBoss(this.bossState,this.bossDefinition,damage,this.time.now);this.bossState=transition.state;
     boss.setData('health',transition.state.health).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(boss.active)boss.clearTint();});
-    if(transition.changed&&!transition.state.defeated){this.bossPhaseText?.setText(transition.current.name);this.bossArenaState=this.bossArenaState?transitionBossArenaPhase(this.bossArenaState,transition.state.phaseIndex):undefined;this.updateBossArenaVisuals();this.eventHud?.setText(this.bossArenaHint()).setVisible(true);this.cameras.main.flash(320,90,38,55);
+    if(transition.changed&&!transition.state.defeated){this.bossArenaState=this.bossArenaState?transitionBossArenaPhase(this.bossArenaState,transition.state.phaseIndex):undefined;this.updateBossArenaVisuals();this.eventHud?.setText(this.bossArenaHint()).setVisible(true);this.bossHintText?.setText(this.bossArenaHint()).setVisible(true);this.cameras.main.flash(320,90,38,55);
       for(const id of transition.current.addEnemyIds){if(this.enemies.countActive(true)>=42)break;const def=ENEMIES.find(e=>e.id===id);if(def)this.createEnemy(boss.x+Phaser.Math.Between(-90,90),boss.y+Phaser.Math.Between(-90,90),def,1.2);}}
-    this.bossHealth?.setSize(300*Phaser.Math.Clamp(transition.state.health/transition.state.maxHealth,0,1),5);
+    this.refreshBossHud();
     if(transition.state.defeated)this.defeatBoss(boss);
     return Math.max(0,previousHealth-transition.state.health);
   }
@@ -1792,7 +1830,7 @@ export class RunScene extends Phaser.Scene {
     if((this.gameMode==='survival'||this.gameMode==='endless')&&vessel?.kind==='boss-essence'&&isPassiveSpecialActive(this.build,'soul-vessel'))for(let i=0;i<vessel.fragmentCount;i++){const angle=(Math.PI*2*i)/vessel.fragmentCount;this.createRunEventObject(boss.x+Math.cos(angle)*48,boss.y+Math.sin(angle)*48,'essence-fragment',vessel.essencePerFragment);}
     this.bossVictoryPending=true;this.createRunEventObject(boss.x,boss.y,'boss-chest');
     this.bossArenaObjects.clear(true,true);this.bossArenaState=undefined;
-    boss.destroy();this.bossSprite=undefined;this.bossHud?.setText('BOSS YENİLDİ');this.bossPhaseText?.setText('Boss sandığına ulaş ve aç');
+    boss.destroy();this.bossSprite=undefined;this.bossHud?.setText('BOSS YENİLDİ');this.bossPhaseText?.setText('SANDIK ÖDÜLÜ BEKLİYOR');this.bossHintText?.setText('SAVAŞ TAMAMLANDI  •  BOSS SANDIĞINA ULAŞ VE AÇ');this.bossHealthTrack?.setVisible(false);this.bossHealth?.setVisible(false);this.bossHealthText?.setText('YENİLDİ').setVisible(true);
     this.eventHud?.setText('BOSS SANDIĞI  •  YAKLAŞARAK AÇ').setVisible(true);
     this.cameras.main.flash(500,175,135,72);
   }
@@ -1802,8 +1840,8 @@ export class RunScene extends Phaser.Scene {
     this.bossSpawned=false;this.bossState=undefined;this.bossDefinition=undefined;this.bossSprite=undefined;
     this.activeBossVariantId=null;this.bossElementState={};this.bossArenaState=undefined;
     this.bossArenaObjects.clear(true,true);this.bossTraceObjects.clear(true,true);
-    this.bossHud?.setText('SONSUZ BOSS DÖNGÜSÜ  •  '+this.endlessState.bossCyclesCompleted).setVisible(true);
-    this.bossHealth?.setVisible(false);this.bossPhaseText?.setText('Sonraki boss için hazırlık').setVisible(true);
+    this.bossPanel?.setVisible(true);this.bossHud?.setText('SONSUZ BOSS DÖNGÜSÜ  •  '+this.endlessState.bossCyclesCompleted).setVisible(true);
+    this.bossHealthTrack?.setVisible(false);this.bossHealth?.setVisible(false);this.bossHealthText?.setVisible(false);this.bossPhaseText?.setText('SONRAKİ BOSS İÇİN HAZIRLIK').setVisible(true);this.bossHintText?.setText('YENİ DÖNGÜ BAŞLIYOR').setVisible(true);
     const minutes=Math.ceil((this.endlessState.nextBossAtMs-this.state.elapsedMs)/60_000);
     this.eventHud?.setText('BOSS DÖNGÜSÜ '+this.endlessState.bossCyclesCompleted+' TAMAMLANDI  •  YENİ BOSS '+minutes+' DK SONRA').setVisible(true);
     this.refreshHud();
@@ -1837,6 +1875,7 @@ export class RunScene extends Phaser.Scene {
     this.runEventState=recordRunEventAction(this.runEventState,action,amount);
     const after=this.runEventState.activeEvent;
     if(before?.status==='active'&&after?.status==='completed')this.completeRunEvent(before.kind);
+    this.refreshRunEventHud();
   }
 
   private updateRunEvent(_time:number):void {
@@ -1854,6 +1893,7 @@ export class RunScene extends Phaser.Scene {
       const remaining=Math.max(0,Math.ceil((active.deadlineAtMs-this.state.elapsedMs)/1000));
       this.eventHud.setText(getRunEventName(active.kind)+'  •  '+getRunEventObjective(active)+'  •  '+remaining+' sn').setVisible(true);
     }
+    this.refreshRunEventHud();
   }
 
   private setupRunEvent():void {
@@ -1884,6 +1924,7 @@ export class RunScene extends Phaser.Scene {
     }
     this.eventSetupPending=false;
     this.eventHud?.setText(getRunEventName(active.kind)+' başladı').setVisible(true);
+    this.refreshRunEventHud();
   }
 
   private spawnExplorationPoints(save?:SaveData):void {
@@ -2112,6 +2153,7 @@ export class RunScene extends Phaser.Scene {
     const material=kind==='treasure-hunt'?CRAFTING_MATERIALS.find(item=>item.regionId===this.region.id):undefined;
     if(material)this.runCraftingMaterials[material.id]=(this.runCraftingMaterials[material.id]??0)+1;
     this.eventHud?.setText(getRunEventName(kind)+' tamamlandı  •  +'+reward+' Ruh Özü'+(relic?'  •  '+relic.name:'')+(material?'  •  +1 '+material.name:'')).setVisible(true);
+    this.refreshRunEventHud();
   }
 
   private recordQuestGameplayEvent(type:'enemy-kill'|'elite-kill'|'boss-defeat'|'run-event-complete',filter?:string):void {
@@ -2123,6 +2165,7 @@ export class RunScene extends Phaser.Scene {
   private failRunEvent(kind:RunEventKind):void {
     this.clearRunEventObjects();this.eventSetupPending=false;
     this.eventHud?.setText(getRunEventName(kind)+' başarısız').setVisible(true);
+    this.refreshRunEventHud();
   }
 
   private clearRunEventObjects():void {
@@ -2732,6 +2775,36 @@ export class RunScene extends Phaser.Scene {
     this.questHudPanel?.setVisible(true);
   }
 
+  private refreshBossHud():void {
+    const boss=this.bossDefinition,state=this.bossState;
+    if(!boss||!state){this.bossPanel?.setVisible(false);this.bossHud?.setVisible(false);this.bossPhaseText?.setVisible(false);this.bossHealthTrack?.setVisible(false);this.bossHealth?.setVisible(false);this.bossHealthText?.setVisible(false);this.bossHintText?.setVisible(false);return;}
+    const defeated=state.defeated;
+    this.bossPanel?.setVisible(true);this.bossHud?.setText(defeated?'BOSS YENİLDİ':boss.name).setVisible(true);
+    const phase=boss.phases[state.phaseIndex],phaseCount=boss.phases.length;
+    this.bossPhaseText?.setText(defeated?'SANDIK ÖDÜLÜ BEKLİYOR':'FAZ '+(state.phaseIndex+1)+' / '+phaseCount+'  •  '+(phase?.name??'')).setVisible(true);
+    const ratio=Phaser.Math.Clamp(state.health/state.maxHealth,0,1),trackWidth=this.bossHealthTrack?.width??0;
+    this.bossHealthTrack?.setVisible(!defeated);this.bossHealth?.setVisible(!defeated).setSize(trackWidth*ratio,5);
+    this.bossHealthText?.setText(defeated?'YENİLDİ':'CAN  '+Math.ceil(state.health)+' / '+Math.ceil(state.maxHealth)+'  •  '+Math.round(ratio*100)+'%').setVisible(true);
+    this.bossHintText?.setText(defeated?'SAVAŞ TAMAMLANDI  •  BOSS SANDIĞINA ULAŞ VE AÇ':this.bossArenaHint()).setVisible(true);
+  }
+
+  private refreshRunEventHud():void {
+    const active=this.runEventState.activeEvent;
+    if(!active){this.eventPanel?.setVisible(false);this.eventTitleText?.setVisible(false);this.eventObjectiveText?.setVisible(false);this.eventTimerText?.setVisible(false);this.eventProgressTrack?.setVisible(false);this.eventProgressFill?.setVisible(false);return;}
+    const targets:Record<RunEventKind,number>={'elite-invasion':2,'spirit-storm':4,'treasure-hunt':1,'hunter-trial':6,'cursed-wave':9};
+    const progress=active.kind==='cursed-wave'?(active.stage-1)*3+active.progress:active.progress;
+    const target=targets[active.kind],ratio=active.status==='completed'?1:Phaser.Math.Clamp(progress/target,0,1);
+    const remaining=Math.max(0,Math.ceil((active.deadlineAtMs-this.state.elapsedMs)/1000));
+    const clock=String(Math.floor(remaining/60)).padStart(2,'0')+':'+String(remaining%60).padStart(2,'0');
+    this.eventPanel?.setVisible(true);
+    this.eventTitleText?.setText(getRunEventName(active.kind).toLocaleUpperCase('tr-TR')).setVisible(true);
+    this.eventObjectiveText?.setText(active.status==='completed'?'HEDEF TAMAMLANDI':active.status==='failed'?'ETKİNLİK BAŞARISIZ':getRunEventObjective(active)).setVisible(true);
+    this.eventTimerText?.setText(active.status==='completed'?'TAMAMLANDI':active.status==='failed'?'SÜRE DOLDU':clock).setVisible(true);
+    const trackWidth=this.eventProgressTrack?.width??0;
+    this.eventProgressFill?.setVisible(true).setSize(trackWidth*ratio,4);
+    this.eventProgressTrack?.setVisible(true);
+  }
+
   private refreshHud():void {
     if(!this.hud||!this.clock||!this.health)return;
     const seconds=Math.floor(this.state.elapsedMs/1000);
@@ -2742,6 +2815,7 @@ export class RunScene extends Phaser.Scene {
     this.hud.setText(this.character.name+'  •  '+modeLabel+(endlessRule?'  •  '+endlessRule.name:'')+'  •  LV '+this.state.level+'\nXP '+Math.floor(this.state.experience)+' / '+this.state.experienceToNext+'  •  Düşman '+this.state.kills+'\n'+this.region.name+'  •  Silah '+this.build.weapons.length+'/6  •  Pasif '+this.build.passives.length+'/6\nE: '+this.character.activeAbility+'  •  '+(abilityRemaining>0?(abilityRemaining/1000).toFixed(1)+'s':'HAZIR'));
     this.health.setSize(160*Phaser.Math.Clamp(this.state.health/this.state.maxHealth,0,1),8);
     this.refreshQuestHud();
-    if(this.bossState){this.bossHud?.setVisible(true);this.bossHealth?.setVisible(true);this.bossHealth?.setSize(300*Phaser.Math.Clamp(this.bossState.health/this.bossState.maxHealth,0,1),5);}
+    if(this.bossState)this.refreshBossHud();
+    this.refreshRunEventHud();
   }
 }

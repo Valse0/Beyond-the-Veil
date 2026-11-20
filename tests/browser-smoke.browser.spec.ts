@@ -915,6 +915,39 @@ test('run results clearly report when browser storage refuses to save rewards', 
 });
 
 
+test('event HUD displays objective, live progress and remaining time in Phaser',async({page})=>{
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await startBrowserTestRun(page);
+  await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number,skipTimedSystems?:boolean)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestAdvanceElapsed(210_000);
+  });
+  const started=await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestHudSnapshot:()=>unknown}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run').browserTestHudSnapshot();
+  }) as {event:{visible:boolean;title:string;objective:string;timer:string;progressRatio:number}};
+  expect(started.event.visible).toBe(true);
+  expect(started.event.title.length).toBeGreaterThan(2);
+  expect(started.event.objective.length).toBeGreaterThan(3);
+  expect(started.event.timer).toMatch(/^00:/);
+  expect(started.event.progressRatio).toBe(0);
+  await completeBrowserTestEvent(page);
+  const completed=await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestHudSnapshot:()=>unknown}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run').browserTestHudSnapshot();
+  }) as {event:{visible:boolean;objective:string;timer:string;progressRatio:number}};
+  expect(completed.event.visible).toBe(true);
+  expect(completed.event.objective).toBe('HEDEF TAMAMLANDI');
+  expect(completed.event.timer).toBe('TAMAMLANDI');
+  expect(completed.event.progressRatio).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+
 test('timed run event starts, resolves its objective and awards persistent-run essence', async ({ page }) => {
   const pageErrors:string[]=[];
   page.on('pageerror',error=>pageErrors.push(error.message));
@@ -1085,6 +1118,36 @@ async function callBossArena(page:import('@playwright/test').Page,name:string,ar
     return action.apply(scene,values);
   },{method:name,values:args});
 }
+
+test('boss HUD displays health, phase progression and arena counter-hint in live Phaser combat',async({page})=>{
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await startBrowserTestRun(page);
+  await callBossArena(page,'browserTestSpawnBossForRegion',['cursed-forest',[]]);
+  const readHud=async()=>page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestHudSnapshot:()=>unknown}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run').browserTestHudSnapshot();
+  }) as Promise<{boss:{visible:boolean;title:string;phase:string;healthText:string;hint:string;health:number|null;maxHealth:number|null;barRatio:number}}>;
+  const initial=await readHud();
+  expect(initial.boss.visible).toBe(true);
+  expect(initial.boss.title).toBe('Diken Ana');
+  expect(initial.boss.phase).toContain('FAZ 1 / 3');
+  expect(initial.boss.healthText).toContain('5200 / 5200');
+  expect(initial.boss.hint).toContain('KÖK SÜTUNLARI');
+  expect(initial.boss.barRatio).toBeCloseTo(1);
+  await callBossArena(page,'browserTestDamageBoss',[1000]);
+  const damaged=await readHud();
+  expect(damaged.boss.health).toBeLessThan(initial.boss.health!);
+  expect(damaged.boss.barRatio).toBeLessThan(initial.boss.barRatio);
+  await callBossArena(page,'browserTestDamageBoss',[1000]);
+  const phaseTwo=await readHud();
+  expect(phaseTwo.boss.phase).toContain('FAZ 2 / 3');
+  expect(phaseTwo.boss.phase).not.toBe(initial.boss.phase);
+  expect(phaseTwo.boss.healthText).toContain('/');
+  expect(errors).toEqual([]);
+});
+
 
 test('all ten story boss variants are selected and applied in live Phaser boss encounters',async({page})=>{
   const cases=[
