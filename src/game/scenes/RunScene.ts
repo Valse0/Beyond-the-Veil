@@ -3044,7 +3044,7 @@ export class RunScene extends Phaser.Scene {
       unlockedRegionNames:saved?[...this.runNewlyUnlockedRegionNames]:[],saved
     };
     const ending=saved&&won?getEndingPresentation(this.runCompletedEndingId):null;
-    if(ending){this.showEndingPresentation(ending,challengeBonus);return;}
+    if(ending){this.showEndingPresentation(ending);return;}
     this.showRunResults();
   }
 
@@ -3133,7 +3133,7 @@ export class RunScene extends Phaser.Scene {
     this.overlayBackIndex=1;
   }
 
-  private showEndingPresentation(ending:EndingPresentation,challengeBonus:number):void {
+  private showEndingPresentation(ending:EndingPresentation):void {
     const w=this.scale.width,h=this.scale.height;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.94).setScrollFactor(0).setDepth(200);
     const panel=this.add.rectangle(w/2,h*.46,Math.min(920,w*.84),220,0x1a151d,.98).setStrokeStyle(2,0x987b52,.9).setScrollFactor(0).setDepth(201);
