@@ -672,7 +672,8 @@ export class RunScene extends Phaser.Scene {
     this.assertBrowserTestMode();
     const gate=this.eventObjects.getChildren().find(object=>object.getData('eventObjectType')==='story-path-gate'&&object.getData('storyPathId')===pathId) as Phaser.GameObjects.GameObject&{x:number;y:number}|undefined;
     if(!gate)throw new Error('The requested unlocked story path is not present: '+pathId);
-    this.player.setPosition(gate.x,gate.y).setVelocity(0,0);
+    this.player.setPosition(gate.x,gate.y);
+    (this.player.body as Phaser.Physics.Arcade.Body).reset(gate.x,gate.y);
   }
 
   browserTestMoveToBossChest():void {
@@ -1769,7 +1770,8 @@ export class RunScene extends Phaser.Scene {
       (object.getData('eventObjectLabel') as Phaser.GameObjects.GameObject|undefined)?.destroy();
       object.destroy();
       const destination=resolveRegionMapPosition(this.mapLayout,path.destination.x,path.destination.y,28);
-      this.player.setPosition(destination.x,destination.y).setVelocity(0,0);
+      this.player.setPosition(destination.x,destination.y);
+      (this.player.body as Phaser.Physics.Arcade.Body).reset(destination.x,destination.y);
       this.eventHud?.setText('HİKÂYE YOLU AÇILDI  •  '+path.name.toLocaleUpperCase('tr-TR')).setVisible(true);
       return;
     }
