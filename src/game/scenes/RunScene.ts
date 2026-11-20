@@ -1654,7 +1654,7 @@ export class RunScene extends Phaser.Scene {
     this.recordQuestGameplayEvent('boss-defeat');
     this.dropExperience(boss,80);this.runSoulEssence+=this.bossDefinition?.reward.soulEssence??0;
     const vessel=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='boss-essence')?.specialUpgrade.mechanic;
-    if(vessel?.kind==='boss-essence'&&isPassiveSpecialActive(this.build,'soul-vessel'))for(let i=0;i<vessel.fragmentCount;i++){const angle=(Math.PI*2*i)/vessel.fragmentCount;this.createRunEventObject(boss.x+Math.cos(angle)*48,boss.y+Math.sin(angle)*48,'essence-fragment',vessel.essencePerFragment);}
+    if(this.gameMode==='survival'&&vessel?.kind==='boss-essence'&&isPassiveSpecialActive(this.build,'soul-vessel'))for(let i=0;i<vessel.fragmentCount;i++){const angle=(Math.PI*2*i)/vessel.fragmentCount;this.createRunEventObject(boss.x+Math.cos(angle)*48,boss.y+Math.sin(angle)*48,'essence-fragment',vessel.essencePerFragment);}
     this.bossVictoryPending=true;this.createRunEventObject(boss.x,boss.y,'boss-chest');
     this.bossArenaObjects.clear(true,true);this.bossArenaState=undefined;
     boss.destroy();this.bossSprite=undefined;this.bossHud?.setText('BOSS YENİLDİ');this.bossPhaseText?.setText('Boss sandığına ulaş ve aç');
@@ -2518,7 +2518,7 @@ export class RunScene extends Phaser.Scene {
     const seconds=Math.floor(this.state.elapsedMs/1000);
     this.clock.setText(String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0'));
     const abilityRemaining=Math.max(0,this.abilityReady-this.time.now);
-    this.hud.setText(this.character.name+'  •  LV '+this.state.level+'\nXP '+Math.floor(this.state.experience)+' / '+this.state.experienceToNext+'  •  Düşman '+this.state.kills+'\n'+this.region.name+'  •  Silah '+this.build.weapons.length+'/6  •  Pasif '+this.build.passives.length+'/6\nE: '+this.character.activeAbility+'  •  '+(abilityRemaining>0?(abilityRemaining/1000).toFixed(1)+'s':'HAZIR'));
+    this.hud.setText(this.character.name+'  •  '+(this.gameMode==='boss-hunt'?'BOSS HUNT':'SURVIVAL')+'  •  LV '+this.state.level+'\nXP '+Math.floor(this.state.experience)+' / '+this.state.experienceToNext+'  •  Düşman '+this.state.kills+'\n'+this.region.name+'  •  Silah '+this.build.weapons.length+'/6  •  Pasif '+this.build.passives.length+'/6\nE: '+this.character.activeAbility+'  •  '+(abilityRemaining>0?(abilityRemaining/1000).toFixed(1)+'s':'HAZIR'));
     this.health.setSize(160*Phaser.Math.Clamp(this.state.health/this.state.maxHealth,0,1),8);
     if(this.bossState){this.bossHud?.setVisible(true);this.bossHealth?.setVisible(true);this.bossHealth?.setSize(300*Phaser.Math.Clamp(this.bossState.health/this.bossState.maxHealth,0,1),5);}
   }
