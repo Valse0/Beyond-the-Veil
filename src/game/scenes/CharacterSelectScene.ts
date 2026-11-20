@@ -178,7 +178,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: `${fontSize}px`,
       color: disabled ? '#77727a' : '#f2e8d4',
       backgroundColor: disabled ? '#29262a' : '#5b3d32',
-      padding: { x: 18, y: 13 }
+      padding: { x: 18, y: height > 46 ? 28 : 13 }
     }).setInteractive({ useHandCursor: !disabled });
     button.setFixedSize(width, height);
     if (!disabled) {
