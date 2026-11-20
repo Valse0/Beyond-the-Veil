@@ -42,6 +42,7 @@ import type { SaveData } from '../../systems/save/save-types.js';
 import { areQuestObjectivesComplete, chooseQuestBranch, recordQuestEvent, startAvailableQuests } from '../../gameplay/quests/quest-runtime.js';
 import { QUESTS, QUEST_BY_ID } from '../../data/quests.js';
 import { completeEnding } from '../../gameplay/endings/ending-runtime.js';
+import { getEndingPresentation, type EndingPresentation } from '../../gameplay/endings/ending-presentation.js';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
 import { createLevelUpControlState, drawLevelUpChoices as drawChoicesFromPool, spendLevelUpBanish, spendLevelUpReroll, spendLevelUpSkip, type LevelUpControlState } from '../../gameplay/level-up/level-up-controls.js';
 import { derivePermanentUpgradeEffects, type PermanentUpgradeEffects } from '../../gameplay/progression/permanent-upgrades.js';
@@ -190,6 +191,7 @@ export class RunScene extends Phaser.Scene {
   private runFinished=false;
   private runSoulEssence=0;
   private lastRunSaved:boolean|null=null;
+  private runCompletedEndingId:string|null=null;
   private basePowerBonus=0;
   private baseMagnetBonus=0;
   private baseHasteMultiplier=1;
@@ -2937,10 +2939,12 @@ export class RunScene extends Phaser.Scene {
     if(this.gameMode==='endless'&&!won)this.runSoulEssence+=getEndlessSurvivalReward(this.state.elapsedMs,this.endlessState.bossCyclesCompleted);
     this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
     const saved=this.persistRunResult(won);this.lastRunSaved=saved;
+    const challengeBonus=this.gameMode==='challenge'&&won&&this.bossChestOpened?getChallengeVictoryBonus(this.challengeId,won,this.bossChestOpened):0;
+    const ending=saved&&won?getEndingPresentation(this.runCompletedEndingId):null;
+    if(ending){this.showEndingPresentation(ending,challengeBonus);return;}
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.9).setScrollFactor(0).setDepth(200);
     const title=this.add.text(w/2,h*.29,won?(this.gameMode==='boss-hunt'?'BOSS HUNT TAMAMLANDI':this.gameMode==='challenge'?'MEYDAN OKUMA TAMAMLANDI':'KOŞU TAMAMLANDI'):'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
-    const challengeBonus=this.gameMode==='challenge'&&won&&this.bossChestOpened?getChallengeVictoryBonus(this.challengeId,won,this.bossChestOpened):0;
-    const summary=this.add.text(w/2,h*.43,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman\n+'+(this.runSoulEssence+challengeBonus)+' RUH ÖZÜ'+(challengeBonus?'\nMEYDAN OKUMA ÖDÜLÜ +'+challengeBonus:'')+'\n'+(saved?'İLERLEME KAYDEDİLDİ':'KAYIT BAŞARISIZ — İLERLEME KORUNAMADI'),{fontSize:'16px',color:saved?'#c0b5a8':'#e29a8d',align:'center',lineSpacing:7}).setOrigin(.5).setScrollFactor(0).setDepth(201);
+    const summary=this.add.text(w/2,h*.43,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman\\n+'+(this.runSoulEssence+challengeBonus)+' RUH ÖZÜ'+(challengeBonus?'\\nMEYDAN OKUMA ÖDÜLÜ +'+challengeBonus:'')+'\\n'+(saved?'İLERLEME KAYDEDİLDİ':'KAYIT BAŞARISIZ — İLERLEME KORUNAMADI'),{fontSize:'16px',color:saved?'#c0b5a8':'#e29a8d',align:'center',lineSpacing:7}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     this.overlay.push(shade,title,summary);
     this.createOverlayButton(w/2,h*.62,260,54,'YENİ KOŞU',()=>this.scene.restart({characterId:this.character.id,regionId:this.region.id,gameMode:this.gameMode,challengeId:this.challengeId??undefined}));
     this.createOverlayButton(w/2,h*.73,260,54,'ANA MENÜ',()=>this.scene.start('main-menu'));
@@ -2948,6 +2952,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private persistRunResult(won:boolean):boolean {
+    this.runCompletedEndingId=null;
     const manager=this.registry.get('saveManager') as SaveManager|undefined;
     if(!manager)return false;
     try {
@@ -2960,12 +2965,30 @@ export class RunScene extends Phaser.Scene {
       const runResult=applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,bossChestOpened:this.bossChestOpened,completedTreasureHunt:this.completedTreasureHunt,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length,enemyIdsEarned:this.runDiscoveredEnemyIds,weaponIdsEarned:this.runDiscoveredWeaponIds,loreIdsEarned:this.runDiscoveredLoreIds,discoveredPathIdsEarned:this.runDiscoveredPathIds,challengeId:this.gameMode==='challenge'?this.challengeId??undefined:undefined});
       const questStory=this.questSaveData?.story;
       const mergedSave={...runResult,story:{...runResult.story,...(questStory??{}),unlockedPathIds:[...new Set([...runResult.story.unlockedPathIds,...(questStory?.unlockedPathIds??[])])],completedEndingId:runResult.story.completedEndingId??questStory?.completedEndingId??null}};
+      const previousCompletedEndingId=loaded.data.story.completedEndingId;
       const completedSave=completeEnding(mergedSave,{regionId:this.region.id,bossId:this.bossDefinition?.id??'',victory:won&&this.bossChestOpened});
       manager.save(recordCompletedEnding(completedSave));
+      if(previousCompletedEndingId===null)this.runCompletedEndingId=completedSave.story.completedEndingId;
       return true;
     } catch {
       return false;
     }
+  }
+
+  private showEndingPresentation(ending:EndingPresentation,challengeBonus:number):void {
+    const w=this.scale.width,h=this.scale.height;
+    const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.94).setScrollFactor(0).setDepth(200);
+    const panel=this.add.rectangle(w/2,h*.46,Math.min(920,w*.84),220,0x1a151d,.98).setStrokeStyle(2,0x987b52,.9).setScrollFactor(0).setDepth(201);
+    const eyebrow=this.add.text(w/2,h*.12,ending.eyebrow,{fontFamily:'Arial',fontSize:'13px',color:'#b99b6d',letterSpacing:3}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+    const title=this.add.text(w/2,h*.21,ending.title,{fontFamily:'Georgia',fontSize:'36px',fontStyle:'bold',color:'#f0dfbd'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+    const choice=this.add.text(w/2,h*.30,ending.choiceLabel,{fontFamily:'Arial',fontSize:'13px',fontStyle:'bold',color:'#d4b783',letterSpacing:1}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+    const story=this.add.text(w/2,h*.405,ending.story,{fontFamily:'Georgia',fontSize:'18px',color:'#e0d5c6',align:'center',lineSpacing:9,wordWrap:{width:Math.min(820,w*.74),useAdvancedWrap:true}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+    const epilogue=this.add.text(w/2,h*.555,ending.epilogue,{fontFamily:'Georgia',fontSize:'16px',fontStyle:'italic',color:'#c4b29b',align:'center',wordWrap:{width:Math.min(820,w*.74),useAdvancedWrap:true}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+    const summary=this.add.text(w/2,h*.69,'SEVİYE '+this.state.level+'  •  '+this.state.kills+' DÜŞMAN  •  +'+(this.runSoulEssence+challengeBonus)+' RUH ÖZÜ\\nHİKÂYE KAYDEDİLDİ  •  NEW GAME+ AÇILDI',{fontFamily:'Arial',fontSize:'14px',color:'#c9bea9',align:'center',lineSpacing:8}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+    this.overlay.push(shade,panel,eyebrow,title,choice,story,epilogue,summary);
+    this.createOverlayButton(w*.37,h*.84,300,52,'YENİDEN OYNA',()=>this.scene.restart({characterId:this.character.id,regionId:this.region.id,gameMode:this.gameMode,challengeId:this.challengeId??undefined}));
+    this.createOverlayButton(w*.66,h*.84,330,52,'ANA MENÜ  •  NG+',()=>this.scene.start('main-menu'));
+    this.overlayBackIndex=1;
   }
 
   private clearOverlay():void {this.overlay.forEach(o=>o.destroy());this.overlay=[];this.overlayButtons=[];this.overlayActions=[];this.overlaySelectionIndex=0;this.overlayBackIndex=null;}
