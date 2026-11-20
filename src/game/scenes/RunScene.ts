@@ -369,7 +369,7 @@ export class RunScene extends Phaser.Scene {
     paused:boolean;bossSpawned:boolean;bossVariantId:string|null;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
     runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;bossMaxHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
     questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
-    questChoice:{questId:string;choiceIds:string[]}|null;questTrackerText:string;
+    questChoice:{questId:string;choiceIds:string[]}|null;questChoiceTexts:string[];questTrackerText:string;
     discoveredLoreIds:string[];discoveredPathIds:string[];explorationLandmarks:{id:string;kind:string;name:string;description:string;motif:string;decorationVisible:boolean}[];availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
     storyWorldState:{npcId:string|null;npcName:string|null;npcFateId:string|null;npcFateLabel:string|null;atmosphereId:string|null;atmosphereName:string|null;renderedObjectCount:number};
     passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
