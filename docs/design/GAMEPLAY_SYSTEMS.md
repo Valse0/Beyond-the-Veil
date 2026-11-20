@@ -195,12 +195,12 @@ CI #347 (44605954212) verifies all 24 alternate evolution paths: TypeScript, 175
 - Outcomes persist NPC fates, regional atmosphere variants, hidden-path IDs, boss-encounter variants, reward IDs, alternate quest unlocks and, in the final quest, one of two endings.
 - Authored Ruh Özü and valid story-archive lore rewards are applied once. Quest progress belongs to the persistent profile, not a run.
 - Save schema v9 migrates v8 saves without discarding existing profile progression, collections or settings.
-- Quest journal, dialogue presentation, live world-event dispatch, path geometry changes, boss-variant consumption and ending scenes remain later integration work; this package is the rules/data/persistence foundation.
+- Quest journal and broader story-archive presentation, dialogue presentation, live world-event dispatch, dynamic path geometry changes, boss-variant consumption and ending scenes remain later integration work; the rules/data/persistence foundation is now connected to an in-run branch-choice interaction.
 
 
 ## Quest event integration v1
 
-Quest objectives now declare the gameplay event that advances them: ordinary enemy defeats, elite defeats, boss defeats, or completed run events (optionally filtered to a specific event kind). The Phaser run scene starts currently available quests for the active region, records these events through the quest runtime, and merges persistent quest progress into the normal run-result save. Progress survives defeat and reload; it is not tied to a single run. Branch selection, journal/dialogue UI, world-path consumption, boss-variant consumption and ending scenes remain separate future work.
+Quest objectives now declare the gameplay event that advances them: ordinary enemy defeats, elite defeats, boss defeats, or completed run events (optionally filtered to a specific event kind). The Phaser run scene starts currently available quests for the active region, records these events through the quest runtime, and merges persistent quest progress into the normal run-result save. Progress survives defeat and reload; it is not tied to a single run. In-run branch selection is now connected to the quest runtime and immediate local save; the quest journal/dialogue presentation, world-path consumption, boss-variant consumption and ending scenes remain separate future work.
 
 
 ## Region exploration points v1
@@ -357,4 +357,4 @@ No final UI art, balance sign-off, or physical-device validation is claimed by t
 - Choice cards support pointer/touch, keyboard arrows plus Enter/Space, and the existing D-pad/left-stick plus confirm overlay navigation. The first option receives initial focus; Escape/back is intentionally unavailable for a permanent story decision.
 - The selected outcome is applied through the existing quest runtime, including NPC fate, regional atmosphere, path IDs, boss encounter IDs, reward IDs, alternate quest unlocks, ending selection and authored Ruh Özü/lore rewards. The updated story state is written immediately through the local SaveManager before gameplay resumes; failed writes leave the decision open for retry.
 - Newly unlocked story quests for the current region are started after the parent choice. Existing save schema and quest IDs remain unchanged. No dependency, backend, final art or long-form dialogue/cutscene was added.
-- Browser coverage verifies the tracker, objective lock, paused choice presentation, keyboard selection, outcome fields, Ruh Özü award and reload persistence. CI verification pending.
+- CI #434 (run `44711659596`, commit `cd5169dbc525e0c0a108109589cba1d7b3b05fbe`) verifies TypeScript, 253/253 unit tests, production build, Chromium Playwright 44/44 and npm audit (0 vulnerabilities). The live browser scenario verifies the tracker, objective lock, paused choice presentation, keyboard selection, NPC/atmosphere/path/boss/reward outcomes, Ruh Özü award and reload persistence.
