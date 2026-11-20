@@ -1868,7 +1868,7 @@ test('quest journal reads saved branches, regional state and ending history from
   expect(graveyard.selected.npcFateLabel).toBe('RUHLARLA BİRLİKTE ARINDI');
   expect(graveyard.selected.atmosphereName).toBe('Huzurlu Mezarlık');
   expect(graveyard.selected.bossVariantName).toBeTruthy();
-  expect(graveyard.selected.unlockedPathNames).toContain('Sessiz Kapı');
+  expect(graveyard.selected.unlockedPathNames).toContain('Sessiz Ruh Kapısı');
   expect(graveyard.selected.discoveredLoreIds).toContain('forgotten-graveyard-lore');
 
   await page.keyboard.press('Escape');

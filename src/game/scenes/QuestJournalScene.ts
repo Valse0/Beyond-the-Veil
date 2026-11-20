@@ -256,8 +256,7 @@ export class QuestJournalScene extends Phaser.Scene {
       const bg = this.add.rectangle(180, y, 238, 76, selected ? 0x463344 : 0x28212a, 0.98)
         .setStrokeStyle(selected ? 3 : 1, selected ? 0xf0d39a : 0x756653, 0.9)
         .setInteractive({ useHandCursor: true });
-      bg.on('pointerover', () => this.selectRegion(index));
-      bg.on('pointerup', () => this.selectRegion(index));
+            bg.on('pointerup', () => this.selectRegion(index));
       this.add.text(82, y - 17, item.name, {
         fontFamily: 'Georgia, serif', fontSize: '17px', color: selected ? '#fff0ce' : '#ded2c2'
       });
@@ -278,10 +277,10 @@ export class QuestJournalScene extends Phaser.Scene {
 
     const selected = snapshot.selected;
     const npcLine = selected.unlocked
-      ? (selected.npcName ?? 'Bölge sakini') + ': ' + (selected.npcFateLabel ?? 'KADERİ BELİRSİZ')
+      ? (selected.npcName ?? 'Bölge sakini') + ': ' + (selected.npcFateLabel ?? 'KADERİ BELİRSİZ') + ' — ' + (selected.npcFateDescription ?? '')
       : 'Bu bölgenin hikâye kayıtları henüz erişilebilir değil.';
     const atmosphereLine = selected.unlocked
-      ? 'Bölge durumu: ' + (selected.atmosphereName ?? 'Henüz değişmedi') +
+      ? 'Bölge durumu: ' + (selected.atmosphereName ?? 'Henüz değişmedi') + ' — ' + (selected.atmosphereDescription ?? '') +
         '   •   Boss: ' + (selected.bossVariantName ?? 'Temel karşılaşma')
       : 'Bölge açıldığında NPC kaderi, atmosfer ve boss kayıtları burada görünecek.';
     this.add.rectangle(785, 246, 850, 68, 0x211b24, 0.96).setStrokeStyle(1, 0x756653, 0.45);
@@ -352,7 +351,7 @@ export class QuestJournalScene extends Phaser.Scene {
           ? 'Önceki hikâye adımı tamamlandığında açılır.'
           : quest.status === 'region-locked'
             ? 'Bu bölge açılana kadar görev gizli kalır.'
-            : 'Hikâye kararı bekleniyor.';
+            : 'Hedefleri tamamla; ardından hikâye kararını verebilirsin.';
     this.add.text(x + 18, y + 67, objectiveLines.join('\n') + '\n' + branchLine, {
       fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#d1c6b9',
       lineSpacing: 3, wordWrap: { width: 810 }
