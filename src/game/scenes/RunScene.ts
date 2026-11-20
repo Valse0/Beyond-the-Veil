@@ -764,7 +764,7 @@ export class RunScene extends Phaser.Scene {
     const mapDrawing=this.add.graphics().setDepth(-4);mapDrawing.lineStyle(7,0x756653,.38);
     for(const room of this.mapLayout.rooms){mapDrawing.strokeEllipse(room.x,room.y,room.radiusX*2,room.radiusY*2);}
     mapDrawing.lineStyle(9,0x756653,.24);
-    for(const corridor of this.mapLayout.corridors){const from=this.mapLayout.rooms.find(room=>room.id===corridor.from)!;const to=this.mapLayout.rooms.find(room=>room.id===corridor.to)!;mapDrawing.beginPath();mapDrawing.moveTo(from.x,from.y);mapDrawing.quadraticBezierTo(corridor.controlX,corridor.controlY,to.x,to.y);mapDrawing.strokePath();}
+    for(const corridor of this.mapLayout.corridors){const from=this.mapLayout.rooms.find(room=>room.id===corridor.from)!;const to=this.mapLayout.rooms.find(room=>room.id===corridor.to)!;mapDrawing.beginPath();mapDrawing.moveTo(from.x,from.y);for(let step=1;step<=24;step++){const t=step/24,u=1-t;mapDrawing.lineTo(u*u*from.x+2*u*t*corridor.controlX+t*t*to.x,u*u*from.y+2*u*t*corridor.controlY+t*t*to.y);}mapDrawing.strokePath();}
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
     const floor=this.add.graphics();floor.fillStyle(0x19171d,1);floor.fillRect(0,0,WORLD_W,WORLD_H);
     floor.lineStyle(1,0x3a3337,0.12);

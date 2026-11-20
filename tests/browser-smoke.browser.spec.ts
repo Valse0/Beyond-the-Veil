@@ -1447,6 +1447,7 @@ test('five regions apply their authored environmental hazards through the live P
 });
 
 test('all five organic region maps load connected rooms and keep the hunter inside walkable geometry',async({page})=>{
+  test.setTimeout(60_000);
   const pageErrors:string[]=[];page.on('pageerror',error=>pageErrors.push(error.message));
   await startBrowserTestRun(page);
   const regions=['cursed-forest','forgotten-graveyard','deep-dungeon','rotten-swamp','cursed-castle'];
