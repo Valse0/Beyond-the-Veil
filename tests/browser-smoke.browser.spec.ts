@@ -600,6 +600,97 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
 });
 
 
+
+test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaﬀordable crafts and persists after reload', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    if (window.sessionStorage.getItem('bv-blacksmith-fixture-seeded') === '1') return;
+    window.sessionStorage.setItem('bv-blacksmith-fixture-seeded', '1');
+    window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
+      schemaVersion: 11,
+      profile: { createdAt: '2026-11-19T00:00:00.000Z', updatedAt: '2026-11-19T00:00:00.000Z' },
+      progression: {
+        soulEssence: 500, completedRuns: 0, newGamePlusLevel: 0, completedEndingIds: [],
+        unlockedCharacterIds: ['cursed-hunter'], unlockedRegionIds: ['cursed-forest'],
+        completedDifficulties: {}, permanentUpgrades: {},
+        equippedRelicIds: [], equipmentProfiles: {}, activeEquipmentProfileIds: {}
+      },
+      collections: {
+        characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: [],
+        craftingMaterials: { 'living-root': 2 }, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [],
+        achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [],
+        achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [],
+        discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: []
+      },
+      story: {
+        quests: {}, npcFates: {}, regionAtmospheres: {}, unlockedPathIds: [], bossEncounterIds: [],
+        unlockedRewardIds: [], unlockedAlternateQuestIds: [], endingId: null, completedEndingId: null,
+        appliedOutcomeIds: []
+      },
+      settings: {}
+    }));
+  });
+
+  const openBlacksmith = async () => {
+    await page.mouse.click(430, 535);
+    await page.waitForFunction(() => {
+      const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+      return Boolean(game?.scene.isActive('hunter-hub'));
+    });
+    for (let index = 0; index < 6; index += 1) {
+      await page.keyboard.press('ArrowDown');
+      await page.waitForTimeout(35);
+    }
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(100);
+  };
+
+  await page.goto('/?bv-test=1');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  await openBlacksmith();
+  const blacksmithView = await canvas.screenshot();
+  expect(blacksmithView.length).toBeGreaterThan(1_000);
+
+  // Pointer activation is the same path used by touch on the recipe card.
+  await page.mouse.click(1158, 171);
+  await expect.poll(async () => page.evaluate(() => {
+    const save = JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!);
+    return {
+      essence: save.progression.soulEssence,
+      materials: save.collections.craftingMaterials,
+      variants: save.collections.unlockedWeaponVariantIds
+    };
+  })).toEqual({ essence: 360, materials: {}, variants: ['briar-seed-verdant-variant'] });
+
+  await page.reload();
+  await expect(canvas).toBeVisible();
+  await openBlacksmith();
+
+  // A crafted recipe and a recipe missing its regional material must both be inert.
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => page.evaluate(() => {
+    const save = JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!);
+    return {
+      essence: save.progression.soulEssence,
+      materials: save.collections.craftingMaterials,
+      variants: save.collections.unlockedWeaponVariantIds
+    };
+  })).toEqual({ essence: 360, materials: {}, variants: ['briar-seed-verdant-variant'] });
+
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(60);
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('main-menu'));
+  });
+  expect(pageErrors).toEqual([]);
+});
+
 test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({

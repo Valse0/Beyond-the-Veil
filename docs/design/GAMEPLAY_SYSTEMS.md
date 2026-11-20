@@ -93,7 +93,7 @@ Five region-bound materials are awarded only when the run's treasure-hunt event 
 
 Five recipes each consume two matching regional materials and a region-tuned amount of Ruh Özü. A successful craft is a single validated save transaction: costs are deducted and one permanent weapon-variant ID is unlocked together; insufficient resources, unknown recipes and repeat crafts do not spend anything.
 
-Crafted variants enhance the corresponding weapon's Yayılım branch when that branch is selected during a run. The ordinary two-branch choice remains intact; a crafted variant adds its authored modifiers to the selected branch. Variant ownership and material counts are stored in save schema v4. The crafting runtime is independent of Phaser; the player-facing Blacksmith/Relic Master service and crafting UI remain a later UI task.
+Crafted variants enhance the corresponding weapon's Yayılım branch when that branch is selected during a run. The ordinary two-branch choice remains intact; a crafted variant adds its authored modifiers to the selected branch. Variant ownership and material counts are stored in the current save schema v11; legacy profiles migrate forward without losing existing progress. The crafting runtime remains independent of Phaser. Blacksmith Service v1 now exposes all five recipes in Hunter Hub, shows each recipe's Ruh Özü/material requirements and owned balances, and uses the existing atomic SaveManager craft transaction. The Relic Master/equipment service remains a later UI task.
 
 
 ## Character mastery v1
@@ -397,3 +397,8 @@ No final UI art, balance sign-off, or physical-device validation is claimed by t
 - With an area-focused profile, eligible pursuers, swarmers, volatile bombers, wraiths and frost hunters repel nearby allies within 132 px. With a precision-focused profile, those same eligible behaviors strafe around the player at 120–360 px. Both tactics preserve current movement speed and do not interrupt an enemy's attack or special telegraph. Temporary DAĞIL and YAN ADIM markers identify the active tactic.
 - Bosses, elites, summoned minions and enemies not created by regular waves are excluded. No save migration, dependencies, backend, paid services or final art were added.
 - CI #452 (run `44776961342`, attempt 2, code commit `df78c94f0f736a599d41ca05caa505e703bdea16`) passed TypeScript, 265/265 unit tests, production build, Chromium Playwright 50/50 and npm audit with 0 vulnerabilities. The live browser probe verifies area separation, precision strafing, the 15% elemental shield and exclusion of elites/summons.
+
+
+## Blacksmith Service v1
+
+The Hunter Hub's Demirci entry opens a dedicated in-scene service view. All five existing recipes show their weapon, region, description, Ruh Özü cost, matching material requirement and the player's current balances. A recipe is actionable only when its costs are met and its permanent variant is not already unlocked; completed recipes show an unlocked state. Crafting delegates to `SaveManager.craftRecipe()`, which validates and persists the resource deduction and variant unlock together. Keyboard arrows/Enter/Space, gamepad D-pad/left-stick/A, pointer and touch activation share the same selection/action flow; Escape/B returns to the Hunter Hub. No save-schema change, new dependency or separate crafting implementation is introduced. The Alchemist, Relic Master, merchants, final art/audio and physical-device QA remain future work.

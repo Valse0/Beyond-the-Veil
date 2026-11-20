@@ -1,15 +1,24 @@
 import Phaser from 'phaser';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { PERMANENT_UPGRADES, getPermanentUpgradeCost } from '../../gameplay/progression/permanent-upgrades.js';
+import { CRAFTING_MATERIALS, CRAFTING_RECIPES } from '../../data/crafting.js';
+import { REGIONS } from '../../data/regions.js';
+import { WEAPONS } from '../../data/weapons.js';
 
 const UPGRADES = PERMANENT_UPGRADES;
 
 export class HunterHubScene extends Phaser.Scene {
+  private currentScreen: 'hub' | 'blacksmith' = 'hub';
   private essenceText?: Phaser.GameObjects.Text;
   private levelTexts: Map<string, Phaser.GameObjects.Text> = new Map();
   private costTexts: Map<string, Phaser.GameObjects.Text> = new Map();
   private buttonBgs: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private buttonTexts: Map<string, Phaser.GameObjects.Text> = new Map();
+  private blacksmithEntryButton?: Phaser.GameObjects.Text;
+  private blacksmithRecipeButtons: Map<string, Phaser.GameObjects.Rectangle> = new Map();
+  private blacksmithRecipeLabels: Map<string, Phaser.GameObjects.Text> = new Map();
+  private blacksmithStatusText?: Phaser.GameObjects.Text;
+  private blacksmithSelection = 0;
   private respecButton?: Phaser.GameObjects.Text;
   private respecDialog?: Phaser.GameObjects.Container;
   private respecDialogStatus?: Phaser.GameObjects.Text;
@@ -25,110 +34,13 @@ export class HunterHubScene extends Phaser.Scene {
   }
 
   create(): void {
-    const width = this.scale.width;
-    const height = this.scale.height;
-    this.cameras.main.setBackgroundColor('#0b0b10');
-    this.levelTexts.clear();
-    this.costTexts.clear();
-    this.buttonBgs.clear();
-    this.buttonTexts.clear();
-    this.selectedIndex = 0;
-    this.respecDialog = undefined;
-    this.respecDialogStatus = undefined;
-    this.respecCancelBg = undefined;
-    this.respecConfirmBg = undefined;
-    this.respecDialogSelection = 'cancel';
-    this.previousPad = { up: false, down: false, left: false, right: false, confirm: false, back: false };
-
-    const backdrop = this.add.graphics();
-    backdrop.fillStyle(0x17131c, 1);
-    backdrop.fillCircle(width * 0.5, height * 0.4, 380);
-    backdrop.lineStyle(1, 0xb99a61, 0.25);
-    backdrop.strokeCircle(width * 0.5, height * 0.4, 340);
-
-    this.add.text(64, 42, 'AVCI KARARGAHI', {
-      fontFamily: 'Georgia, serif', fontSize: '36px', color: '#e9dfcb', fontStyle: 'bold'
-    });
-    this.add.text(67, 88, 'Topladığın Ruh Özü ile kalıcı mühürleri ve avcı yeteneklerini geliştir.', {
-      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#b8aaa0'
-    });
-
     this.navKeys = this.input.keyboard!.addKeys('UP,DOWN,LEFT,RIGHT,ENTER,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
-
-    this.essenceText = this.add.text(width - 64, 52, '', {
-      fontFamily: 'Georgia, serif', fontSize: '24px', color: '#f0d9b5', fontStyle: 'bold'
-    }).setOrigin(1, 0);
-
-    const startY = 145;
-    const cardHeight = 72;
-    const cardWidth = width - 128;
-    const leftX = 64;
-
-    UPGRADES.forEach((upgrade, index) => {
-      const y = startY + index * (cardHeight + 10);
-      this.add.rectangle(leftX + cardWidth / 2, y + cardHeight / 2, cardWidth, cardHeight, 0x1d1720, 0.9)
-        .setStrokeStyle(1, 0xb99a61, 0.3);
-
-      this.add.text(leftX + 24, y + 18, upgrade.name, {
-        fontFamily: 'Georgia, serif', fontSize: '18px', color: '#f2e8d4', fontStyle: 'bold'
-      });
-      this.add.text(leftX + 24, y + 44, upgrade.description, {
-        fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#a89c96'
-      });
-
-      const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
-      const currentLevel = saveManager ? saveManager.getPermanentUpgradeLevel(upgrade.id) : 0;
-      const cost = getPermanentUpgradeCost(upgrade.id, currentLevel) ?? upgrade.baseCost * (currentLevel + 1);
-
-      const levelText = this.add.text(leftX + 460, y + cardHeight / 2, `Seviye ${currentLevel} / ${upgrade.maxLevel}`, {
-        fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#d9c9aa'
-      }).setOrigin(0, 0.5);
-      this.levelTexts.set(upgrade.id, levelText);
-
-      const costText = this.add.text(leftX + 640, y + cardHeight / 2, currentLevel >= upgrade.maxLevel ? 'MAX' : `${cost} Öz`, {
-        fontFamily: 'Georgia, serif', fontSize: '15px', color: currentLevel >= upgrade.maxLevel ? '#888888' : '#f0d9b5', fontStyle: 'bold'
-      }).setOrigin(0, 0.5);
-      this.costTexts.set(upgrade.id, costText);
-
-      const isMax = currentLevel >= upgrade.maxLevel;
-      const btnBg = this.add.rectangle(leftX + cardWidth - 85, y + cardHeight / 2, 130, 40, isMax ? 0x2b2528 : 0x5b3d32, 1)
-        .setStrokeStyle(1, 0xb99a61, isMax ? 0.2 : 0.6)
-        .setInteractive({ useHandCursor: !isMax });
-      this.buttonBgs.set(upgrade.id, btnBg);
-
-      const btnText = this.add.text(leftX + cardWidth - 85, y + cardHeight / 2, isMax ? 'TAMAMLANDI' : 'GELİŞTİR', {
-        fontFamily: 'Arial, sans-serif', fontSize: '13px', color: isMax ? '#888888' : '#f2e8d4', fontStyle: 'bold'
-      }).setOrigin(0.5);
-      this.buttonTexts.set(upgrade.id, btnText);
-
-      if (!isMax) {
-        btnBg.on('pointerover', () => btnBg.setFillStyle(0x79513c));
-        btnBg.on('pointerout', () => btnBg.setFillStyle(0x5b3d32));
-        btnBg.on('pointerup', () => this.purchaseUpgrade(upgrade.id, cost, upgrade.maxLevel));
-      }
-    });
-
-    const backBtn = this.add.text(64, height - 60, '← ANA MENÜYE DÖN', {
-      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#b8aaa0',
-      backgroundColor: '#1d1720', padding: { x: 18, y: 10 }
-    }).setInteractive({ useHandCursor: true });
-    backBtn.on('pointerover', () => backBtn.setStyle({ color: '#ffffff', backgroundColor: '#2d2430' }));
-    backBtn.on('pointerout', () => backBtn.setStyle({ color: '#b8aaa0', backgroundColor: '#1d1720' }));
-    backBtn.on('pointerup', () => this.scene.start('main-menu'));
-
-    this.respecButton = this.add.text(width - 64, height - 60, '↻ YENİDEN DAĞIT', {
-      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#d9c9aa',
-      backgroundColor: '#2b2528', padding: { x: 18, y: 10 }
-    }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
-    this.respecButton.on('pointerover', () => { this.selectedIndex = UPGRADES.length; this.highlightSelected(); });
-    this.respecButton.on('pointerout', () => this.highlightSelected());
-    this.respecButton.on('pointerup', () => this.openRespecDialog());
-
     this.input.keyboard?.on('keydown-ESC', () => {
       if (this.respecDialog) this.closeRespecDialog();
+      else if (this.currentScreen === 'blacksmith') this.renderHub(UPGRADES.length);
       else this.scene.start('main-menu');
     });
-    this.refreshHubState();
+    this.renderHub();
   }
 
   update(): void {
@@ -157,16 +69,36 @@ export class HunterHubScene extends Phaser.Scene {
       return;
     }
 
+    if (this.currentScreen === 'blacksmith') {
+      if (up && !this.previousPad.up) {
+        this.blacksmithSelection = (this.blacksmithSelection - 1 + CRAFTING_RECIPES.length + 1) % (CRAFTING_RECIPES.length + 1);
+        this.highlightBlacksmithSelection();
+      }
+      if (down && !this.previousPad.down) {
+        this.blacksmithSelection = (this.blacksmithSelection + 1) % (CRAFTING_RECIPES.length + 1);
+        this.highlightBlacksmithSelection();
+      }
+      if (confirm && !this.previousPad.confirm) {
+        if (this.blacksmithSelection === CRAFTING_RECIPES.length) this.renderHub(UPGRADES.length);
+        else this.craftSelectedRecipe();
+      }
+      if (back && !this.previousPad.back) this.renderHub(UPGRADES.length);
+      this.previousPad = { up, down, left: false, right: false, confirm, back };
+      return;
+    }
+
     if (up && !this.previousPad.up) {
-      this.selectedIndex = (this.selectedIndex - 1 + UPGRADES.length + 1) % (UPGRADES.length + 1);
+      this.selectedIndex = (this.selectedIndex - 1 + UPGRADES.length + 2) % (UPGRADES.length + 2);
       this.highlightSelected();
     }
     if (down && !this.previousPad.down) {
-      this.selectedIndex = (this.selectedIndex + 1) % (UPGRADES.length + 1);
+      this.selectedIndex = (this.selectedIndex + 1) % (UPGRADES.length + 2);
       this.highlightSelected();
     }
     if (confirm && !this.previousPad.confirm) {
       if (this.selectedIndex === UPGRADES.length) {
+        this.renderBlacksmith();
+      } else if (this.selectedIndex === UPGRADES.length + 1) {
         this.openRespecDialog();
       } else {
         const upgrade = UPGRADES[this.selectedIndex]!;
@@ -178,11 +110,248 @@ export class HunterHubScene extends Phaser.Scene {
         }
       }
     }
-    if (back && !this.previousPad.back) {
-      this.scene.start('main-menu');
-    }
-
+    if (back && !this.previousPad.back) this.scene.start('main-menu');
     this.previousPad = { up, down, left: false, right: false, confirm, back };
+  }
+
+  private drawBackdrop(width: number, height: number): void {
+    this.cameras.main.setBackgroundColor('#0b0b10');
+    const backdrop = this.add.graphics();
+    backdrop.fillStyle(0x17131c, 1);
+    backdrop.fillCircle(width * 0.5, height * 0.4, 380);
+    backdrop.lineStyle(1, 0xb99a61, 0.25);
+    backdrop.strokeCircle(width * 0.5, height * 0.4, 340);
+  }
+
+  private renderHub(selectedIndex = 0): void {
+    this.children.removeAll(true);
+    this.currentScreen = 'hub';
+    this.selectedIndex = selectedIndex;
+    this.levelTexts.clear();
+    this.costTexts.clear();
+    this.buttonBgs.clear();
+    this.buttonTexts.clear();
+    this.blacksmithRecipeButtons.clear();
+    this.blacksmithRecipeLabels.clear();
+    this.essenceText = undefined;
+    this.blacksmithEntryButton = undefined;
+    this.respecButton = undefined;
+    this.respecDialog = undefined;
+    this.respecDialogStatus = undefined;
+    this.respecCancelBg = undefined;
+    this.respecConfirmBg = undefined;
+    this.respecDialogSelection = 'cancel';
+    this.previousPad = { up: false, down: false, left: false, right: false, confirm: false, back: false };
+
+    const width = this.scale.width;
+    const height = this.scale.height;
+    this.drawBackdrop(width, height);
+
+    this.add.text(64, 42, 'AVCI KARARGAHI', {
+      fontFamily: 'Georgia, serif', fontSize: '36px', color: '#e9dfcb', fontStyle: 'bold'
+    });
+    this.add.text(67, 88, 'Topladığın Ruh Özü ile kalıcı mühürleri ve avcı yeteneklerini geliştir.', {
+      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#b8aaa0'
+    });
+
+    this.navKeys = this.navKeys ?? this.input.keyboard!.addKeys('UP,DOWN,LEFT,RIGHT,ENTER,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.essenceText = this.add.text(width - 64, 52, '', {
+      fontFamily: 'Georgia, serif', fontSize: '24px', color: '#f0d9b5', fontStyle: 'bold'
+    }).setOrigin(1, 0);
+
+    const startY = 145;
+    const cardHeight = 72;
+    const cardWidth = width - 128;
+    const leftX = 64;
+
+    UPGRADES.forEach((upgrade, index) => {
+      const y = startY + index * (cardHeight + 10);
+      this.add.rectangle(leftX + cardWidth / 2, y + cardHeight / 2, cardWidth, cardHeight, 0x1d1720, 0.9)
+        .setStrokeStyle(1, 0xb99a61, 0.3);
+      this.add.text(leftX + 24, y + 18, upgrade.name, {
+        fontFamily: 'Georgia, serif', fontSize: '18px', color: '#f2e8d4', fontStyle: 'bold'
+      });
+      this.add.text(leftX + 24, y + 44, upgrade.description, {
+        fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#a89c96'
+      });
+
+      const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+      const currentLevel = saveManager ? saveManager.getPermanentUpgradeLevel(upgrade.id) : 0;
+      const cost = getPermanentUpgradeCost(upgrade.id, currentLevel) ?? upgrade.baseCost * (currentLevel + 1);
+      const levelText = this.add.text(leftX + 460, y + cardHeight / 2, `Seviye ${currentLevel} / ${upgrade.maxLevel}`, {
+        fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#d9c9aa'
+      }).setOrigin(0, 0.5);
+      this.levelTexts.set(upgrade.id, levelText);
+      const costText = this.add.text(leftX + 640, y + cardHeight / 2, currentLevel >= upgrade.maxLevel ? 'MAX' : `${cost} Öz`, {
+        fontFamily: 'Georgia, serif', fontSize: '15px', color: currentLevel >= upgrade.maxLevel ? '#888888' : '#f0d9b5', fontStyle: 'bold'
+      }).setOrigin(0, 0.5);
+      this.costTexts.set(upgrade.id, costText);
+
+      const isMax = currentLevel >= upgrade.maxLevel;
+      const btnBg = this.add.rectangle(leftX + cardWidth - 85, y + cardHeight / 2, 130, 40, isMax ? 0x2b2528 : 0x5b3d32, 1)
+        .setStrokeStyle(1, 0xb99a61, isMax ? 0.2 : 0.6)
+        .setInteractive({ useHandCursor: !isMax });
+      this.buttonBgs.set(upgrade.id, btnBg);
+      const btnText = this.add.text(leftX + cardWidth - 85, y + cardHeight / 2, isMax ? 'TAMAMLANDI' : 'GELİŞTİR', {
+        fontFamily: 'Arial, sans-serif', fontSize: '13px', color: isMax ? '#888888' : '#f2e8d4', fontStyle: 'bold'
+      }).setOrigin(0.5);
+      this.buttonTexts.set(upgrade.id, btnText);
+      if (!isMax) {
+        btnBg.on('pointerover', () => btnBg.setFillStyle(0x79513c));
+        btnBg.on('pointerout', () => btnBg.setFillStyle(0x5b3d32));
+        btnBg.on('pointerup', () => this.purchaseUpgrade(upgrade.id, cost, upgrade.maxLevel));
+      }
+    });
+
+    this.blacksmithEntryButton = this.add.text(width - 64, 114, '⚒ DEMİRCİ', {
+      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#d9c9aa',
+      backgroundColor: '#2b2528', padding: { x: 18, y: 10 }
+    }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    this.blacksmithEntryButton.on('pointerover', () => { this.selectedIndex = UPGRADES.length; this.highlightSelected(); });
+    this.blacksmithEntryButton.on('pointerout', () => this.highlightSelected());
+    this.blacksmithEntryButton.on('pointerup', () => this.renderBlacksmith());
+
+    const backBtn = this.add.text(64, height - 60, '← ANA MENÜYE DÖN', {
+      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#b8aaa0',
+      backgroundColor: '#1d1720', padding: { x: 18, y: 10 }
+    }).setInteractive({ useHandCursor: true });
+    backBtn.on('pointerover', () => backBtn.setStyle({ color: '#ffffff', backgroundColor: '#2d2430' }));
+    backBtn.on('pointerout', () => backBtn.setStyle({ color: '#b8aaa0', backgroundColor: '#1d1720' }));
+    backBtn.on('pointerup', () => this.scene.start('main-menu'));
+
+    this.respecButton = this.add.text(width - 64, height - 60, '↻ YENİDEN DAĞIT', {
+      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#d9c9aa',
+      backgroundColor: '#2b2528', padding: { x: 18, y: 10 }
+    }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    this.respecButton.on('pointerover', () => { this.selectedIndex = UPGRADES.length + 1; this.highlightSelected(); });
+    this.respecButton.on('pointerout', () => this.highlightSelected());
+    this.respecButton.on('pointerup', () => this.openRespecDialog());
+
+    this.refreshHubState();
+  }
+
+  private renderBlacksmith(statusMessage = '', selectedIndex = 0): void {
+    this.children.removeAll(true);
+    this.currentScreen = 'blacksmith';
+    this.blacksmithSelection = Math.max(0, Math.min(CRAFTING_RECIPES.length, selectedIndex));
+    this.blacksmithRecipeButtons.clear();
+    this.blacksmithRecipeLabels.clear();
+    this.essenceText = undefined;
+    this.blacksmithEntryButton = undefined;
+    this.respecButton = undefined;
+    this.respecDialog = undefined;
+    this.previousPad = { up: false, down: false, left: false, right: false, confirm: false, back: false };
+
+    const width = this.scale.width;
+    const height = this.scale.height;
+    this.drawBackdrop(width, height);
+    this.add.text(64, 36, 'DEMİRCİ', {
+      fontFamily: 'Georgia, serif', fontSize: '34px', color: '#e9dfcb', fontStyle: 'bold'
+    });
+    this.add.text(67, 80, 'Bölgesel malzemeleri kullanarak silahlarının kalıcı Yayılım varyantlarını döv.', {
+      fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#b8aaa0'
+    });
+
+    const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+    const loaded = saveManager?.load();
+    const data = loaded && 'data' in loaded ? loaded.data : null;
+    const soulEssence = data?.progression.soulEssence ?? 0;
+    this.essenceText = this.add.text(width - 64, 48, `Ruh Özü: ${soulEssence}`, {
+      fontFamily: 'Georgia, serif', fontSize: '21px', color: '#f0d9b5', fontStyle: 'bold'
+    }).setOrigin(1, 0);
+
+    const leftX = 48;
+    const cardWidth = width - 96;
+    const cardHeight = 82;
+    const gap = 8;
+    const startY = 130;
+
+    CRAFTING_RECIPES.forEach((recipe, index) => {
+      const y = startY + index * (cardHeight + gap);
+      const weapon = WEAPONS.find(item => item.id === recipe.weaponId);
+      const region = REGIONS.find(item => item.id === recipe.regionId);
+      const crafted = Boolean(data?.collections.unlockedWeaponVariantIds.includes(recipe.unlockWeaponVariantId));
+      const materialLines = Object.entries(recipe.materialCosts).map(([materialId, amount]) => {
+        const material = CRAFTING_MATERIALS.find(item => item.id === materialId);
+        const owned = data?.collections.craftingMaterials[materialId] ?? 0;
+        return { text: `${material?.name ?? materialId}: ${amount} (sende ${owned})`, enough: owned >= amount };
+      });
+      const enoughMaterials = materialLines.every(item => item.enough);
+      const enoughEssence = soulEssence >= recipe.soulEssenceCost;
+      const canCraft = Boolean(saveManager && data && !crafted && enoughMaterials && enoughEssence);
+
+      this.add.rectangle(leftX + cardWidth / 2, y + cardHeight / 2, cardWidth, cardHeight, 0x1d1720, 0.94)
+        .setStrokeStyle(1, 0xb99a61, crafted ? 0.25 : 0.48);
+      this.add.text(leftX + 20, y + 9, recipe.name, {
+        fontFamily: 'Georgia, serif', fontSize: '17px', color: '#f2e8d4', fontStyle: 'bold'
+      });
+      this.add.text(leftX + 20, y + 32, `${weapon?.name ?? recipe.weaponId}  •  ${region?.name ?? recipe.regionId}`, {
+        fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#d0bd9f'
+      });
+      this.add.text(leftX + 20, y + 53, recipe.description, {
+        fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#9f9690'
+      });
+
+      this.add.text(width - 365, y + 15, `Ruh Özü: ${recipe.soulEssenceCost} / ${soulEssence}`, {
+        fontFamily: 'Arial, sans-serif', fontSize: '12px', color: enoughEssence ? '#d9c9aa' : '#d18b82'
+      });
+      this.add.text(width - 365, y + 43, materialLines.map(item => item.text).join('  •  '), {
+        fontFamily: 'Arial, sans-serif', fontSize: '11px', color: enoughMaterials ? '#d9c9aa' : '#d18b82'
+      });
+
+      const buttonLabel = crafted ? 'AÇILDI' : canCraft ? 'ÜRET' : !enoughEssence ? 'EKSİK ÖZ' : 'EKSİK MALZEME';
+      const buttonBg = this.add.rectangle(width - 122, y + cardHeight / 2, 124, 38, canCraft ? 0x5b3d32 : 0x2b2528, 1)
+        .setStrokeStyle(1, 0xb99a61, canCraft ? 0.7 : 0.22);
+      const buttonText = this.add.text(width - 122, y + cardHeight / 2, buttonLabel, {
+        fontFamily: 'Arial, sans-serif', fontSize: '11px', color: canCraft ? '#f2e8d4' : '#88817f', fontStyle: 'bold'
+      }).setOrigin(0.5);
+      this.blacksmithRecipeButtons.set(recipe.id, buttonBg);
+      this.blacksmithRecipeLabels.set(recipe.id, buttonText);
+      if (canCraft) {
+        buttonBg.setInteractive({ useHandCursor: true });
+        buttonBg.on('pointerover', () => { this.blacksmithSelection = index; this.highlightBlacksmithSelection(); });
+        buttonBg.on('pointerout', () => this.highlightBlacksmithSelection());
+        buttonBg.on('pointerup', () => { this.blacksmithSelection = index; this.craftSelectedRecipe(); });
+      }
+    });
+
+    this.blacksmithStatusText = this.add.text(width / 2, height - 88, statusMessage, {
+      fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#d9c9aa', align: 'center'
+    }).setOrigin(0.5);
+    const backButton = this.add.text(64, height - 54, '← KARARGAHA DÖN', {
+      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#d9c9aa',
+      backgroundColor: '#2b2528', padding: { x: 18, y: 10 }
+    }).setInteractive({ useHandCursor: true });
+    backButton.on('pointerover', () => { this.blacksmithSelection = CRAFTING_RECIPES.length; this.highlightBlacksmithSelection(); });
+    backButton.on('pointerout', () => this.highlightBlacksmithSelection());
+    backButton.on('pointerup', () => this.renderHub(UPGRADES.length));
+    this.add.text(width - 64, height - 48, '↑ / ↓ SEÇ   •   ENTER / A ÜRET   •   ESC / B GERİ', {
+      fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#77727a'
+    }).setOrigin(1, 0.5);
+    this.highlightBlacksmithSelection();
+  }
+
+  private highlightBlacksmithSelection(): void {
+    CRAFTING_RECIPES.forEach((recipe, index) => {
+      const bg = this.blacksmithRecipeButtons.get(recipe.id);
+      const label = this.blacksmithRecipeLabels.get(recipe.id);
+      if (!bg || !label) return;
+      const selected = index === this.blacksmithSelection;
+      bg.setStrokeStyle(selected ? 2 : 1, selected ? 0xf2e8d4 : 0xb99a61, selected ? 1 : 0.48);
+      if (bg.input?.enabled) bg.setFillStyle(selected ? 0x79513c : 0x5b3d32);
+    });
+  }
+
+  private craftSelectedRecipe(): void {
+    const recipe = CRAFTING_RECIPES[this.blacksmithSelection];
+    if (!recipe) return;
+    const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+    if (saveManager?.craftRecipe(recipe.id)) {
+      const weapon = WEAPONS.find(item => item.id === recipe.weaponId);
+      this.renderBlacksmith(`${recipe.name} üretildi. ${weapon?.name ?? 'Silah'} varyantı kalıcı olarak açıldı.`, this.blacksmithSelection);
+      return;
+    }
+    this.renderBlacksmith('Üretim yapılamadı. Kaynakların ve kayıt dosyan korunuyor.', this.blacksmithSelection);
   }
 
   private openRespecDialog(): void {
@@ -270,14 +439,13 @@ export class HunterHubScene extends Phaser.Scene {
         const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
         const currentLevel = saveManager ? saveManager.getPermanentUpgradeLevel(upgrade.id) : 0;
         const isMax = currentLevel >= upgrade.maxLevel;
-        if (index === this.selectedIndex) {
-          bg.setStrokeStyle(2, 0xf2e8d4, 1);
-        } else {
-          bg.setStrokeStyle(1, 0xb99a61, isMax ? 0.2 : 0.6);
-        }
+        bg.setStrokeStyle(index === this.selectedIndex ? 2 : 1, index === this.selectedIndex ? 0xf2e8d4 : 0xb99a61, index === this.selectedIndex ? 1 : (isMax ? 0.2 : 0.6));
       }
     });
-    this.respecButton?.setStyle(this.selectedIndex === UPGRADES.length
+    this.blacksmithEntryButton?.setStyle(this.selectedIndex === UPGRADES.length
+      ? { color: '#ffffff', backgroundColor: '#5b3d32', fontStyle: 'bold' }
+      : { color: '#d9c9aa', backgroundColor: '#2b2528', fontStyle: 'normal' });
+    this.respecButton?.setStyle(this.selectedIndex === UPGRADES.length + 1
       ? { color: '#ffffff', backgroundColor: '#5b3d32' }
       : { color: '#d9c9aa', backgroundColor: '#2b2528' });
   }
@@ -290,30 +458,26 @@ export class HunterHubScene extends Phaser.Scene {
   }
 
   private refreshHubState(): void {
+    if (this.currentScreen !== 'hub') return;
     const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
     const loaded = saveManager ? saveManager.load() : null;
     const soulEssence = loaded && 'data' in loaded ? loaded.data.progression.soulEssence : 0;
     const quote = saveManager?.getPermanentUpgradeRespecQuote();
 
     if (this.essenceText) this.essenceText.setText(`Ruh Özü: ${soulEssence}`);
-    if (this.respecButton) {
-      this.respecButton.setAlpha(quote && quote.totalInvested > 0 ? 1 : 0.45);
-    }
+    if (this.respecButton) this.respecButton.setAlpha(quote && quote.totalInvested > 0 ? 1 : 0.45);
 
     UPGRADES.forEach((upgrade) => {
       const currentLevel = saveManager ? saveManager.getPermanentUpgradeLevel(upgrade.id) : 0;
       const cost = getPermanentUpgradeCost(upgrade.id, currentLevel);
       const isMax = currentLevel >= upgrade.maxLevel;
-
       const levelText = this.levelTexts.get(upgrade.id);
       if (levelText) levelText.setText(`Seviye ${currentLevel} / ${upgrade.maxLevel}`);
-
       const costText = this.costTexts.get(upgrade.id);
       if (costText) {
         costText.setText(isMax ? 'MAX' : `${cost ?? ''} Öz`);
         costText.setColor(isMax ? '#888888' : (soulEssence >= (cost ?? Number.POSITIVE_INFINITY) ? '#f0d9b5' : '#d18b82'));
       }
-
       const btnBg = this.buttonBgs.get(upgrade.id);
       const btnText = this.buttonTexts.get(upgrade.id);
       if (btnBg && btnText) {
@@ -329,9 +493,6 @@ export class HunterHubScene extends Phaser.Scene {
         }
       }
     });
-    this.respecButton?.setStyle(this.selectedIndex === UPGRADES.length
-      ? { color: '#ffffff', backgroundColor: '#5b3d32' }
-      : { color: '#d9c9aa', backgroundColor: '#2b2528' });
     this.highlightSelected();
   }
 }
