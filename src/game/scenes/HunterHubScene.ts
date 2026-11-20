@@ -4,17 +4,35 @@ import { PERMANENT_UPGRADES, getPermanentUpgradeCost } from '../../gameplay/prog
 import { CRAFTING_MATERIALS, CRAFTING_RECIPES } from '../../data/crafting.js';
 import { REGIONS } from '../../data/regions.js';
 import { WEAPONS } from '../../data/weapons.js';
+import { CHARACTERS } from '../../data/characters.js';
+import { PASSIVES } from '../../data/passives.js';
+import { RELICS } from '../../data/relics.js';
+import type { EquipmentProfile } from '../../gameplay/progression/equipment-profiles.js';
 
 const UPGRADES = PERMANENT_UPGRADES;
 
 export class HunterHubScene extends Phaser.Scene {
-  private currentScreen: 'hub' | 'blacksmith' = 'hub';
+  private currentScreen: 'hub' | 'blacksmith' | 'equipment-profiles' | 'equipment-editor' | 'equipment-delete-confirm' = 'hub';
   private essenceText?: Phaser.GameObjects.Text;
   private levelTexts: Map<string, Phaser.GameObjects.Text> = new Map();
   private costTexts: Map<string, Phaser.GameObjects.Text> = new Map();
   private buttonBgs: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private buttonTexts: Map<string, Phaser.GameObjects.Text> = new Map();
   private blacksmithEntryButton?: Phaser.GameObjects.Text;
+  private equipmentEntryButton?: Phaser.GameObjects.Text;
+  private equipmentCharacterIndex = 0;
+  private equipmentSelection = 0;
+  private equipmentProfileCount = 0;
+  private equipmentSelectedProfileIndex = 0;
+  private equipmentProfileRows = new Map<number, Phaser.GameObjects.Rectangle>();
+  private equipmentActionButtons = new Map<number, Phaser.GameObjects.Rectangle>();
+  private equipmentEditorRows = new Map<number, Phaser.GameObjects.Rectangle>();
+  private equipmentEditorSelectedIndex = 0;
+  private equipmentEditingProfileId: string | null = null;
+  private equipmentDraft: { name: string; startingWeaponId: string; startingPassiveId: string; relicSlots: (string | null)[] } | null = null;
+  private equipmentDeleteProfileId: string | null = null;
+  private equipmentDeleteSelection: 'cancel' | 'confirm' = 'cancel';
+  private equipmentNameInput?: HTMLInputElement;
   private blacksmithRecipeButtons: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private blacksmithRecipeLabels: Map<string, Phaser.GameObjects.Text> = new Map();
   private craftableRecipeIds = new Set<string>();
@@ -37,6 +55,9 @@ export class HunterHubScene extends Phaser.Scene {
     this.navKeys = this.input.keyboard!.addKeys('UP,DOWN,LEFT,RIGHT,ENTER,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
     this.input.keyboard?.on('keydown-ESC', () => {
       if (this.respecDialog) this.closeRespecDialog();
+      else if (this.currentScreen === 'equipment-editor') this.renderEquipmentProfiles('Düzenleme iptal edildi.');
+      else if (this.currentScreen === 'equipment-delete-confirm') this.renderEquipmentProfiles();
+      else if (this.currentScreen === 'equipment-profiles') this.renderHub(UPGRADES.length + 1);
       else if (this.currentScreen === 'blacksmith') this.renderHub(UPGRADES.length);
       else this.scene.start('main-menu');
     });
@@ -69,6 +90,45 @@ export class HunterHubScene extends Phaser.Scene {
       return;
     }
 
+    if (this.currentScreen === 'equipment-profiles') {
+      if ((keyboardLeft || padLeft) && !this.previousPad.left) this.changeEquipmentCharacter(-1);
+      if ((keyboardRight || padRight) && !this.previousPad.right) this.changeEquipmentCharacter(1);
+      if (up && !this.previousPad.up) this.moveEquipmentSelection(-1);
+      if (down && !this.previousPad.down) this.moveEquipmentSelection(1);
+      if (confirm && !this.previousPad.confirm) this.activateEquipmentSelection();
+      if (back && !this.previousPad.back) this.renderHub(UPGRADES.length + 1);
+      this.previousPad = { up, down, left: keyboardLeft || padLeft, right: keyboardRight || padRight, confirm, back };
+      return;
+    }
+
+    if (this.currentScreen === 'equipment-editor') {
+      if (up && !this.previousPad.up) this.equipmentEditorSelectedIndex = Math.max(0, this.equipmentEditorSelectedIndex - 1);
+      if (down && !this.previousPad.down) this.equipmentEditorSelectedIndex = Math.min(7, this.equipmentEditorSelectedIndex + 1);
+      if ((keyboardLeft || padLeft) && !this.previousPad.left) this.cycleEquipmentEditorOption(-1);
+      if ((keyboardRight || padRight) && !this.previousPad.right) this.cycleEquipmentEditorOption(1);
+      if (confirm && !this.previousPad.confirm) {
+        if (this.equipmentEditorSelectedIndex === 0) this.equipmentNameInput?.focus();
+        else if (this.equipmentEditorSelectedIndex === 6) this.saveEquipmentEditor();
+        else if (this.equipmentEditorSelectedIndex === 7) this.renderEquipmentProfiles('Düzenleme iptal edildi.');
+        else this.cycleEquipmentEditorOption(1);
+      }
+      if (back && !this.previousPad.back) this.renderEquipmentProfiles('Düzenleme iptal edildi.');
+      this.highlightEquipmentEditorSelection();
+      this.previousPad = { up, down, left: keyboardLeft || padLeft, right: keyboardRight || padRight, confirm, back };
+      return;
+    }
+
+    if (this.currentScreen === 'equipment-delete-confirm') {
+      if (((keyboardLeft || padLeft) && !this.previousPad.left) || ((keyboardRight || padRight) && !this.previousPad.right)) {
+        this.equipmentDeleteSelection = (keyboardLeft || padLeft) ? 'cancel' : 'confirm';
+        this.highlightEquipmentDeleteSelection();
+      }
+      if (confirm && !this.previousPad.confirm) this.confirmEquipmentDelete();
+      if (back && !this.previousPad.back) this.renderEquipmentProfiles();
+      this.previousPad = { up, down, left: padLeft, right: padRight, confirm, back };
+      return;
+    }
+
     if (this.currentScreen === 'blacksmith') {
       if (up && !this.previousPad.up) {
         this.blacksmithSelection = (this.blacksmithSelection - 1 + CRAFTING_RECIPES.length + 1) % (CRAFTING_RECIPES.length + 1);
@@ -88,17 +148,19 @@ export class HunterHubScene extends Phaser.Scene {
     }
 
     if (up && !this.previousPad.up) {
-      this.selectedIndex = (this.selectedIndex - 1 + UPGRADES.length + 2) % (UPGRADES.length + 2);
+      this.selectedIndex = (this.selectedIndex - 1 + UPGRADES.length + 3) % (UPGRADES.length + 3);
       this.highlightSelected();
     }
     if (down && !this.previousPad.down) {
-      this.selectedIndex = (this.selectedIndex + 1) % (UPGRADES.length + 2);
+      this.selectedIndex = (this.selectedIndex + 1) % (UPGRADES.length + 3);
       this.highlightSelected();
     }
     if (confirm && !this.previousPad.confirm) {
       if (this.selectedIndex === UPGRADES.length) {
         this.renderBlacksmith();
       } else if (this.selectedIndex === UPGRADES.length + 1) {
+        this.renderEquipmentProfiles();
+      } else if (this.selectedIndex === UPGRADES.length + 2) {
         this.openRespecDialog();
       } else {
         const upgrade = UPGRADES[this.selectedIndex]!;
@@ -116,13 +178,23 @@ export class HunterHubScene extends Phaser.Scene {
 
 
   browserTestSnapshot(): {
-    screen: 'hub' | 'blacksmith';
+    screen: 'hub' | 'blacksmith' | 'equipment-profiles' | 'equipment-editor' | 'equipment-delete-confirm';
     selectedRecipeId: string | null;
+    equipmentCharacterId: string | null;
+    equipmentProfileIds: string[];
+    activeEquipmentProfileId: string | null;
+    equipmentSelection: number;
+    equipmentEditorSelectedIndex: number;
     recipeIds: string[];
     craftableRecipeIds: string[];
   } {
     return {
       screen: this.currentScreen,
+      equipmentCharacterId: this.getSelectedEquipmentCharacter()?.id ?? null,
+      equipmentProfileIds: this.getSelectedEquipmentCharacter() ? (this.registry.get('saveManager') as SaveManager | undefined)?.getEquipmentProfiles(this.getSelectedEquipmentCharacter()!.id).map(profile => profile.id) ?? [] : [],
+      activeEquipmentProfileId: this.getSelectedEquipmentCharacter() ? (this.registry.get('saveManager') as SaveManager | undefined)?.getActiveEquipmentProfile(this.getSelectedEquipmentCharacter()!.id)?.id ?? null : null,
+      equipmentSelection: this.equipmentSelection,
+      equipmentEditorSelectedIndex: this.equipmentEditorSelectedIndex,
       selectedRecipeId: CRAFTING_RECIPES[this.blacksmithSelection]?.id ?? null,
       recipeIds: CRAFTING_RECIPES.map(recipe => recipe.id),
       craftableRecipeIds: [...this.craftableRecipeIds]
@@ -139,6 +211,7 @@ export class HunterHubScene extends Phaser.Scene {
   }
 
   private renderHub(selectedIndex = 0): void {
+    this.removeEquipmentNameInput();
     this.children.removeAll(true);
     this.currentScreen = 'hub';
     this.selectedIndex = selectedIndex;
@@ -151,6 +224,7 @@ export class HunterHubScene extends Phaser.Scene {
     this.craftableRecipeIds.clear();
     this.essenceText = undefined;
     this.blacksmithEntryButton = undefined;
+    this.equipmentEntryButton = undefined;
     this.respecButton = undefined;
     this.respecDialog = undefined;
     this.respecDialogStatus = undefined;
@@ -227,6 +301,14 @@ export class HunterHubScene extends Phaser.Scene {
     this.blacksmithEntryButton.on('pointerout', () => this.highlightSelected());
     this.blacksmithEntryButton.on('pointerup', () => this.renderBlacksmith());
 
+    this.equipmentEntryButton = this.add.text(width - 250, 114, '⚔ DİZİLİMLER', {
+      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#d9c9aa',
+      backgroundColor: '#2b2528', padding: { x: 18, y: 10 }
+    }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    this.equipmentEntryButton.on('pointerover', () => { this.selectedIndex = UPGRADES.length + 1; this.highlightSelected(); });
+    this.equipmentEntryButton.on('pointerout', () => this.highlightSelected());
+    this.equipmentEntryButton.on('pointerup', () => this.renderEquipmentProfiles());
+
     const backBtn = this.add.text(64, height - 60, '← ANA MENÜYE DÖN', {
       fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#b8aaa0',
       backgroundColor: '#1d1720', padding: { x: 18, y: 10 }
@@ -247,6 +329,7 @@ export class HunterHubScene extends Phaser.Scene {
   }
 
   private renderBlacksmith(statusMessage = '', selectedIndex = 0): void {
+    this.removeEquipmentNameInput();
     this.children.removeAll(true);
     this.currentScreen = 'blacksmith';
     this.blacksmithSelection = Math.max(0, Math.min(CRAFTING_RECIPES.length, selectedIndex));
@@ -373,6 +456,413 @@ export class HunterHubScene extends Phaser.Scene {
     this.renderBlacksmith('Üretim yapılamadı. Kaynakların ve kayıt dosyan korunuyor.', this.blacksmithSelection);
   }
 
+  private getUnlockedEquipmentCharacters(): (typeof CHARACTERS)[number][] {
+    const loaded = (this.registry.get('saveManager') as SaveManager | undefined)?.load();
+    if (!loaded || !('data' in loaded)) return [];
+    return CHARACTERS.filter(character => loaded.data.progression.unlockedCharacterIds.includes(character.id));
+  }
+
+  private getSelectedEquipmentCharacter(): typeof CHARACTERS[number] | undefined {
+    const characters = this.getUnlockedEquipmentCharacters();
+    if (characters.length === 0) return undefined;
+    this.equipmentCharacterIndex = Phaser.Math.Clamp(this.equipmentCharacterIndex, 0, characters.length - 1);
+    return characters[this.equipmentCharacterIndex];
+  }
+
+  private changeEquipmentCharacter(direction: number): void {
+    const characters = this.getUnlockedEquipmentCharacters();
+    if (characters.length < 2) return;
+    this.equipmentCharacterIndex = (this.equipmentCharacterIndex + direction + characters.length) % characters.length;
+    this.equipmentSelection = 0;
+    this.equipmentSelectedProfileIndex = 0;
+    this.renderEquipmentProfiles();
+  }
+
+  private renderEquipmentProfiles(statusMessage = ''): void {
+    this.removeEquipmentNameInput();
+    this.children.removeAll(true);
+    this.currentScreen = 'equipment-profiles';
+    this.equipmentProfileRows.clear();
+    this.equipmentActionButtons.clear();
+    this.equipmentEditorRows.clear();
+    this.equipmentDraft = null;
+    this.equipmentEditingProfileId = null;
+    this.equipmentDeleteProfileId = null;
+    this.previousPad = { up: false, down: false, left: false, right: false, confirm: false, back: false };
+    const width = this.scale.width;
+    const height = this.scale.height;
+    this.drawBackdrop(width, height);
+    this.add.text(64, 34, 'EKİPMAN DİZİLİMLERİ', {
+      fontFamily: 'Georgia, serif', fontSize: '32px', color: '#e9dfcb', fontStyle: 'bold'
+    });
+    this.add.text(67, 76, 'Her avcı için beş adede kadar başlangıç yüklemesi kaydet.', {
+      fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#b8aaa0'
+    });
+    const characters = this.getUnlockedEquipmentCharacters();
+    if (characters.length === 0) {
+      this.add.text(width / 2, height / 2, 'Açık avcı bulunamadı.', {
+        fontFamily: 'Arial, sans-serif', fontSize: '20px', color: '#d18b82'
+      }).setOrigin(0.5);
+      this.add.text(64, height - 56, '← KARARGAHA DÖN', {
+        fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#d9c9aa',
+        backgroundColor: '#2b2528', padding: { x: 16, y: 10 }
+      }).setInteractive().on('pointerup', () => this.renderHub(UPGRADES.length + 1));
+      return;
+    }
+    this.equipmentCharacterIndex = Phaser.Math.Clamp(this.equipmentCharacterIndex, 0, characters.length - 1);
+    const character = characters[this.equipmentCharacterIndex]!;
+    const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+    const profiles = saveManager?.getEquipmentProfiles(character.id) ?? [];
+    const activeProfileId = saveManager?.getActiveEquipmentProfile(character.id)?.id ?? null;
+    this.equipmentProfileCount = profiles.length;
+    this.equipmentSelection = Phaser.Math.Clamp(this.equipmentSelection, 0, Math.max(0, profiles.length + 4));
+    this.equipmentSelectedProfileIndex = Phaser.Math.Clamp(this.equipmentSelectedProfileIndex, 0, Math.max(0, profiles.length - 1));
+
+    const previous = this.add.text(340, 116, '◀', {
+      fontFamily: 'Arial, sans-serif', fontSize: '22px', color: '#e9dfcb',
+      backgroundColor: '#2b2528', padding: { x: 12, y: 6 }
+    }).setInteractive({ useHandCursor: true });
+    previous.on('pointerup', () => this.changeEquipmentCharacter(-1));
+    this.add.text(width / 2, 118, character.name + '  •  ' + (this.equipmentCharacterIndex + 1) + '/' + characters.length, {
+      fontFamily: 'Georgia, serif', fontSize: '20px', color: '#f0d9b5', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    const next = this.add.text(910, 116, '▶', {
+      fontFamily: 'Arial, sans-serif', fontSize: '22px', color: '#e9dfcb',
+      backgroundColor: '#2b2528', padding: { x: 12, y: 6 }
+    }).setInteractive({ useHandCursor: true });
+    next.on('pointerup', () => this.changeEquipmentCharacter(1));
+
+    if (profiles.length === 0) {
+      this.add.text(width / 2, 300, 'Henüz kayıtlı dizilim yok.\nİlk dizilimini oluşturarak koşuya özel başlangıç ekipmanını belirle.', {
+        fontFamily: 'Arial, sans-serif', fontSize: '17px', color: '#b8aaa0', align: 'center', lineSpacing: 10
+      }).setOrigin(0.5);
+    }
+    profiles.forEach((profile, index) => {
+      const y = 164 + index * 70;
+      const isActive = profile.id === activeProfileId;
+      const bg = this.add.rectangle(width / 2, y + 27, width - 128, 58, 0x1d1720, 0.96)
+        .setStrokeStyle(1, isActive ? 0xc6a66d : 0xb99a61, isActive ? 0.8 : 0.35)
+        .setInteractive({ useHandCursor: true });
+      bg.on('pointerover', () => { this.equipmentSelection = index; this.equipmentSelectedProfileIndex = index; this.highlightEquipmentSelection(); });
+      bg.on('pointerup', () => { this.equipmentSelection = index; this.equipmentSelectedProfileIndex = index; this.highlightEquipmentSelection(); });
+      this.equipmentProfileRows.set(index, bg);
+      const weapon = WEAPONS.find(item => item.id === profile.startingWeaponId)?.name ?? profile.startingWeaponId;
+      const passive = PASSIVES.find(item => item.id === profile.startingPassiveId)?.name ?? profile.startingPassiveId;
+      const relicNames = profile.relicIds.map(id => RELICS.find(relic => relic.id === id)?.name ?? id);
+      this.add.text(92, y + 8, profile.name + (isActive ? '  •  ETKİN' : ''), {
+        fontFamily: 'Georgia, serif', fontSize: '17px', color: isActive ? '#f0d9b5' : '#f2e8d4', fontStyle: 'bold'
+      });
+      this.add.text(92, y + 32, 'Silah: ' + weapon + '   •   Pasif: ' + passive + '   •   Yadigâr: ' + (relicNames.join(', ') || 'Yok'), {
+        fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#aaa09a'
+      });
+    });
+    const actions = [
+      { label: '＋ YENİ', enabled: profiles.length < 5, run: () => this.openEquipmentEditor() },
+      { label: 'ETKİNLEŞTİR', enabled: profiles.length > 0, run: () => this.activateSelectedEquipmentProfile() },
+      { label: 'DÜZENLE', enabled: profiles.length > 0, run: () => this.editSelectedEquipmentProfile() },
+      { label: 'SİL', enabled: profiles.length > 0, run: () => this.openEquipmentDeleteConfirm() },
+      { label: 'GERİ', enabled: true, run: () => this.renderHub(UPGRADES.length + 1) }
+    ];
+    const buttonWidth = 190;
+    const gap = 38;
+    const totalWidth = actions.length * buttonWidth + (actions.length - 1) * gap;
+    const startX = (width - totalWidth) / 2 + buttonWidth / 2;
+    actions.forEach((action, index) => {
+      const x = startX + index * (buttonWidth + gap);
+      const button = this.add.rectangle(x, height - 76, buttonWidth, 46, action.enabled ? 0x3b2c2d : 0x252126, 1)
+        .setStrokeStyle(1, 0xb99a61, action.enabled ? 0.65 : 0.2);
+      this.add.text(x, height - 76, action.label, {
+        fontFamily: 'Arial, sans-serif', fontSize: '12px', color: action.enabled ? '#f2e8d4' : '#77727a', fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(1);
+      this.equipmentActionButtons.set(profiles.length + index, button);
+      if (action.enabled) {
+        button.setInteractive({ useHandCursor: true });
+        button.on('pointerover', () => { this.equipmentSelection = profiles.length + index; this.highlightEquipmentSelection(); });
+        button.on('pointerup', action.run);
+      }
+    });
+    this.add.text(width / 2, height - 126, statusMessage || ('Dizilim: ' + profiles.length + '/5   •   ← / → Avcı   •   ↑ / ↓ Seç   •   ENTER Onayla'), {
+      fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#aaa09a', align: 'center'
+    }).setOrigin(0.5);
+    this.highlightEquipmentSelection();
+  }
+
+  private highlightEquipmentSelection(): void {
+    this.equipmentProfileRows.forEach((bg, index) => {
+      const selected = index === this.equipmentSelection;
+      bg.setStrokeStyle(selected ? 3 : 1, selected ? 0xf2e8d4 : 0xb99a61, selected ? 1 : 0.35);
+    });
+    this.equipmentActionButtons.forEach((bg, index) => {
+      const selected = index === this.equipmentSelection;
+      bg.setStrokeStyle(selected ? 3 : 1, selected ? 0xf2e8d4 : 0xb99a61, selected ? 1 : 0.65);
+    });
+  }
+
+  private moveEquipmentSelection(direction: number): void {
+    const total = this.equipmentProfileCount + 5;
+    this.equipmentSelection = (this.equipmentSelection + direction + total) % total;
+    if (this.equipmentSelection < this.equipmentProfileCount) this.equipmentSelectedProfileIndex = this.equipmentSelection;
+    this.highlightEquipmentSelection();
+  }
+
+  private activateEquipmentSelection(): void {
+    if (this.equipmentSelection < this.equipmentProfileCount) {
+      this.equipmentSelectedProfileIndex = this.equipmentSelection;
+      this.highlightEquipmentSelection();
+      return;
+    }
+    const actionIndex = this.equipmentSelection - this.equipmentProfileCount;
+    if (actionIndex === 0) this.openEquipmentEditor();
+    else if (actionIndex === 1) this.activateSelectedEquipmentProfile();
+    else if (actionIndex === 2) this.editSelectedEquipmentProfile();
+    else if (actionIndex === 3) this.openEquipmentDeleteConfirm();
+    else if (actionIndex === 4) this.renderHub(UPGRADES.length + 1);
+  }
+
+  private activateSelectedEquipmentProfile(): void {
+    const character = this.getSelectedEquipmentCharacter();
+    const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+    const profile = character ? saveManager?.getEquipmentProfiles(character.id)[this.equipmentSelectedProfileIndex] : undefined;
+    if (!character || !profile) return;
+    if (saveManager?.activateEquipmentProfile(character.id, profile.id)) {
+      this.equipmentSelection = this.equipmentSelectedProfileIndex;
+      this.renderEquipmentProfiles(profile.name + ' etkinleştirildi. Sonraki koşuda uygulanacak.');
+    } else this.renderEquipmentProfiles('Dizilim etkinleştirilemedi; kayıt korunuyor.');
+  }
+
+  private editSelectedEquipmentProfile(): void {
+    const character = this.getSelectedEquipmentCharacter();
+    const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+    const profile = character ? saveManager?.getEquipmentProfiles(character.id)[this.equipmentSelectedProfileIndex] : undefined;
+    if (profile) this.openEquipmentEditor(profile);
+  }
+
+  private openEquipmentEditor(profile?: EquipmentProfile): void {
+    const character = this.getSelectedEquipmentCharacter();
+    const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+    if (!character || !saveManager) return;
+    const count = saveManager.getEquipmentProfiles(character.id).length;
+    if (!profile && count >= 5) return;
+    this.equipmentEditingProfileId = profile?.id ?? null;
+    this.equipmentDraft = {
+      name: profile?.name ?? ('Dizilim ' + (count + 1)),
+      startingWeaponId: profile?.startingWeaponId ?? character.startingWeaponId,
+      startingPassiveId: profile?.startingPassiveId ?? character.startingPassiveId,
+      relicSlots: [profile?.relicIds[0] ?? null, profile?.relicIds[1] ?? null, profile?.relicIds[2] ?? null]
+    };
+    this.equipmentEditorSelectedIndex = 0;
+    this.renderEquipmentEditor();
+  }
+
+  private renderEquipmentEditor(statusMessage = ''): void {
+    this.removeEquipmentNameInput();
+    this.children.removeAll(true);
+    this.currentScreen = 'equipment-editor';
+    this.equipmentEditorRows.clear();
+    this.previousPad = { up: false, down: false, left: false, right: false, confirm: false, back: false };
+    const draft = this.equipmentDraft;
+    const character = this.getSelectedEquipmentCharacter();
+    if (!draft || !character) {
+      this.renderEquipmentProfiles('Dizilim düzenleyicisi açılamadı.');
+      return;
+    }
+    const width = this.scale.width;
+    const height = this.scale.height;
+    this.drawBackdrop(width, height);
+    this.add.text(64, 34, this.equipmentEditingProfileId ? 'DİZİLİMİ DÜZENLE' : 'YENİ DİZİLİM', {
+      fontFamily: 'Georgia, serif', fontSize: '32px', color: '#e9dfcb', fontStyle: 'bold'
+    });
+    this.add.text(67, 76, character.name + '  •  İsim, başlangıç silahı, pasif ve en fazla üç sahip olunan yadigâr', {
+      fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#b8aaa0'
+    });
+    const loaded = (this.registry.get('saveManager') as SaveManager | undefined)?.load();
+    const ownedRelicIds = loaded && 'data' in loaded ? loaded.data.collections.relicIds : [];
+    const values = [
+      draft.name || 'İsimsiz dizilim',
+      WEAPONS.find(item => item.id === draft.startingWeaponId)?.name ?? draft.startingWeaponId,
+      PASSIVES.find(item => item.id === draft.startingPassiveId)?.name ?? draft.startingPassiveId,
+      ...draft.relicSlots.map(id => id ? (RELICS.find(relic => relic.id === id)?.name ?? id) : 'Yok')
+    ];
+    const labels = ['İSİM', 'BAŞLANGIÇ SİLAHI', 'BAŞLANGIÇ PASİFİ', 'YADİGÂR 1', 'YADİGÂR 2', 'YADİGÂR 3'];
+    labels.forEach((label, index) => {
+      const y = 138 + index * 62;
+      const selected = this.equipmentEditorSelectedIndex === index;
+      const bg = this.add.rectangle(width / 2, y + 22, width - 128, 52, 0x1d1720, 0.96)
+        .setStrokeStyle(selected ? 3 : 1, selected ? 0xf2e8d4 : 0xb99a61, selected ? 1 : 0.35)
+        .setInteractive({ useHandCursor: true });
+      bg.on('pointerover', () => { this.equipmentEditorSelectedIndex = index; this.highlightEquipmentEditorSelection(); });
+      bg.on('pointerup', () => {
+        this.equipmentEditorSelectedIndex = index;
+        if (index > 0) this.cycleEquipmentEditorOption(1);
+        else this.highlightEquipmentEditorSelection();
+      });
+      this.equipmentEditorRows.set(index, bg);
+      this.add.text(92, y + 7, label, {
+        fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#a89c96', fontStyle: 'bold'
+      });
+      if (index > 0) this.add.text(width - 92, y + 26, values[index] + '  ◀  ▶', {
+        fontFamily: 'Georgia, serif', fontSize: '16px', color: '#f2e8d4'
+      }).setOrigin(1, 0.5);
+    });
+    const canvasRect = this.game.canvas.getBoundingClientRect();
+    const scaleX = canvasRect.width / width;
+    const scaleY = canvasRect.height / height;
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = draft.name;
+    nameInput.maxLength = 28;
+    nameInput.autocomplete = 'off';
+    nameInput.spellcheck = false;
+    nameInput.setAttribute('aria-label', 'Dizilim adı');
+    Object.assign(nameInput.style, {
+      position: 'fixed',
+      left: (canvasRect.left + 360 * scaleX) + 'px',
+      top: (canvasRect.top + 145 * scaleY) + 'px',
+      width: ((width - 460) * scaleX) + 'px',
+      height: (38 * scaleY) + 'px',
+      boxSizing: 'border-box',
+      padding: '6px 12px',
+      border: '1px solid #b99a61',
+      borderRadius: '4px',
+      background: '#241e26',
+      color: '#f2e8d4',
+      fontFamily: 'Georgia, serif',
+      fontSize: Math.max(13, 16 * scaleY) + 'px',
+      outline: 'none',
+      zIndex: '10000'
+    });
+    nameInput.addEventListener('input', () => {
+      if (this.equipmentDraft) this.equipmentDraft.name = nameInput.value;
+    });
+    document.body.appendChild(nameInput);
+    this.equipmentNameInput = nameInput;
+    this.add.text(width / 2, 530, 'Sahip olunan yadigâr: ' + ownedRelicIds.length + '   •   ' + (statusMessage || 'İsim alanında yazabilir; oklarla seçenekleri değiştirebilirsin.'), {
+      fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#aaa09a', align: 'center'
+    }).setOrigin(0.5);
+    const save = this.add.rectangle(width / 2 - 112, 600, 190, 48, 0x5b3d32, 1).setStrokeStyle(1, 0xb99a61, 0.8).setInteractive({ useHandCursor: true });
+    const cancel = this.add.rectangle(width / 2 + 112, 600, 190, 48, 0x302a31, 1).setStrokeStyle(1, 0x82747b, 0.8).setInteractive({ useHandCursor: true });
+    this.add.text(width / 2 - 112, 600, 'KAYDET', { fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#f2e8d4', fontStyle: 'bold' }).setOrigin(0.5);
+    this.add.text(width / 2 + 112, 600, 'VAZGEÇ', { fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#e4d9cf' }).setOrigin(0.5);
+    this.equipmentEditorRows.set(6, save);
+    this.equipmentEditorRows.set(7, cancel);
+    save.on('pointerover', () => { this.equipmentEditorSelectedIndex = 6; this.highlightEquipmentEditorSelection(); });
+    save.on('pointerup', () => this.saveEquipmentEditor());
+    cancel.on('pointerover', () => { this.equipmentEditorSelectedIndex = 7; this.highlightEquipmentEditorSelection(); });
+    cancel.on('pointerup', () => this.renderEquipmentProfiles('Düzenleme iptal edildi.'));
+    this.highlightEquipmentEditorSelection();
+  }
+
+  private highlightEquipmentEditorSelection(): void {
+    this.equipmentEditorRows.forEach((bg, index) => {
+      const selected = index === this.equipmentEditorSelectedIndex;
+      bg.setStrokeStyle(selected ? 3 : 1, selected ? 0xf2e8d4 : 0xb99a61, selected ? 1 : 0.45);
+    });
+  }
+
+  private cycleEquipmentEditorOption(direction: number): void {
+    const draft = this.equipmentDraft;
+    if (!draft) return;
+    const index = this.equipmentEditorSelectedIndex;
+    if (index === 1) {
+      const current = Math.max(0, WEAPONS.findIndex(item => item.id === draft.startingWeaponId));
+      draft.startingWeaponId = WEAPONS[(current + direction + WEAPONS.length) % WEAPONS.length]!.id;
+    } else if (index === 2) {
+      const current = Math.max(0, PASSIVES.findIndex(item => item.id === draft.startingPassiveId));
+      draft.startingPassiveId = PASSIVES[(current + direction + PASSIVES.length) % PASSIVES.length]!.id;
+    } else if (index >= 3 && index <= 5) {
+      const slot = index - 3;
+      const loaded = (this.registry.get('saveManager') as SaveManager | undefined)?.load();
+      const owned = loaded && 'data' in loaded ? loaded.data.collections.relicIds : [];
+      const usedElsewhere = new Set(draft.relicSlots.filter((id, slotIndex) => id && slotIndex !== slot));
+      const options: (string | null)[] = [null, ...owned.filter(id => !usedElsewhere.has(id))];
+      const current = options.indexOf(draft.relicSlots[slot] ?? null);
+      draft.relicSlots[slot] = options[(Math.max(0, current) + direction + options.length) % options.length] ?? null;
+    }
+    this.renderEquipmentEditor();
+  }
+
+  private saveEquipmentEditor(): void {
+    const character = this.getSelectedEquipmentCharacter();
+    const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+    const draft = this.equipmentDraft;
+    if (!character || !saveManager || !draft) return;
+    const profileDraft = {
+      name: draft.name.trim(),
+      startingWeaponId: draft.startingWeaponId,
+      startingPassiveId: draft.startingPassiveId,
+      relicIds: draft.relicSlots.filter((id): id is string => Boolean(id))
+    };
+    const success = this.equipmentEditingProfileId
+      ? saveManager.updateEquipmentProfile(character.id, this.equipmentEditingProfileId, profileDraft)
+      : saveManager.createEquipmentProfile(character.id, profileDraft);
+    if (!success) {
+      this.renderEquipmentEditor('Kaydedilemedi: isim benzersiz olmalı ve 28 karakteri aşmamalı; yadigârlar sahip olunanlardan seçilmeli.');
+      return;
+    }
+    this.equipmentSelection = 0;
+    this.equipmentSelectedProfileIndex = 0;
+    this.renderEquipmentProfiles('Dizilim kaydedildi.');
+  }
+
+  private removeEquipmentNameInput(): void {
+    this.equipmentNameInput?.remove();
+    this.equipmentNameInput = undefined;
+  }
+
+
+  private openEquipmentDeleteConfirm(): void {
+    const character = this.getSelectedEquipmentCharacter();
+    const profile = character ? (this.registry.get('saveManager') as SaveManager | undefined)?.getEquipmentProfiles(character.id)[this.equipmentSelectedProfileIndex] : undefined;
+    if (!character || !profile) return;
+    this.equipmentDeleteProfileId = profile.id;
+    this.equipmentDeleteSelection = 'cancel';
+    this.renderEquipmentDeleteConfirm(profile);
+  }
+
+  private renderEquipmentDeleteConfirm(profile: EquipmentProfile): void {
+    this.removeEquipmentNameInput();
+    this.equipmentActionButtons.clear();
+    this.children.removeAll(true);
+    this.currentScreen = 'equipment-delete-confirm';
+    this.previousPad = { up: false, down: false, left: false, right: false, confirm: false, back: false };
+    const width = this.scale.width;
+    const height = this.scale.height;
+    this.drawBackdrop(width, height);
+    this.add.text(width / 2, height / 2 - 92, 'DİZİLİM SİLİNSİN Mİ?', {
+      fontFamily: 'Georgia, serif', fontSize: '28px', color: '#e9dfcb', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    this.add.text(width / 2, height / 2 - 20, profile.name + '\nBu işlem yalnızca kayıtlı dizilimi siler.', {
+      fontFamily: 'Arial, sans-serif', fontSize: '17px', color: '#c9bdb0', align: 'center', lineSpacing: 8
+    }).setOrigin(0.5);
+    const cancel = this.add.rectangle(width / 2 - 112, height / 2 + 100, 190, 48, 0x302a31, 1).setStrokeStyle(1, 0x82747b, 0.8).setInteractive({ useHandCursor: true });
+    const confirm = this.add.rectangle(width / 2 + 112, height / 2 + 100, 190, 48, 0x5b3432, 1).setStrokeStyle(1, 0xb77c72, 0.8).setInteractive({ useHandCursor: true });
+    this.add.text(width / 2 - 112, height / 2 + 100, 'VAZGEÇ', { fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#e4d9cf' }).setOrigin(0.5);
+    this.add.text(width / 2 + 112, height / 2 + 100, 'SİL', { fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#f2e8d4', fontStyle: 'bold' }).setOrigin(0.5);
+    cancel.on('pointerover', () => { this.equipmentDeleteSelection = 'cancel'; this.highlightEquipmentDeleteSelection(); });
+    cancel.on('pointerup', () => this.renderEquipmentProfiles());
+    confirm.on('pointerover', () => { this.equipmentDeleteSelection = 'confirm'; this.highlightEquipmentDeleteSelection(); });
+    confirm.on('pointerup', () => this.confirmEquipmentDelete());
+    this.equipmentActionButtons.set(0, cancel);
+    this.equipmentActionButtons.set(1, confirm);
+    this.highlightEquipmentDeleteSelection();
+  }
+
+  private highlightEquipmentDeleteSelection(): void {
+    this.equipmentActionButtons.get(0)?.setStrokeStyle(this.equipmentDeleteSelection === 'cancel' ? 3 : 1, this.equipmentDeleteSelection === 'cancel' ? 0xf2e8d4 : 0x82747b, 1);
+    this.equipmentActionButtons.get(1)?.setStrokeStyle(this.equipmentDeleteSelection === 'confirm' ? 3 : 1, this.equipmentDeleteSelection === 'confirm' ? 0xf2e8d4 : 0xb77c72, 1);
+  }
+
+  private confirmEquipmentDelete(): void {
+    const character = this.getSelectedEquipmentCharacter();
+    const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+    if (!character || !saveManager || !this.equipmentDeleteProfileId) return;
+    if (saveManager.deleteEquipmentProfile(character.id, this.equipmentDeleteProfileId)) {
+      this.equipmentSelectedProfileIndex = 0;
+      this.equipmentSelection = 0;
+      this.renderEquipmentProfiles('Dizilim silindi. Etkin dizilim silindiyse varsayılan yükleme kullanılır.');
+    } else this.renderEquipmentProfiles('Dizilim silinemedi; kayıt korunuyor.');
+  }
+
   private openRespecDialog(): void {
     if (this.respecDialog) return;
     const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
@@ -464,7 +954,10 @@ export class HunterHubScene extends Phaser.Scene {
     this.blacksmithEntryButton?.setStyle(this.selectedIndex === UPGRADES.length
       ? { color: '#ffffff', backgroundColor: '#5b3d32', fontStyle: 'bold' }
       : { color: '#d9c9aa', backgroundColor: '#2b2528', fontStyle: 'normal' });
-    this.respecButton?.setStyle(this.selectedIndex === UPGRADES.length + 1
+    this.equipmentEntryButton?.setStyle(this.selectedIndex === UPGRADES.length + 1
+      ? { color: '#ffffff', backgroundColor: '#5b3d32' }
+      : { color: '#d9c9aa', backgroundColor: '#2b2528' });
+    this.respecButton?.setStyle(this.selectedIndex === UPGRADES.length + 2
       ? { color: '#ffffff', backgroundColor: '#5b3d32' }
       : { color: '#d9c9aa', backgroundColor: '#2b2528' });
   }

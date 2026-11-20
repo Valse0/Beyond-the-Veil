@@ -107,7 +107,7 @@ Each character's existing data-driven mastery reward IDs are granted once their 
 
 Each unlocked hunter can own up to five named equipment profiles. A profile stores a starting weapon ID, starting passive ID and up to three unique relic IDs. Weapon and passive IDs must exist in the authored catalogs; relics must already be owned. Names are trimmed, normalized and unique within that hunter.
 
-The active profile is remembered independently for each hunter. At run creation, its starting weapon, passive and relic loadout replace that hunter's default starting pair and the globally equipped relic loadout for that run. If the hunter has no active profile, the existing character defaults and globally equipped relics are used unchanged. Profile data is stored as IDs only; profile presentation, comparison and one-touch selection remain part of the later loadout UI.
+The active profile is remembered independently for each hunter. At run creation, its starting weapon, passive and relic loadout replace that hunter's default starting pair and the globally equipped relic loadout for that run. If the hunter has no active profile, the existing character defaults and globally equipped relics are used unchanged. The Hunter Hub Equipment Profiles service lets players browse unlocked hunters, create, edit, activate and delete profiles, and configure a starting weapon, passive and up to three owned relics. Profile data remains IDs only; the UI does not change the save schema.
 
 Save schema v6 adds progression.equipmentProfiles and progression.activeEquipmentProfileIds. Migrations from schema 0–5 initialize empty profile collections and preserve existing progression.
 
