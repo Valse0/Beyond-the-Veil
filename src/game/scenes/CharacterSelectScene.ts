@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CHARACTERS } from '../../data/characters.js';
+import { resolveRemoteAction } from '../input/platform-input.js';
 
 export class CharacterSelectScene extends Phaser.Scene {
   private selectedIndex = 0;
@@ -93,6 +94,13 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ENTER', () => this.continue());
     this.input.keyboard?.on('keydown-ESC', () => this.scene.start('main-menu'));
     this.input.keyboard?.on('keydown-BACKSPACE', () => this.scene.start('main-menu'));
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      const action = resolveRemoteAction(event);
+      if (!action) return;
+      event.preventDefault();
+      if (action === 'back' || action === 'red') this.scene.start('main-menu');
+      else if (action === 'confirm' || action === 'green') this.continue();
+    });
     this.refreshSelection();
   }
 

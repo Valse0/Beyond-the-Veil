@@ -5,6 +5,7 @@ import { CHALLENGES } from '../../data/challenges.js';
 import { CHARACTERS } from '../../data/characters.js';
 import { REGIONS } from '../../data/regions.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
+import { resolveRemoteAction } from '../input/platform-input.js';
 
 export class RegionSelectScene extends Phaser.Scene {
   private characterId = CHARACTERS[0]!.id;
@@ -164,6 +165,15 @@ export class RegionSelectScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-C', () => this.cycleChallenge());
     this.input.keyboard?.on('keydown-ESC', () => this.scene.start('character-select', { characterId: this.characterId }));
     this.input.keyboard?.on('keydown-BACKSPACE', () => this.scene.start('character-select', { characterId: this.characterId }));
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      const action = resolveRemoteAction(event);
+      if (!action) return;
+      event.preventDefault();
+      if (action === 'back' || action === 'red') this.scene.start('character-select', { characterId: this.characterId });
+      else if (action === 'confirm' || action === 'green') this.startRun();
+      else if (action === 'yellow') this.toggleGameMode();
+      else if (action === 'blue') this.cycleChallenge();
+    });
     this.refreshSelection();
   }
 

@@ -44,6 +44,7 @@ import { QUESTS, QUEST_BY_ID } from '../../data/quests.js';
 import { completeEnding } from '../../gameplay/endings/ending-runtime.js';
 import { getEndingPresentation, type EndingPresentation } from '../../gameplay/endings/ending-presentation.js';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
+import { resolveRemoteAction } from '../input/platform-input.js';
 import { createLevelUpControlState, drawLevelUpChoices as drawChoicesFromPool, spendLevelUpBanish, spendLevelUpReroll, spendLevelUpSkip, type LevelUpControlState } from '../../gameplay/level-up/level-up-controls.js';
 import { derivePermanentUpgradeEffects, type PermanentUpgradeEffects } from '../../gameplay/progression/permanent-upgrades.js';
 import { getActiveEquipmentProfile } from '../../gameplay/progression/equipment-profiles.js';
@@ -100,6 +101,10 @@ export class RunScene extends Phaser.Scene {
   private joystick!:Phaser.GameObjects.Arc;
   private thumb!:Phaser.GameObjects.Arc;
   private touchStart?:Phaser.Math.Vector2;
+  private touchPointerId:number|null=null;
+  private touchMoveX=0;
+  private touchMoveY=0;
+  private touchControlObjects:Phaser.GameObjects.GameObject[]=[];
   private overlay:Phaser.GameObjects.GameObject[]=[];
   private paused=false;
   private queuedLevels=0;
@@ -1103,6 +1108,21 @@ export class RunScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player,true,0.08,0.08);
     this.cursors=this.input.keyboard!.createCursorKeys();
     this.keys=this.input.keyboard!.addKeys('W,A,S,D,SPACE,E,ESC,ENTER') as Record<string,Phaser.Input.Keyboard.Key>;
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      const action = resolveRemoteAction(event);
+      if (!action) return;
+      event.preventDefault();
+      if (action === 'back' || action === 'red') {
+        if (this.paused && this.overlayBackIndex !== null) this.activateOverlayOption(this.overlayBackIndex);
+        else if (!this.paused) this.openPause();
+      } else if (action === 'confirm' || action === 'green') {
+        if (this.paused) this.activateOverlayOption(this.overlaySelectionIndex);
+        else this.tryDash();
+      } else if (action === 'yellow') {
+        if (this.paused) this.navigateOverlay(1);
+        else this.useAbility();
+      } else if (action === 'blue' && !this.paused) this.openQuestJournal();
+    });
     this.physics.add.overlap(this.shots,this.enemies,(a,b)=>this.hitEnemy(a as Phaser.Physics.Arcade.Sprite,b as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.shots,this.bossArenaObjects,(a,b)=>this.hitBossArenaObject(a as Phaser.Physics.Arcade.Sprite,b as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.bossArenaObjects,(_p,o)=>this.touchBossArenaObject(o as Phaser.Physics.Arcade.Sprite));
@@ -1186,15 +1206,46 @@ export class RunScene extends Phaser.Scene {
 
   private createTouchControls():void {
     const h=this.scale.height,w=this.scale.width;
-    this.joystick=this.add.circle(88,h-90,47,0xd9c7a7,.12).setStrokeStyle(2,0xd9c7a7,.35).setScrollFactor(0).setDepth(105);
-    this.thumb=this.add.circle(88,h-90,19,0xd9c7a7,.28).setScrollFactor(0).setDepth(106);
-    const button=(x:number,label:string,color:number,fn:()=>void):void=>{
-      const c=this.add.circle(x,h-86,34,color,.75).setStrokeStyle(2,0xe5d6ba,.6).setScrollFactor(0).setDepth(105).setInteractive();
-      this.add.text(x,h-86,label,{fontSize:'12px',color:'#fff2df',fontStyle:'bold'}).setOrigin(.5).setScrollFactor(0).setDepth(106);c.on('pointerdown',fn);
+    this.input.addPointer(2);
+    const initiallyVisible=Boolean(this.sys.game.device.input.touch);
+    const showOnTouch=(object:Phaser.GameObjects.GameObject):void=>{
+      object.setAlpha(initiallyVisible?1:0);
+      this.touchControlObjects.push(object);
     };
-    button(w-130,'DASH',0x73534c,()=>this.tryDash());button(w-52,'E',0x586f69,()=>this.useAbility());
-    this.input.on('pointerdown',(p:Phaser.Input.Pointer)=>{if(p.x<w*.48&&p.y>h*.48)this.touchStart=new Phaser.Math.Vector2(p.x,p.y);});
-    this.input.on('pointerup',()=>{this.touchStart=undefined;this.thumb.setPosition(this.joystick.x,this.joystick.y);});
+    this.joystick=this.add.circle(112,h-112,64,0xd9c7a7,.12).setStrokeStyle(2,0xd9c7a7,.42).setScrollFactor(0).setDepth(105);
+    this.thumb=this.add.circle(112,h-112,27,0xd9c7a7,.34).setScrollFactor(0).setDepth(106);
+    showOnTouch(this.joystick);showOnTouch(this.thumb);
+    const button=(x:number,label:string,color:number,fn:()=>void):void=>{
+      const c=this.add.circle(x,h-112,46,color,.82).setStrokeStyle(2,0xe5d6ba,.78).setScrollFactor(0).setDepth(105).setInteractive();
+      const text=this.add.text(x,h-112,label,{fontSize:'17px',color:'#fff2df',fontStyle:'bold'}).setOrigin(.5).setScrollFactor(0).setDepth(106);
+      showOnTouch(c);showOnTouch(text);
+      c.on('pointerdown',(pointer:Phaser.Input.Pointer)=>{if(pointer.wasTouch)fn();});
+    };
+    button(w-150,'DASH',0x73534c,()=>this.tryDash());
+    button(w-58,'✦',0x586f69,()=>this.useAbility());
+    this.input.on('pointerdown',(pointer:Phaser.Input.Pointer)=>{
+      if(!pointer.wasTouch)return;
+      this.touchControlObjects.forEach(object=>object.setAlpha(1));
+      if(this.touchPointerId===null&&pointer.x<w*.44&&pointer.y>h*.48){
+        this.touchPointerId=pointer.id;
+        this.touchStart=new Phaser.Math.Vector2(pointer.x,pointer.y);
+        this.touchMoveX=0;this.touchMoveY=0;
+        this.thumb.setPosition(this.joystick.x,this.joystick.y);
+      }
+    });
+    this.input.on('pointermove',(pointer:Phaser.Input.Pointer)=>{
+      if(pointer.id!==this.touchPointerId||!pointer.isDown||!this.touchStart)return;
+      const dx=pointer.x-this.touchStart.x,dy=pointer.y-this.touchStart.y;
+      const length=Math.hypot(dx,dy);
+      if(length<9){this.touchMoveX=0;this.touchMoveY=0;}
+      else{this.touchMoveX=dx/length;this.touchMoveY=dy/length;}
+      this.thumb.setPosition(this.joystick.x+Phaser.Math.Clamp(dx,-36,36),this.joystick.y+Phaser.Math.Clamp(dy,-36,36));
+    });
+    this.input.on('pointerup',(pointer:Phaser.Input.Pointer)=>{
+      if(pointer.id!==this.touchPointerId)return;
+      this.touchPointerId=null;this.touchStart=undefined;this.touchMoveX=0;this.touchMoveY=0;
+      this.thumb.setPosition(this.joystick.x,this.joystick.y);
+    });
   }
 
   update(time:number,delta:number):void {
@@ -1238,7 +1289,7 @@ export class RunScene extends Phaser.Scene {
     let x=(this.keys.D.isDown||this.cursors.right.isDown?1:0)-(this.keys.A.isDown||this.cursors.left.isDown?1:0);
     let y=(this.keys.S.isDown||this.cursors.down.isDown?1:0)-(this.keys.W.isDown||this.cursors.up.isDown?1:0);
     if(this.gamepadMoveX!==0||this.gamepadMoveY!==0){x=this.gamepadMoveX;y=this.gamepadMoveY;}
-    if(this.touchStart&&this.input.activePointer.isDown){const p=this.input.activePointer,dx=p.x-this.touchStart.x,dy=p.y-this.touchStart.y,len=Math.max(1,Math.hypot(dx,dy));x=dx/len;y=dy/len;this.thumb.setPosition(this.joystick.x+Phaser.Math.Clamp(dx,-27,27),this.joystick.y+Phaser.Math.Clamp(dy,-27,27));}
+    if(this.touchStart&&this.touchPointerId!==null){x=this.touchMoveX;y=this.touchMoveY;}
     const dir=new Phaser.Math.Vector2(x,y);if(dir.length()>1)dir.normalize();
     if(Phaser.Input.Keyboard.JustDown(this.keys.SPACE))this.tryDash();
     if(Phaser.Input.Keyboard.JustDown(this.keys.E))this.useAbility();

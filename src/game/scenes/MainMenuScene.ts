@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { beginNewGamePlus, canStartNewGamePlus } from '../../gameplay/run/new-game-plus-runtime.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
+import { resolveRemoteAction } from '../input/platform-input.js';
 
 type MainMenuItem = 'new-run' | 'hunter-hub' | 'story-journal' | 'new-game-plus';
 
@@ -125,6 +126,16 @@ export class MainMenuScene extends Phaser.Scene {
     });
     this.input.keyboard?.on('keydown-SPACE', (event: KeyboardEvent) => {
       if (!event.repeat) this.activateSelectedItem();
+    });
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      const action = resolveRemoteAction(event);
+      if (!action) return;
+      event.preventDefault();
+      if (action === 'back' || action === 'red') {
+        if (this.confirmationOpen) this.closeNewGamePlusConfirmation();
+      } else if (action === 'confirm' || action === 'green') this.activateSelectedItem();
+      else if (action === 'yellow') this.openQuestJournal();
+      else if (action === 'blue') this.openHunterHub();
     });
   }
 

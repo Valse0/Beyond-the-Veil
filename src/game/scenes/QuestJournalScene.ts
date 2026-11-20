@@ -7,6 +7,7 @@ import { REGION_PATHS } from '../../data/region-paths.js';
 import { STORY_REGION_ATMOSPHERES, STORY_WORLD_NPCS } from '../../data/story-world-state.js';
 import type { SaveData } from '../../systems/save/save-types.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
+import { resolveRemoteAction } from '../input/platform-input.js';
 
 type JournalQuestStatus = 'completed' | 'active' | 'available' | 'story-locked' | 'prerequisite-locked' | 'region-locked';
 type JournalQuestSnapshot = {
@@ -78,9 +79,17 @@ export class QuestJournalScene extends Phaser.Scene {
     this.navKeys = this.input.keyboard?.addKeys('UP,DOWN,LEFT,RIGHT') as Record<string, Phaser.Input.Keyboard.Key> | undefined;
     this.input.keyboard?.on('keydown-ESC', this.closeJournal, this);
     this.input.keyboard?.on('keydown-BACKSPACE', this.closeJournal, this);
+    const remoteKeyHandler = (event: KeyboardEvent): void => {
+      const action = resolveRemoteAction(event);
+      if (action !== 'back' && action !== 'red') return;
+      event.preventDefault();
+      this.closeJournal();
+    };
+    this.input.keyboard?.on('keydown', remoteKeyHandler);
     this.events.once('shutdown', () => {
       this.input.keyboard?.off('keydown-ESC', this.closeJournal, this);
       this.input.keyboard?.off('keydown-BACKSPACE', this.closeJournal, this);
+      this.input.keyboard?.off('keydown', remoteKeyHandler);
     });
     this.drawJournal();
   }

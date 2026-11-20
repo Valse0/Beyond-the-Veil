@@ -8,6 +8,7 @@ import { CHARACTERS } from '../../data/characters.js';
 import { PASSIVES } from '../../data/passives.js';
 import { RELICS } from '../../data/relics.js';
 import type { EquipmentProfile } from '../../gameplay/progression/equipment-profiles.js';
+import { resolveRemoteAction } from '../input/platform-input.js';
 
 const UPGRADES = PERMANENT_UPGRADES;
 
@@ -46,6 +47,8 @@ export class HunterHubScene extends Phaser.Scene {
   private respecDialogSelection: 'cancel' | 'confirm' = 'cancel';
   private previousPad = { up: false, down: false, left: false, right: false, confirm: false, back: false };
   private navKeys!: Record<string, Phaser.Input.Keyboard.Key>;
+  private remoteConfirmPending = false;
+  private remoteBackPending = false;
 
   constructor() {
     super('hunter-hub');
@@ -61,6 +64,13 @@ export class HunterHubScene extends Phaser.Scene {
       else if (this.currentScreen === 'blacksmith') this.renderHub(UPGRADES.length);
       else this.scene.start('main-menu');
     });
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      const action = resolveRemoteAction(event);
+      if (!action) return;
+      event.preventDefault();
+      if (action === 'back' || action === 'red') this.remoteBackPending = true;
+      else if (action === 'confirm' || action === 'green') this.remoteConfirmPending = true;
+    });
     this.renderHub();
   }
 
@@ -75,8 +85,10 @@ export class HunterHubScene extends Phaser.Scene {
     const padRight = Boolean(pad && (pad.right || Number(pad.axes[0]?.value) > 0.5));
     const up = keyboardUp || Boolean(pad && (pad.up || Number(pad.axes[1]?.value) < -0.5));
     const down = keyboardDown || Boolean(pad && (pad.down || Number(pad.axes[1]?.value) > 0.5));
-    const confirm = keyboardConfirm || Boolean(pad && (pad.A || pad.buttons[9]?.pressed));
-    const back = Boolean(pad && (pad.B || pad.buttons[8]?.pressed));
+    const confirm = keyboardConfirm || this.remoteConfirmPending || Boolean(pad && (pad.A || pad.buttons[9]?.pressed));
+    const back = this.remoteBackPending || Boolean(pad && (pad.B || pad.buttons[8]?.pressed));
+    this.remoteConfirmPending = false;
+    this.remoteBackPending = false;
 
     if (this.respecDialog) {
       const left = keyboardLeft || padLeft;
