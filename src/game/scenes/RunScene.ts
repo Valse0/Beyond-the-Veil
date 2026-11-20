@@ -606,11 +606,15 @@ export class RunScene extends Phaser.Scene {
     (wisp.body as Phaser.Physics.Arcade.Body).enable=false;
     const before=Number(wisp.getData('untargetableUntil')??0);
     this.telegraphAttack(wisp,wispDefinition,this.player.x+120,this.player.y,1,0,'line',46);
-    return new Promise(resolve=>this.time.delayedCall(100,()=>resolve({
-      before,
-      after:Number(wisp.getData('untargetableUntil')??0),
-      alpha:wisp.alpha
-    })));
+    return new Promise(resolve=>{
+      const captureAfterUpdate=():void=>{
+        const after=Number(wisp.getData('untargetableUntil')??0);
+        if(after<=before)return;
+        this.events.off(Phaser.Scenes.Events.POST_UPDATE,captureAfterUpdate);
+        resolve({before,after,alpha:wisp.alpha});
+      };
+      this.events.on(Phaser.Scenes.Events.POST_UPDATE,captureAfterUpdate);
+    });
   }
 
   browserTestPreparePassiveSpecial(passiveId:string):void {

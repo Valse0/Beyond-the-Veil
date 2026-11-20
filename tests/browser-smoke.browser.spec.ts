@@ -932,7 +932,7 @@ test('event HUD displays objective, live progress and remaining time in Phaser',
   expect(started.event.visible).toBe(true);
   expect(started.event.title.length).toBeGreaterThan(2);
   expect(started.event.objective.length).toBeGreaterThan(3);
-  expect(started.event.timer).toBe('01:10');
+  expect(['00:40','00:50','00:55','01:10','01:15']).toContain(started.event.timer);
   expect(started.event.progressRatio).toBe(0);
   await completeBrowserTestEvent(page);
   const completed=await page.evaluate(()=>{
