@@ -1256,8 +1256,7 @@ export class RunScene extends Phaser.Scene {
       this.enemyStates.set(enemy,intent.state);
       if(intent.special)this.applyEnemySpecial(enemy,def,intent.special);
       if(def.behavior==='mimic'&&!intent.state.burrowed&&!enemy.getData('mimicRevealed')){enemy.setData('mimicRevealed',true);this.enemyStates.set(enemy,{...intent.state,burrowed:false,exposedUntil:Number.MAX_SAFE_INTEGER});enemy.clearTint();enemy.setAlpha(1);(enemy.getData('mutationMarker') as Phaser.GameObjects.Container|undefined)?.setVisible(true);this.cameras.main.shake(70,.001);}
-      if(enemy.getData('mutationId')==='explosive')this.triggerEnemyMutationExplosion(enemy,def);
-    if(def.behavior==='volatile-bomber'){
+      if(def.behavior==='volatile-bomber'){
         const primed=Phaser.Math.Distance.Between(enemy.x,enemy.y,this.player.x,this.player.y)<175;
         if(Boolean(enemy.getData('primed'))!==primed){enemy.setData('primed',primed);enemy.setTint(primed?0xf2b34d:0xffffff);}
       }
@@ -1461,7 +1460,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private applyEnemyMutationHit(enemy:Phaser.Physics.Arcade.Sprite,actualDamage:number):void {
-    if(actualDamage<=0||!enemy.active)return;
+    if(actualDamage<=0||!enemy.active||this.runFinished)return;
     const mutationId=enemy.getData('mutationId') as EnemyMutationId|undefined;
     if(mutationId==='poisonous'){
       this.playerPoisonStacks=Math.min(5,this.playerPoisonStacks+1);
@@ -1867,6 +1866,7 @@ export class RunScene extends Phaser.Scene {
     const previousHealth=Number(enemy.getData('health'));const hp=previousHealth-damage;enemy.setData('health',hp).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(enemy.active){if(enemy.getData('isElite'))enemy.setTint(enemy.getData('eliteEnraged')?0xf2a85c:0xd9ad5c);else enemy.clearTint();}});
     if(hp>0)return Math.min(previousHealth,damage);
+    if(enemy.getData('mutationId')==='explosive')this.triggerEnemyMutationExplosion(enemy,def);
     if(def.behavior==='volatile-bomber'){
       const radius=enemy.getData('primed')?112:58;const blast=this.add.circle(enemy.x,enemy.y,radius,0xe3a64e,.22).setDepth(7);
       if(Phaser.Math.Distance.Between(this.player.x,this.player.y,enemy.x,enemy.y)<radius+18)this.receiveCombatDamage(def.attack.damage*(enemy.getData('primed')?1:.5));

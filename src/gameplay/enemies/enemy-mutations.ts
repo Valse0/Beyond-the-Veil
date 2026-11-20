@@ -39,7 +39,8 @@ export function resolveEnemyMutation(
   elapsedMs:number,
   slots:readonly EnemyMutationId[]
 ):EnemyMutationId|null {
-  if(!slots.length||waveRandom(seed,spawnIndex,71)>=getEnemyMutationChance(elapsedMs))return null;
+  const chance=getEnemyMutationChance(elapsedMs);
+  if(!slots.length||chance<=0||waveRandom(seed,spawnIndex,71)>=chance)return null;
   const allowed=slots.filter(id=>ENEMY_MUTATIONS.some(mutation=>mutation.id===id));
   if(!allowed.length)return null;
   const selected=Math.floor(waveRandom(seed,spawnIndex,72)*allowed.length);
