@@ -1493,7 +1493,7 @@ test('dynamic day and regional weather cycles stay deterministic across all five
     await expect.poll(async()=>(await readBrowserRunSnapshot(page)).regionMap.regionId).toBe(item.id);
     for(let i=0;i<4;i++){
       const current=await readBrowserRunSnapshot(page);
-      const target=(i+1)*240000;
+      const target=i*240000+60_000;
       await page.evaluate(delta=>{
         const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number,skip?:boolean)=>void}}}}).__BEYOND_VEIL_GAME__;
         if(!game)throw new Error('Development browser test bridge is not available.');
