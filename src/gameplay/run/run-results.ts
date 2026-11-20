@@ -8,6 +8,14 @@ import { applyCharacterMastery, calculateRunMasteryPoints } from '../progression
 import { applyAchievementCollectionProgress, applyAchievementRunProgress } from '../progression/achievements.js';
 import { applyCollectionProgress } from '../progression/collections.js';
 
+export interface BossHuntResultInput {
+  regionId: RegionId;
+  won: boolean;
+  bossChestOpened?: boolean;
+  soulEssenceEarned: number;
+  relicIdsEarned?: readonly string[];
+}
+
 export interface RunResultInput {
   regionId: RegionId;
   won: boolean;
@@ -27,6 +35,29 @@ export interface RunResultInput {
 
 function thisRegionSecretPath(regionId:RegionId):string|undefined {
   return REGIONS.find(region=>region.id===regionId)?.explorationPoints[1]?.id;
+}
+
+/**
+ * Boss Hunt only persists its authored boss reward after a victorious, opened chest.
+ * It never advances campaign, mastery, achievements, collections or run counters.
+ */
+export function applyBossHuntResult(save: SaveData, result: BossHuntResultInput): SaveData {
+  const chestVictory = result.won && result.bossChestOpened === true;
+  const relicIds = new Set(save.collections.relicIds);
+  if (chestVictory) {
+    for (const id of result.relicIdsEarned ?? []) {
+      const relic = RELICS.find(item => item.id === id && item.regionId === result.regionId && item.source === 'boss');
+      if (relic) relicIds.add(id);
+    }
+  }
+  const reward = chestVictory && Number.isFinite(result.soulEssenceEarned)
+    ? Math.max(0, Math.floor(result.soulEssenceEarned))
+    : 0;
+  return {
+    ...save,
+    collections: { ...save.collections, relicIds: [...relicIds] },
+    progression: { ...save.progression, soulEssence: save.progression.soulEssence + reward }
+  };
 }
 
 export function applyRunResult(save: SaveData, result: RunResultInput): SaveData {

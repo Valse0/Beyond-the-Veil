@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { RegionId } from '../../core/types/content.js';
+import type { GameMode } from '../../core/types/game.js';
 import { CHARACTERS } from '../../data/characters.js';
 import { REGIONS } from '../../data/regions.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
@@ -8,8 +9,10 @@ export class RegionSelectScene extends Phaser.Scene {
   private characterId = CHARACTERS[0]!.id;
   private selectedIndex = 0;
   private frames: Phaser.GameObjects.Graphics[] = [];
-  private previousPad = { left: false, right: false, confirm: false, back: false };
+  private previousPad = { left: false, right: false, confirm: false, back: false, mode: false };
   private unlockedRegionIds = new Set<RegionId>([REGIONS[0]!.id]);
+  private gameMode: GameMode = 'survival';
+  private modeButtons: Phaser.GameObjects.Text[] = [];
 
   constructor() { super('region-select'); }
 
@@ -20,7 +23,9 @@ export class RegionSelectScene extends Phaser.Scene {
     this.selectedIndex = 0;
     this.unlockedRegionIds = new Set([REGIONS[0]!.id]);
     this.frames = [];
-    this.previousPad = { left: false, right: false, confirm: false, back: false };
+    this.previousPad = { left: false, right: false, confirm: false, back: false, mode: false };
+    this.gameMode = 'survival';
+    this.modeButtons = [];
   }
 
   create(): void {
@@ -119,6 +124,15 @@ export class RegionSelectScene extends Phaser.Scene {
       backgroundColor: '#292326', padding: { x: 12, y: 8 }
     });
 
+    this.add.text(width / 2, 558, 'OYUN MODU', {
+      fontFamily: 'Georgia, serif', fontSize: '15px', color: '#d9c9aa'
+    }).setOrigin(0.5);
+    this.makeModeButton(width / 2 - 112, 588, 'SURVIVAL', 'survival');
+    this.makeModeButton(width / 2 + 112, 588, 'BOSS HUNT', 'boss-hunt');
+    this.add.text(width / 2, 616, 'Survival: standart koşu ve hikâye ilerlemesi  •  Boss Hunt: doğrudan bölge boss’u', {
+      fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#89818a'
+    }).setOrigin(0.5);
+
     this.makeButton(64, height - 76, '‹  AVCIYA GERİ DÖN', () => {
       this.scene.start('character-select', { characterId: this.characterId });
     }, 190);
@@ -130,6 +144,7 @@ export class RegionSelectScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-LEFT', () => this.moveSelection(-1));
     this.input.keyboard?.on('keydown-RIGHT', () => this.moveSelection(1));
     this.input.keyboard?.on('keydown-ENTER', () => this.startRun());
+    this.input.keyboard?.on('keydown-M', () => this.toggleGameMode());
     this.input.keyboard?.on('keydown-ESC', () => this.scene.start('character-select', { characterId: this.characterId }));
     this.input.keyboard?.on('keydown-BACKSPACE', () => this.scene.start('character-select', { characterId: this.characterId }));
     this.refreshSelection();
@@ -142,11 +157,42 @@ export class RegionSelectScene extends Phaser.Scene {
     const right = pad.right || pad.leftStick.x > 0.55;
     const confirm = pad.A || Boolean(pad.buttons[9]?.pressed);
     const back = pad.B;
+    const mode = Boolean(pad.buttons[3]?.pressed);
     if (left && !this.previousPad.left) this.moveSelection(-1);
     if (right && !this.previousPad.right) this.moveSelection(1);
     if (confirm && !this.previousPad.confirm) this.startRun();
     if (back && !this.previousPad.back) this.scene.start('character-select', { characterId: this.characterId });
-    this.previousPad = { left, right, confirm, back };
+    if (mode && !this.previousPad.mode) this.toggleGameMode();
+    this.previousPad = { left, right, confirm, back, mode };
+  }
+
+  private toggleGameMode(): void {
+    this.gameMode = this.gameMode === 'survival' ? 'boss-hunt' : 'survival';
+    this.refreshModeSelection();
+  }
+
+  private makeModeButton(x: number, y: number, label: string, mode: GameMode): void {
+    const button = this.add.text(x, y, label, {
+      fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#aaa2a0',
+      backgroundColor: '#242127', padding: { x: 20, y: 10 }, align: 'center'
+    }).setOrigin(0.5).setFixedSize(190, 38).setInteractive({ useHandCursor: true });
+    button.on('pointerup', () => {
+      this.gameMode = mode;
+      this.refreshModeSelection();
+    });
+    this.modeButtons.push(button);
+    this.refreshModeSelection();
+  }
+
+  private refreshModeSelection(): void {
+    this.modeButtons.forEach((button, index) => {
+      const selected = (index === 0 && this.gameMode === 'survival') || (index === 1 && this.gameMode === 'boss-hunt');
+      button.setStyle({
+        color: selected ? '#f2d39a' : '#aaa2a0',
+        backgroundColor: selected ? '#5b3d32' : '#242127'
+      });
+      button.setStroke('#9b8059', selected ? 2 : 1);
+    });
   }
 
   private moveSelection(direction: number): void {
@@ -190,6 +236,6 @@ export class RegionSelectScene extends Phaser.Scene {
   private startRun(): void {
     const region = REGIONS[this.selectedIndex];
     if (!region || !this.unlockedRegionIds.has(region.id)) return;
-    this.scene.start('run', { characterId: this.characterId, regionId: region.id });
+    this.scene.start('run', { characterId: this.characterId, regionId: region.id, gameMode: this.gameMode });
   }
 }

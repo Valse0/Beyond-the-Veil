@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { ElementId, RegionId, RegionPathDefinition, EnemyDefinition, BossDefinition, CharacterDefinition, WeaponDefinition, PassiveSpecialMechanic } from '../../core/types/content.js';
-import type { RunState, UpgradeId } from '../../core/types/game.js';
+import type { GameMode, RunState, UpgradeId } from '../../core/types/game.js';
 import { CHARACTERS, STARTING_CHARACTER } from '../../data/characters.js';
 import { ENEMIES } from '../../data/enemies.js';
 import { BOSSES } from '../../data/bosses.js';
@@ -28,7 +28,8 @@ import { addCurseStack, createPassiveSpecialRuntimeState, getLowHealthLifestealB
 import { createBossEncounter, damageBoss, getBossAttack, type BossEncounterState } from '../../gameplay/bosses/boss-runtime.js';
 import { createBossArena, damageBossArenaObject, getBossArenaDamageMultiplier, getSafeBossArenaObject, stepBossArena, transitionBossArenaPhase, type BossArenaObjectKind, type BossArenaState } from '../../gameplay/bosses/boss-arena-runtime.js';
 import { createHazardCycle, getRegionHazardMechanic, stepRegionHazard, type HazardCycle, type HazardEvent, type RegionHazardMechanic } from '../../gameplay/regions/region-runtime.js';
-import { applyRunResult } from '../../gameplay/run/run-results.js';
+import { applyBossHuntResult, applyRunResult } from '../../gameplay/run/run-results.js';
+import { getGameModeRules, resolveGameMode } from '../../gameplay/run/game-mode-runtime.js';
 import { createWaveDirector, stepWaveDirector, waveRandom, type WaveDirectorState } from '../../gameplay/spawning/wave-director.js';
 import { advanceRunEvent, createRunEventState, getRunEventName, getRunEventObjective, getRunEventReward, recordRunEventAction, startDueRunEvent, type RunEventAction, type RunEventKind, type RunEventState } from '../../gameplay/events/run-events.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
@@ -59,6 +60,7 @@ export class RunScene extends Phaser.Scene {
   private state:RunState=createRunState();
   private character:CharacterDefinition=STARTING_CHARACTER;
   private region=REGIONS[0]!;
+  private gameMode:GameMode='survival';
   private build:BuildState={weapons:[],passives:[]};
   private player!:Phaser.Physics.Arcade.Sprite;
   private enemies!:Phaser.Physics.Arcade.Group;
@@ -237,13 +239,13 @@ export class RunScene extends Phaser.Scene {
   browserTestRestartRegion(regionId:string):void {
     this.assertBrowserTestMode();
     if(!REGIONS.some(region=>region.id===regionId))throw new Error('Unknown region map: '+regionId);
-    this.scene.restart({characterId:this.character.id,regionId:regionId as RegionId});
+    this.scene.restart({characterId:this.character.id,regionId:regionId as RegionId,gameMode:this.gameMode});
   }
 
   browserTestRestartCharacter(characterId:string):void {
     this.assertBrowserTestMode();
     if(!CHARACTERS.some(character=>character.id===characterId))throw new Error('Unknown test character: '+characterId);
-    this.scene.restart({characterId,regionId:this.region.id});
+    this.scene.restart({characterId,regionId:this.region.id,gameMode:this.gameMode});
   }
 
   browserTestAbilityProbe():{effect:string;beforeHealth:number;afterHealth:number;beforePlayerX:number;afterPlayerX:number;targetVelocity:number;targetHealthBefore:number;targetHealthAfter:number;guardActive:boolean;markedTargetCount:number;cooldownRemainingMs:number} {
@@ -269,6 +271,7 @@ export class RunScene extends Phaser.Scene {
 
   browserTestSnapshot():{
     ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number;delayedZoneFired:boolean;delayedZoneCandidateCount:number;delayedZoneInRangeCount:number;delayedZoneRunFinished:boolean;delayedZoneDamage:number;sceneTimePaused:boolean;sceneActive:boolean;sceneTimeNow:number;delayedTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null};
+    gameMode:GameMode;waveSpawnIndex:number;activeEnemyCount:number;
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Partial<Record<ElementId,number>>};
     regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};
@@ -289,7 +292,7 @@ export class RunScene extends Phaser.Scene {
       ability:{effect:this.character.ability.effect,cooldownRemainingMs:Math.max(0,this.abilityReady-this.time.now),guardActive:this.time.now<this.abilityGuardUntil,lastDamage:this.abilityLastDamage,lastHealing:this.abilityLastHealing,markedTargetCount:this.activeTargets().filter(target=>Number(target.getData('abilityMarkedUntil')??0)>this.time.now).length,delayedZoneFired:this.abilityDelayedZoneFired,delayedZoneCandidateCount:this.abilityDelayedZoneCandidateCount,delayedZoneInRangeCount:this.abilityDelayedZoneInRangeCount,delayedZoneRunFinished:this.abilityDelayedZoneRunFinished,delayedZoneDamage:this.abilityDelayedZoneDamage,sceneTimePaused:this.time.paused,sceneActive:this.sys.isActive(),sceneTimeNow:this.time.now,delayedTimer:this.abilityDelayedZoneTimer?{paused:this.abilityDelayedZoneTimer.paused,hasDispatched:this.abilityDelayedZoneTimer.hasDispatched,elapsed:this.abilityDelayedZoneTimer.getElapsed(),delay:this.abilityDelayedZoneTimer.delay,timeScale:this.abilityDelayedZoneTimer.timeScale}:null},
       level:this.state.level,experience:this.state.experience,experienceToNext:this.state.experienceToNext,
       regionMap:{regionId:this.mapLayout.regionId,roomIds:this.mapLayout.rooms.map(room=>room.id),wallCount:this.mapBoundaryCount,connected:this.mapConnected,playerWalkable:isRegionMapWalkable(this.mapLayout,this.player.x,this.player.y,-24)},
-      queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,environment:{timeOfDay:this.environmentState.timeOfDay,weather:this.environmentState.weather,timeLabel:this.environmentState.timeLabel,weatherLabel:this.environmentState.weatherLabel,enemyMoveSpeedMultiplier:this.environmentState.enemyMoveSpeedMultiplier,elementDamageMultipliers:{...this.environmentState.elementDamageMultipliers}},paused:this.paused,bossSpawned:this.bossSpawned,bossVariantId:this.activeBossVariantId,bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
+      gameMode:this.gameMode,waveSpawnIndex:this.waveDirector.spawnIndex,activeEnemyCount:this.enemies.countActive(true),queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,environment:{timeOfDay:this.environmentState.timeOfDay,weather:this.environmentState.weather,timeLabel:this.environmentState.timeLabel,weatherLabel:this.environmentState.weatherLabel,enemyMoveSpeedMultiplier:this.environmentState.enemyMoveSpeedMultiplier,elementDamageMultipliers:{...this.environmentState.elementDamageMultipliers}},paused:this.paused,bossSpawned:this.bossSpawned,bossVariantId:this.activeBossVariantId,bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
       evolvedWeaponIds:this.build.weapons.filter(weapon=>weapon.evolved).map(weapon=>weapon.weaponId),
       choices:this.currentLevelChoices.map(({id,title,kind,contentId,branchId})=>({id,title,kind,contentId,branchId})),
       passives:this.build.passives.map(item=>({...item})),activePassiveSpecialIds:this.build.passives.filter(item=>item.special).map(item=>item.passiveId),
@@ -439,11 +442,14 @@ export class RunScene extends Phaser.Scene {
   browserTestAdvanceElapsed(milliseconds:number,skipTimedSystems=false):void {
     this.assertBrowserTestMode();
     if(!Number.isFinite(milliseconds)||milliseconds<0)throw new Error('Test time must be a non-negative finite number.');
-    this.state={...this.state,elapsedMs:Math.min(RUN_MS,this.state.elapsedMs+milliseconds)};
+    const nextElapsed=this.state.elapsedMs+milliseconds;
+    this.state={...this.state,elapsedMs:this.gameMode==='survival'?Math.min(RUN_MS,nextElapsed):nextElapsed};
     this.updateEnvironment();
-    if(skipTimedSystems){this.runEventState={...this.runEventState,nextEventIndex:3,activeEvent:null};this.eventSetupPending=false;this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};}
-    else this.updateRunEvent(this.time.now);
-    if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
+    if(getGameModeRules(this.gameMode).timedEventsEnabled){
+      if(skipTimedSystems){this.runEventState={...this.runEventState,nextEventIndex:3,activeEvent:null};this.eventSetupPending=false;this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};}
+      else this.updateRunEvent(this.time.now);
+    }
+    if(this.gameMode==='survival'&&!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
     this.refreshHud();
   }
 
@@ -771,9 +777,10 @@ export class RunScene extends Phaser.Scene {
     this.finishRun(false);
   }
 
-  init(data:{characterId?:string;regionId?:RegionId}):void {
+  init(data:{characterId?:string;regionId?:RegionId;gameMode?:unknown}):void {
     this.character=CHARACTERS.find(c=>c.id===data?.characterId)??STARTING_CHARACTER;
     this.region=REGIONS.find(r=>r.id===data?.regionId)??REGIONS[0]!;
+    this.gameMode=resolveGameMode(data?.gameMode);
     this.runDiscoveredEnemyIds=[];
     this.runDiscoveredWeaponIds=[];
   }
@@ -782,7 +789,7 @@ export class RunScene extends Phaser.Scene {
     this.time.paused=false;this.physics.world.resume();
     const saveManager=this.registry.get('saveManager') as SaveManager|undefined;
     const loadedSave=saveManager?.load();
-    this.questSaveData=loadedSave&&'data' in loadedSave?startAvailableQuests(loadedSave.data,this.region.id):undefined;
+    this.questSaveData=getGameModeRules(this.gameMode).storyQuestsEnabled&&loadedSave&&'data' in loadedSave?startAvailableQuests(loadedSave.data,this.region.id):undefined;
      this.bossEncounterIdsAtRegionEntry=loadedSave&&'data' in loadedSave?[...loadedSave.data.story.bossEncounterIds]:[];
      this.activeBossVariantId=null;
     this.permanentUpgradeEffects=derivePermanentUpgradeEffects(loadedSave&&'data' in loadedSave?loadedSave.data.progression.permanentUpgrades:undefined);
@@ -834,11 +841,20 @@ export class RunScene extends Phaser.Scene {
     this.physics.add.overlap(this.player,this.enemies,(_p,e)=>this.contactDamage(e as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.orbs,(_p,o)=>this.collectOrb(o as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player,this.eventObjects,(_p,o)=>this.handleRunEventObjectOverlap(o as Phaser.GameObjects.GameObject));
-    this.spawnExplorationPoints(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
-    this.spawnUnlockedStoryPaths(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
-    this.spawnStoryWorldState(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
+    if(getGameModeRules(this.gameMode).explorationEnabled){
+      this.spawnExplorationPoints(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
+      this.spawnUnlockedStoryPaths(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
+      this.spawnStoryWorldState(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
+    }
     this.environmentState=resolveEnvironment(this.region.id,this.state.elapsedMs);
-    this.createHud();this.createTouchControls();this.spawnEnemy();this.waveDirector={...this.waveDirector,spawnIndex:1,nextSpawnAtMs:1500};this.refreshBuildStats();
+    this.createHud();this.createTouchControls();this.refreshBuildStats();
+    if(getGameModeRules(this.gameMode).regularWavesEnabled){
+      this.spawnEnemy();
+      this.waveDirector={...this.waveDirector,spawnIndex:1,nextSpawnAtMs:1500};
+    }else{
+      this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};
+      if(getGameModeRules(this.gameMode).startsBossImmediately)this.spawnBoss();
+    }
   }
 
   private makeTextures():void {
@@ -905,11 +921,12 @@ export class RunScene extends Phaser.Scene {
     if(gamepad.southPressed)this.tryDash();
     if(gamepad.westPressed)this.useAbility();
     if(gamepad.startPressed){this.openPause();return;}
-    this.state=advanceRun(this.state,delta);this.updateEnvironment();this.updateRunEvent(time);
+    this.state=advanceRun(this.state,delta);this.updateEnvironment();
+    if(getGameModeRules(this.gameMode).timedEventsEnabled)this.updateRunEvent(time);
     this.move(time);if(this.paused)return;this.moveEnemies(time);this.updateEnemyZones(time);this.updatePassiveZones(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
     this.expireShots(time);this.magnetize();this.updateElementStatuses(time);this.updateRegionHazard(time);this.updateBossArena(time);
-    if(!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
-    if(this.state.elapsedMs>=RUN_MS&&!this.bossState&&!this.bossSpawned)this.spawnBoss();
+    if(this.gameMode==='survival'&&!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
+    if(this.gameMode==='survival'&&this.state.elapsedMs>=RUN_MS&&!this.bossState&&!this.bossSpawned)this.spawnBoss();
     if(time-this.lastHud>120){this.refreshHud();this.lastHud=time;}
   }
 
@@ -1117,6 +1134,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private spawnDirector(_time:number):void {
+    if(!getGameModeRules(this.gameMode).regularWavesEnabled)return;
     const regionPool=this.region.enemyIds.map(id=>ENEMIES.find(enemy=>enemy.id===id)).filter((enemy):enemy is EnemyDefinition=>Boolean(enemy));
     const pool=this.state.elapsedMs<180000?regionPool.slice(0,3):regionPool;
     if(!pool.length)return;
@@ -1565,7 +1583,7 @@ export class RunScene extends Phaser.Scene {
     this.recordRunEventEnemyDefeat(enemy);
     this.recordQuestGameplayEvent('enemy-kill');
     if(enemy.getData('isElite'))this.recordQuestGameplayEvent('elite-kill');
-    this.runSoulEssence+=Math.floor(Math.max(0,experience)/2)+(enemy.getData('isElite')?35:0);
+    if(this.gameMode==='survival')this.runSoulEssence+=Math.floor(Math.max(0,experience)/2)+(enemy.getData('isElite')?35:0);
     if(enemy.getData('isElite')&&isPassiveSpecialActive(this.build,'hollow-crown'))this.applyCrownOfAshes(enemy);
     const eliteMarker=enemy.getData('eliteMarker') as Phaser.GameObjects.GameObject|undefined;eliteMarker?.destroy();
     this.dropExperience(enemy,experience);this.state=recordKill(this.state);enemy.destroy();
@@ -1675,7 +1693,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private updateRunEvent(_time:number):void {
-    if(this.runFinished)return;
+    if(this.runFinished||!getGameModeRules(this.gameMode).timedEventsEnabled)return;
     const before=this.runEventState.activeEvent;
     this.runEventState=advanceRunEvent(this.runEventState,this.state.elapsedMs);
     const afterTimeout=this.runEventState.activeEvent;
@@ -2445,10 +2463,10 @@ export class RunScene extends Phaser.Scene {
     if(this.runFinished)return;this.runFinished=true;this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
     const saved=this.persistRunResult(won);this.lastRunSaved=saved;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.9).setScrollFactor(0).setDepth(200);
-    const title=this.add.text(w/2,h*.29,won?'KOŞU TAMAMLANDI':'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
+    const title=this.add.text(w/2,h*.29,won?(this.gameMode==='boss-hunt'?'BOSS HUNT TAMAMLANDI':'KOŞU TAMAMLANDI'):'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     const summary=this.add.text(w/2,h*.43,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman\n+'+this.runSoulEssence+' RUH ÖZÜ\n'+(saved?'İLERLEME KAYDEDİLDİ':'KAYIT BAŞARISIZ — İLERLEME KORUNAMADI'),{fontSize:'16px',color:saved?'#c0b5a8':'#e29a8d',align:'center',lineSpacing:7}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     this.overlay.push(shade,title,summary);
-    this.createOverlayButton(w/2,h*.62,260,54,'YENİ KOŞU',()=>this.scene.restart());
+    this.createOverlayButton(w/2,h*.62,260,54,'YENİ KOŞU',()=>this.scene.restart({characterId:this.character.id,regionId:this.region.id,gameMode:this.gameMode}));
     this.createOverlayButton(w/2,h*.73,260,54,'ANA MENÜ',()=>this.scene.start('main-menu'));
     this.overlayBackIndex=1;
   }
@@ -2459,6 +2477,10 @@ export class RunScene extends Phaser.Scene {
     try {
       const loaded=manager.load();
       if(!('data' in loaded))return false;
+      if(this.gameMode==='boss-hunt'){
+        manager.save(applyBossHuntResult(loaded.data,{regionId:this.region.id,won,bossChestOpened:this.bossChestOpened,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds}));
+        return true;
+      }
       const runResult=applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,bossChestOpened:this.bossChestOpened,completedTreasureHunt:this.completedTreasureHunt,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length,enemyIdsEarned:this.runDiscoveredEnemyIds,weaponIdsEarned:this.runDiscoveredWeaponIds,loreIdsEarned:this.runDiscoveredLoreIds,discoveredPathIdsEarned:this.runDiscoveredPathIds});
       const questStory=this.questSaveData?.story;
       const mergedSave={...runResult,story:{...runResult.story,...(questStory??{}),unlockedPathIds:[...new Set([...runResult.story.unlockedPathIds,...(questStory?.unlockedPathIds??[])])],completedEndingId:runResult.story.completedEndingId??questStory?.completedEndingId??null}};

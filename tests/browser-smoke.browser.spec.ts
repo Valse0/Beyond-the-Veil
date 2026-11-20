@@ -202,6 +202,7 @@ test('region selection reads unlocked regions from the persisted profile', async
 });
 
 type BrowserRunSnapshot = {
+  gameMode:'survival'|'boss-hunt';waveSpawnIndex:number;activeEnemyCount:number;
   ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number};
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;
@@ -218,7 +219,7 @@ type BrowserRunSnapshot = {
   runEvents:{selected:string[];active:{kind:string;progress:number;stage:number;status:string}|null;completed:string[];failed:string[]};
 };
 
-async function startBrowserTestRun(page: import('@playwright/test').Page,unlockedPathIds:string[]=[]): Promise<import('@playwright/test').Locator> {
+async function startBrowserTestRun(page: import('@playwright/test').Page,unlockedPathIds:string[]=[],gameMode:'survival'|'boss-hunt'='survival'): Promise<import('@playwright/test').Locator> {
   await page.goto('/?bv-test=1');
   const canvas=page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
@@ -237,7 +238,12 @@ async function startBrowserTestRun(page: import('@playwright/test').Page,unlocke
   await page.waitForTimeout(150);
   await page.keyboard.press('Enter');
   await page.waitForTimeout(120);
-  await page.keyboard.press('Enter');
+  if(gameMode==='boss-hunt'){
+    await page.mouse.click(750,588);
+    await page.mouse.click(1124,644);
+  }else{
+    await page.keyboard.press('Enter');
+  }
   await page.waitForTimeout(180);
   await page.waitForFunction(() => {
     const game=(window as Window & {__BEYOND_VEIL_GAME__?: {scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__;
@@ -1555,5 +1561,61 @@ test('dynamic day and regional weather cycles stay deterministic across all five
       expect(snapshot.environment.weatherLabel.length).toBeGreaterThan(0);
     }
   }
+  expect(pageErrors).toEqual([]);
+});
+
+
+test('Boss Hunt starts the selected regional boss immediately and persists only chest rewards', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page,[],'boss-hunt');
+  const beforeSave=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  const started=await readBrowserRunSnapshot(page);
+  expect(started.gameMode).toBe('boss-hunt');
+  expect(started.bossSpawned).toBe(true);
+  expect(started.bossHealth).toBeGreaterThan(0);
+  expect(started.waveSpawnIndex).toBe(0);
+  expect(started.activeEnemyCount).toBe(1);
+  expect(started.runEvents.active).toBeNull();
+  expect(started.runEvents.completed).toEqual([]);
+  expect(started.questProgress).toEqual({});
+  expect(started.explorationLandmarks).toEqual([]);
+  expect(started.availableStoryPathIds).toEqual([]);
+
+  await page.waitForTimeout(1_800);
+  const stillFocused=await readBrowserRunSnapshot(page);
+  expect(stillFocused.waveSpawnIndex).toBe(0);
+  expect(stillFocused.runEvents.active).toBeNull();
+  expect(stillFocused.bossSpawned).toBe(true);
+
+  await defeatBrowserTestBoss(page);
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestAvailable).toBe(true);
+  await moveToBrowserTestBossChest(page);
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.collectOutcome,{timeout:5_000}).toBe('opened');
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).queuedLevels,{timeout:3_000}).toBeGreaterThan(0);
+  let pendingLevels=(await readBrowserRunSnapshot(page)).queuedLevels;
+  while(pendingLevels>0){
+    await page.locator('#game-container canvas').click({position:{x:520,y:382}});
+    await expect.poll(async()=> (await readBrowserRunSnapshot(page)).queuedLevels).toBeLessThan(pendingLevels);
+    pendingLevels=(await readBrowserRunSnapshot(page)).queuedLevels;
+  }
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).lastRunSaved,{timeout:8_000}).toBe(true);
+  const victory=await readBrowserRunSnapshot(page);
+  expect(victory.lastRunSaved).toBe(true);
+  expect(victory.runRelicIds).toContain('matriarch-seed');
+
+  const afterSave=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(afterSave.progression.soulEssence).toBe(beforeSave.progression.soulEssence+180);
+  expect(afterSave.progression.completedRuns).toBe(beforeSave.progression.completedRuns);
+  expect(afterSave.progression.unlockedRegionIds).toEqual(beforeSave.progression.unlockedRegionIds);
+  expect(afterSave.collections.relicIds).toContain('matriarch-seed');
+  expect(afterSave.collections.characterMastery).toEqual(beforeSave.collections.characterMastery);
+  expect(afterSave.collections.completedAchievementIds).toEqual(beforeSave.collections.completedAchievementIds);
+  expect(afterSave.story).toEqual(beforeSave.story);
+  await page.reload();
+  await expect(page.locator('#game-container canvas')).toBeVisible();
+  const reloaded=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(reloaded.progression.soulEssence).toBe(afterSave.progression.soulEssence);
+  expect(reloaded.story).toEqual(beforeSave.story);
   expect(pageErrors).toEqual([]);
 });

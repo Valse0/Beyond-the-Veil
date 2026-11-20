@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyRunResult } from '../.test-dist/src/gameplay/run/run-results.js';
+import { applyBossHuntResult, applyRunResult } from '../.test-dist/src/gameplay/run/run-results.js';
 import { createInitialSaveData } from '../.test-dist/src/systems/save/save-manager.js';
 
 test('death preserves earned Ruh Özü and increments completed runs without unlocking a region', () => {
@@ -184,4 +184,45 @@ test('secret-path discovery rejects IDs belonging to another region or unknown p
     discoveredPathIdsEarned: ['forgotten-graveyard-secret', 'made-up-secret']
   });
   assert.deepEqual(result.story.unlockedPathIds, []);
+});
+
+
+test('Boss Hunt victory persists only the opened boss chest relic and boss essence', () => {
+  const save = createInitialSaveData('2026-11-20T12:00:00.000Z');
+  save.progression.soulEssence = 40;
+  const beforeStory = structuredClone(save.story);
+  const beforeMastery = structuredClone(save.collections.characterMastery);
+  const beforeAchievements = [...save.collections.completedAchievementIds];
+  const result = applyBossHuntResult(save, {
+    regionId: 'cursed-forest',
+    won: true,
+    bossChestOpened: true,
+    soulEssenceEarned: 180,
+    relicIdsEarned: ['matriarch-seed', 'matriarch-seed', 'forest-heart', 'king-crown-shard', 'unknown-relic']
+  });
+  assert.equal(result.progression.soulEssence, 220);
+  assert.equal(result.progression.completedRuns, save.progression.completedRuns);
+  assert.deepEqual(result.progression.unlockedRegionIds, save.progression.unlockedRegionIds);
+  assert.deepEqual(result.collections.relicIds, ['matriarch-seed']);
+  assert.deepEqual(result.collections.characterMastery, beforeMastery);
+  assert.deepEqual(result.collections.completedAchievementIds, beforeAchievements);
+  assert.deepEqual(result.story, beforeStory);
+  assert.equal(save.progression.soulEssence, 40);
+});
+
+test('Boss Hunt defeat or unopened chest grants no permanent reward or campaign progress', () => {
+  const save = createInitialSaveData('2026-11-20T12:00:00.000Z');
+  const base = { regionId: 'cursed-forest', soulEssenceEarned: 180, relicIdsEarned: ['matriarch-seed'] };
+  const results = [
+    applyBossHuntResult(save, { ...base, won: false, bossChestOpened: true }),
+    applyBossHuntResult(save, { ...base, won: true, bossChestOpened: false }),
+    applyBossHuntResult(save, { ...base, won: true })
+  ];
+  for (const result of results) {
+    assert.equal(result.progression.soulEssence, save.progression.soulEssence);
+    assert.equal(result.progression.completedRuns, save.progression.completedRuns);
+    assert.deepEqual(result.progression.unlockedRegionIds, save.progression.unlockedRegionIds);
+    assert.deepEqual(result.collections.relicIds, save.collections.relicIds);
+    assert.deepEqual(result.story, save.story);
+  }
 });
