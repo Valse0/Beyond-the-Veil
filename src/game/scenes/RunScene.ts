@@ -1300,6 +1300,7 @@ export class RunScene extends Phaser.Scene {
     if(this.touchStart&&this.touchPointerId!==null){x=this.touchMoveX;y=this.touchMoveY;}
     const dir=new Phaser.Math.Vector2(x,y);if(dir.length()>1)dir.normalize();
     if(Phaser.Input.Keyboard.JustDown(this.keys.SPACE))this.tryDash();
+    if(Phaser.Input.Keyboard.JustDown(this.keys.ENTER))this.tryDash();
     if(Phaser.Input.Keyboard.JustDown(this.keys.E))this.useAbility();
     if(Phaser.Input.Keyboard.JustDown(this.keys.ESC))this.openPause();
     const stats=this.currentBuildStats();const speed=this.character.moveSpeed*stats.moveSpeedMultiplier*this.permanentUpgradeEffects.moveSpeedMultiplier*this.relicStats.moveSpeedMultiplier*(time<this.playerSlowUntil?this.playerSlowMultiplier:1);
