@@ -2455,3 +2455,23 @@ test('six seeded enemy mutations execute their live Phaser combat effects and re
   expect(pageErrors).toEqual([]);
 });
 
+
+
+test('responsive shell fits landscape viewports and guides portrait mobile orientation', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  await expect(page.locator('#orientation-hint')).toBeVisible();
+  const portraitBox = await canvas.boundingBox();
+  expect(portraitBox).not.toBeNull();
+  expect(portraitBox!.width).toBeLessThanOrEqual(390);
+  expect(portraitBox!.height).toBeLessThanOrEqual(844);
+
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expect(page.locator('#orientation-hint')).toBeHidden();
+  const landscapeBox = await canvas.boundingBox();
+  expect(landscapeBox).not.toBeNull();
+  expect(landscapeBox!.width).toBeLessThanOrEqual(844);
+  expect(landscapeBox!.height).toBeLessThanOrEqual(390);
+});

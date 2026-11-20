@@ -2,36 +2,40 @@
 <html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0b0f" />
     <title>Beyond the Veil</title>
     <style>
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; padding: 0; background: #0b0b0f; color: #e0e0e8; overflow: hidden; }
       body {
-        margin: 0;
-        padding: 0;
-        background-color: #0b0b0f;
-        color: #e0e0e8;
-        font-family: serif;
-        overflow: hidden;
-        display: flex;
-        justify-content: center;
-        align-items: center;
         height: 100vh;
+        height: 100dvh;
+        padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+        display: flex; justify-content: center; align-items: center; font-family: serif;
+        touch-action: none; overscroll-behavior: none;
       }
       #game-container {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+        width: 100%; height: 100%; min-width: 0; min-height: 0;
+        display: flex; justify-content: center; align-items: center; overflow: hidden; touch-action: none;
       }
-      canvas {
-        display: block;
-        margin: auto;
+      canvas { display: block; margin: auto; max-width: 100%; max-height: 100%; touch-action: none; }
+      #orientation-hint {
+        display: none; position: fixed; inset: 0; z-index: 20; padding: 28px;
+        align-items: center; justify-content: center; flex-direction: column; text-align: center;
+        background: rgba(9, 8, 13, .96); color: #e9dfcb;
+        font: 600 18px/1.5 Arial, sans-serif; letter-spacing: .02em; pointer-events: none;
       }
+      #orientation-hint span { display: block; max-width: 28rem; color: #c7ad7b; font-size: 14px; font-weight: 400; margin-top: 10px; }
+      @media (orientation: portrait) and (max-width: 900px) { #orientation-hint { display: flex; } }
     </style>
   </head>
   <body>
     <div id="game-container"></div>
+    <div id="orientation-hint" role="status" aria-live="polite">
+      BEYOND THE VEIL
+      <span>Daha rahat bir oyun deneyimi için cihazını yatay konuma çevir.</span>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

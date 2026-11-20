@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput } from '../.test-dist/src/game/input/gamepad-controls.js';
+import { resolveRemoteAction } from '../.test-dist/src/game/input/platform-input.js';
 
 test('left stick applies a radial deadzone and keeps analog magnitude', () => {
   const quiet = resolveGamepadInput({ ...EMPTY_GAMEPAD_FRAME, axisX: 0.1, axisY: 0.1 });
@@ -53,4 +54,19 @@ test('left-stick directions navigate once when crossing the menu threshold', () 
   const tilted = { ...EMPTY_GAMEPAD_FRAME, axisX: -0.8 };
   assert.equal(resolveGamepadInput(tilted).leftPressed, true);
   assert.equal(resolveGamepadInput(tilted, tilted).leftPressed, false);
+});
+
+test('smart TV remote Back, OK and colour keys normalize without hijacking arrows or Enter', () => {
+  const remoteKey = (key, code = key, keyCode = 0) => resolveRemoteAction({ key, code, keyCode });
+  assert.equal(remoteKey('BrowserBack'), 'back');
+  assert.equal(remoteKey('GoBack'), 'back');
+  assert.equal(remoteKey('OK'), 'confirm');
+  assert.equal(remoteKey('ColorF0Red'), 'red');
+  assert.equal(remoteKey('ColorF1Green'), 'green');
+  assert.equal(remoteKey('ColorF2Yellow'), 'yellow');
+  assert.equal(remoteKey('ColorF3Blue'), 'blue');
+  assert.equal(remoteKey('Unidentified', 'Unidentified', 166), 'back');
+  assert.equal(remoteKey('ArrowLeft'), null);
+  assert.equal(remoteKey('Enter'), null);
+  assert.equal(remoteKey('Escape'), null);
 });

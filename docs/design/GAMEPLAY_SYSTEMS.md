@@ -435,3 +435,14 @@ This is functional text presentation only. Final illustrations, cinematic transi
 - The shared overlay selection layer remains the single input path for pointer/touch, keyboard and gamepad navigation. The first card is initially selected and the decision remains non-dismissible until saved.
 - Browser coverage reads the actual rendered Phaser text, checks both consequence summaries, exercises the keyboard-selected branch and separately verifies the default mercy branch's NPC fate, atmosphere, boss variant, path, reward, Ruh Özü and reload persistence.
 - No save-schema migration, dependency, backend, final art or cinematic sequence is included. Responsive visual review and physical mobile/controller/TV testing remain outstanding.
+
+
+## Platform input and responsive shell v1
+
+The shared 1280×720 logical game surface remains landscape and uses Phaser FIT scaling with rounded pixel-art scaling. The web shell respects safe-area insets, prevents page scrolling/gesture zoom over the game surface, and displays a portrait-orientation prompt on narrow portrait viewports. This preserves the existing scene coordinate system; it is not a claim that every menu has received its final mobile layout pass.
+
+A platform input adapter normalizes smart-TV browser remote events when the browser exposes them: D-pad arrows use the existing navigation/movement paths; Enter/OK confirms; BrowserBack/GoBack and the remote red key back out; green confirms; yellow and blue are contextual actions. TV vendors and browser shells may suppress or rename keys, so the standard arrow/OK/back path is the required baseline and colour keys are optional.
+
+Run controls support independent touch pointers: one pointer can steer from the left movement zone while another activates Dash or the character ability. The virtual stick and action targets are enlarged and anchored to the lower corners; their visual presence is enabled for touch-capable devices and revealed on touch when device detection is unavailable. Keyboard, mouse, gamepad, and touch remain separate input paths.
+
+Automated evidence covers remote-key normalization and responsive browser viewport behavior. It does not prove physical TV-remote delivery, Android back-button integration, touch ergonomics, notch/safe-area rendering on a physical phone, or controller latency; those remain device QA.

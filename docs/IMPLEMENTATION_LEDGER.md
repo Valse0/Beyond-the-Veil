@@ -650,3 +650,12 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Added browser assertions against the rendered Phaser text and a separate live branch test for the default mercy choice, including NPC fate, atmosphere, boss variant, path, reward, Ruh Özü and reload persistence. Existing keyboard branch test continues to verify the alternate outcome.
 - Pointer/touch, keyboard and gamepad continue to use the existing shared overlay navigation. No save migration, dependency, backend or final art was added. Responsive review and physical-device/controller/TV validation remain outstanding.
 - CI #489 (run `44815882187`, commit `c467df294887d544aa29b40bca94a7cb7ad775d5`) passed TypeScript, 265/265 unit tests, production build, Chromium Playwright 54/54 and npm audit with 0 vulnerabilities. The first run exposed a stale quest-journal outcome-summary assertion and one transient pause/resume timeout; the assertion was aligned with the authored outcome, and the full rerun passed all 54 browser tests.
+
+
+## Platform Controls & Responsive UX Foundation v1 — 2026-11-20
+
+- Added a tested TV-browser remote-key adapter for Back/OK and optional red/green/yellow/blue colour keys. Existing arrow/Enter/Escape/Backspace paths remain intact to avoid duplicate handling.
+- Wired remote actions into Main Menu, Character Select, Region Select, Hunter Hub, Quest Journal and RunScene. Region selection uses yellow for mode cycling and blue for challenge cycling; in-run green maps to Dash, yellow to active ability and blue to the story journal.
+- Reworked in-run touch handling to track pointer IDs independently, allowing movement and an action button to be held simultaneously. Enlarged the virtual joystick/action targets and moved them into lower-corner thumb zones.
+- Added viewport-fit safe-area CSS, 100dvh, no-scroll/touch-action handling and a portrait-orientation hint while preserving the 1280×720 landscape logical canvas.
+- Automated tests cover TV key normalization and portrait/landscape browser viewport fitting. Physical Android/iPhone, TV remote, gamepad and safe-area checks are still pending; do not mark those platforms physically verified from Chromium automation alone.
