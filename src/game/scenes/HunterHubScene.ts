@@ -180,6 +180,7 @@ export class HunterHubScene extends Phaser.Scene {
   browserTestSnapshot(): {
     screen: 'hub' | 'blacksmith' | 'equipment-profiles' | 'equipment-editor' | 'equipment-delete-confirm';
     selectedIndex: number;
+    respecDialogOpen: boolean;
     selectedRecipeId: string | null;
     equipmentCharacterId: string | null;
     equipmentProfileIds: string[];
@@ -192,6 +193,7 @@ export class HunterHubScene extends Phaser.Scene {
     return {
       screen: this.currentScreen,
       selectedIndex: this.selectedIndex,
+      respecDialogOpen: Boolean(this.respecDialog),
       equipmentCharacterId: this.getSelectedEquipmentCharacter()?.id ?? null,
       equipmentProfileIds: this.getSelectedEquipmentCharacter() ? (this.registry.get('saveManager') as SaveManager | undefined)?.getEquipmentProfiles(this.getSelectedEquipmentCharacter()!.id).map(profile => profile.id) ?? [] : [],
       activeEquipmentProfileId: this.getSelectedEquipmentCharacter() ? (this.registry.get('saveManager') as SaveManager | undefined)?.getActiveEquipmentProfile(this.getSelectedEquipmentCharacter()!.id)?.id ?? null : null,
