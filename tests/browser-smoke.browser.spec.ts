@@ -202,7 +202,7 @@ test('region selection reads unlocked regions from the persisted profile', async
 });
 
 type BrowserRunSnapshot = {
-  gameMode:'survival'|'boss-hunt'|'challenge'|'endless';challengeId:string|null;challengeModifiers:{maxWeaponSlots:number;maxHealthMultiplier:number;enemyMoveSpeedMultiplier:number;victorySoulEssenceBonus:number};weaponSlotsUsed:number;waveSpawnIndex:number;activeEnemyCount:number;endless:{bossCyclesCompleted:number;nextBossAtMs:number;ruleId:string|null;ruleName:string|null;ruleModifiers:{enemyHealthMultiplier:number;enemyMoveSpeedMultiplier:number;incomingDamageMultiplier:number;experienceMultiplier:number}};
+  newGamePlusLevel:number;newGamePlusModifiers:{enemyHealthMultiplier:number;enemyDamageMultiplier:number;enemyMoveSpeedMultiplier:number;bossHealthMultiplier:number;bossDamageMultiplier:number;bossMoveSpeedMultiplier:number};gameMode:'survival'|'boss-hunt'|'challenge'|'endless';challengeId:string|null;challengeModifiers:{maxWeaponSlots:number;maxHealthMultiplier:number;enemyMoveSpeedMultiplier:number;victorySoulEssenceBonus:number};weaponSlotsUsed:number;waveSpawnIndex:number;activeEnemyCount:number;endless:{bossCyclesCompleted:number;nextBossAtMs:number;ruleId:string|null;ruleName:string|null;ruleModifiers:{enemyHealthMultiplier:number;enemyMoveSpeedMultiplier:number;incomingDamageMultiplier:number;experienceMultiplier:number}};
   ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number};
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;
@@ -573,7 +573,7 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
 test('permanent Hunter Hub upgrades affect actual run stats and level-up rerolls', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
-      schemaVersion: 10,
+      schemaVersion: 11,
       profile: { createdAt: '2026-11-19T00:00:00.000Z', updatedAt: '2026-11-19T00:00:00.000Z' },
       progression: {
         soulEssence: 0, completedRuns: 0,
@@ -1733,5 +1733,79 @@ test('Boss Hunt starts the selected regional boss immediately and persists only 
   const reloaded=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(reloaded.progression.soulEssence).toBe(afterSave.progression.soulEssence);
   expect(reloaded.story).toEqual(beforeSave.story);
+  expect(pageErrors).toEqual([]);
+});
+
+test('New Game+ unlocks after an ending, confirms the reset, and scales live enemies and bosses', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await page.goto('/?bv-test=1');
+  const canvas=page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  await page.evaluate(()=>{
+    const key='beyond-the-veil.save';
+    const raw=window.localStorage.getItem(key);
+    if(!raw)throw new Error('Initial profile was not created.');
+    const save=JSON.parse(raw) as {story:{completedEndingId:string|null};progression:{soulEssence:number;newGamePlusLevel:number;completedEndingIds:string[];unlockedRegionIds:string[];completedRuns:number}};
+    save.story.completedEndingId='ending-mended-veil';
+    save.progression.soulEssence=432;
+    save.progression.newGamePlusLevel=0;
+    save.progression.completedEndingIds=[];
+    save.progression.unlockedRegionIds=['cursed-forest','forgotten-graveyard'];
+    window.localStorage.setItem(key,JSON.stringify(save));
+  });
+  await page.reload();
+  await expect(canvas).toBeVisible();
+  const before=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  await page.mouse.click(760,555);
+  await page.keyboard.press('Escape');
+  const cancelled=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(cancelled.progression.newGamePlusLevel).toBe(0);
+  expect(cancelled.progression.unlockedRegionIds).toContain('forgotten-graveyard');
+
+  await page.mouse.click(760,555);
+  await page.mouse.click(495,485);
+  await page.waitForFunction(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('character-select'));
+  });
+  const afterStart=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(afterStart.schemaVersion).toBe(11);
+  expect(afterStart.progression.newGamePlusLevel).toBe(1);
+  expect(afterStart.progression.completedEndingIds).toEqual(['ending-mended-veil']);
+  expect(afterStart.progression.unlockedRegionIds).toEqual(['cursed-forest']);
+  expect(afterStart.progression.soulEssence).toBe(432);
+  expect(afterStart.story.completedEndingId).toBeNull();
+  expect(afterStart.story.quests).toEqual({});
+  expect(afterStart.progression.completedRuns).toBe(before.progression.completedRuns);
+
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('region-select'));
+  });
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('run'));
+  });
+  const snapshot=await readBrowserRunSnapshot(page);
+  expect(snapshot.newGamePlusLevel).toBe(1);
+  expect(snapshot.newGamePlusModifiers.enemyHealthMultiplier).toBeCloseTo(1.1);
+  expect(snapshot.newGamePlusModifiers.bossHealthMultiplier).toBeCloseTo(1.15);
+  const probe=await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestNewGamePlusProbe:()=>{level:number;enemy:{health:number;maxHealth:number;speed:number;contactDamage:number;attackDamage:number};boss:{health:number;maxHealth:number;contactDamage:number;attackDamage:number;movementMultiplier:number}}}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Game bridge unavailable.');
+    return game.scene.getScene('run').browserTestNewGamePlusProbe();
+  });
+  expect(probe.level).toBe(1);
+  expect(probe.enemy.health).toBe(37);
+  expect(probe.enemy.speed).toBeCloseTo(63.24);
+  expect(probe.enemy.contactDamage).toBeCloseTo(8.4);
+  expect(probe.enemy.attackDamage).toBeCloseTo(8.4);
+  expect(probe.boss.health).toBe(5980);
+  expect(probe.boss.contactDamage).toBeCloseTo(23.54);
+  expect(probe.boss.attackDamage).toBeCloseTo(19.26);
+  expect(probe.boss.movementMultiplier).toBeCloseTo(1.03);
   expect(pageErrors).toEqual([]);
 });

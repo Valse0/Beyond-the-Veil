@@ -23,11 +23,13 @@ export interface QuestStoryState {
   appliedOutcomeIds: string[];
 }
 export interface SaveData {
-  schemaVersion: 10;
+  schemaVersion: 11;
   profile: { createdAt: string; updatedAt: string };
   progression: {
     soulEssence: number;
     completedRuns: number;
+    newGamePlusLevel: number;
+    completedEndingIds: string[];
     unlockedCharacterIds: string[];
     unlockedRegionIds: string[];
     completedDifficulties: Record<string, string[]>;

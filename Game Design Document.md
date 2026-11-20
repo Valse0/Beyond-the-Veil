@@ -348,6 +348,10 @@ Zorluk yalnızca can ve hasar değerlerini artırmamalıdır. Yeni saldırı kom
 * Lanetli Meydan Okumalar
 * Sonsuz Mod
 * New Game+
+
+New Game+ ilk hikâye sonlarından biri tamamlandığında açılır. Ana menüde ayrı bir seçenek ve açık onay adımı bulunur. Onaylandığında yeni döngü Lanetli Orman'dan başlar; bölge açılımları ve aktif hikâye/görev dalları sıfırlanır. Ruh Özü, avcı kilitleri, kalıcı geliştirmeler, kalıntı sahipliği, ekipman profilleri, silah varyantları, ustalıklar, başarımlar ve koleksiyonlar korunur. Tamamlanan sonların kimlikleri kalıcı geçmişte saklanır.
+
+NG+ seviyesi 1'den 5'e yükselir ve beşinci seviyede zorluk artışı tavana ulaşır. Her seviyede normal düşman sağlığı +%10, hasarı +%5 ve hareket hızı +%2; bölge boss'u sağlığı +%15, hasarı +%7 ve hareket hızı +%3 artar. Beşinci seviyede bu artışlar sırasıyla normal düşmanlarda +%50 sağlık / +%25 hasar / +%10 hız, boss'larda +%75 sağlık / +%35 hasar / +%15 hız olur. Beşinci seviyeden sonra yeni döngüler aynı zorluk tavanını kullanır.
 * Haftalık özel koşular
 
 Lanetli Meydan Okumalar üç sabit koşuldan biri seçilerek başlatılır. Her meydan okuma, standart Survival akışını (15 dakikalık koşu, bölge etkinlikleri, görevler, keşif, final boss ve normal kalıcı ilerleme) korur:

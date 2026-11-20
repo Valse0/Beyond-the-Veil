@@ -1,13 +1,23 @@
 import Phaser from 'phaser';
+import { beginNewGamePlus, canStartNewGamePlus } from '../../gameplay/run/new-game-plus-runtime.js';
+import type { SaveManager } from '../../systems/save/save-manager.js';
 
-type MainMenuItem = 'new-run' | 'hunter-hub';
+type MainMenuItem = 'new-run' | 'hunter-hub' | 'new-game-plus';
 
 export class MainMenuScene extends Phaser.Scene {
   private selectedItem: MainMenuItem = 'new-run';
   private previousPadConfirm = false;
+  private previousPadBack = false;
   private previousPadNavigation = '';
   private playButton?: Phaser.GameObjects.Text;
   private hubButton?: Phaser.GameObjects.Text;
+  private newGamePlusButton?: Phaser.GameObjects.Text;
+  private newGamePlusAvailable = false;
+  private newGamePlusLevel = 0;
+  private confirmationOpen = false;
+  private confirmationSelected = true;
+  private confirmationObjects: Phaser.GameObjects.GameObject[] = [];
+  private confirmationStatus?: Phaser.GameObjects.Text;
 
   constructor() { super('main-menu'); }
 
@@ -15,6 +25,13 @@ export class MainMenuScene extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     this.cameras.main.setBackgroundColor('#0b0b10');
+
+    const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
+    const loaded = saveManager?.load();
+    if (loaded && 'data' in loaded) {
+      this.newGamePlusAvailable = canStartNewGamePlus(loaded.data);
+      this.newGamePlusLevel = loaded.data.progression.newGamePlusLevel;
+    }
 
     const art = this.add.graphics();
     art.fillStyle(0x17131c, 1); art.fillCircle(w * 0.72, h * 0.48, 260);
@@ -47,6 +64,18 @@ export class MainMenuScene extends Phaser.Scene {
     this.hubButton.on('pointerover', () => this.setSelectedItem('hunter-hub'));
     this.hubButton.on('pointerup', () => this.openHunterHub());
 
+    if (this.newGamePlusAvailable) {
+      this.newGamePlusButton = this.add.text(650, h - 185, '✦  NG+ DÖNGÜSÜ', {
+        fontFamily: 'Arial, sans-serif', fontSize: '20px', color: '#e7c98e',
+        backgroundColor: '#29212b', padding: { x: 22, y: 17 }
+      }).setInteractive({ useHandCursor: true });
+      this.newGamePlusButton.on('pointerover', () => this.setSelectedItem('new-game-plus'));
+      this.newGamePlusButton.on('pointerup', () => this.openNewGamePlusConfirmation());
+      this.add.text(672, h - 230, 'NG+' + Math.min(5, this.newGamePlusLevel + 1) + '  •  ZORLUK ARTIŞI', {
+        fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#a9977d'
+      });
+    }
+
     this.setSelectedItem(this.selectedItem);
 
     this.add.text(84, h - 82, 'WASD / OKLAR: HAREKET     SPACE: DASH     E: RUH DARBESİ     ESC: DURAKLAT', {
@@ -61,16 +90,24 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     this.input.keyboard?.on('keydown-LEFT', (event: KeyboardEvent) => {
-      if (!event.repeat) this.setSelectedItem('new-run');
+      if (event.repeat) return;
+      if (this.confirmationOpen) this.setConfirmationSelection(false);
+      else this.setSelectedItem('new-run');
     });
     this.input.keyboard?.on('keydown-UP', (event: KeyboardEvent) => {
-      if (!event.repeat) this.setSelectedItem('new-run');
+      if (!event.repeat && !this.confirmationOpen) this.setSelectedItem('new-run');
     });
     this.input.keyboard?.on('keydown-RIGHT', (event: KeyboardEvent) => {
-      if (!event.repeat) this.setSelectedItem('hunter-hub');
+      if (event.repeat) return;
+      if (this.confirmationOpen) this.setConfirmationSelection(true);
+      else this.setSelectedItem('hunter-hub');
     });
     this.input.keyboard?.on('keydown-DOWN', (event: KeyboardEvent) => {
-      if (!event.repeat) this.setSelectedItem('hunter-hub');
+      if (!event.repeat && !this.confirmationOpen) this.setSelectedItem(this.newGamePlusAvailable ? 'new-game-plus' : 'hunter-hub');
+    });
+    this.input.keyboard?.on('keydown-ESC', (event: KeyboardEvent) => {
+      if (event.repeat) return;
+      if (this.confirmationOpen) this.closeNewGamePlusConfirmation();
     });
     this.input.keyboard?.on('keydown-ENTER', (event: KeyboardEvent) => {
       if (!event.repeat) this.activateSelectedItem();
@@ -84,13 +121,32 @@ export class MainMenuScene extends Phaser.Scene {
     const pad = this.input.gamepad?.getPad(0);
     if (!pad) {
       this.previousPadConfirm = false;
+      this.previousPadBack = false;
       this.previousPadNavigation = '';
       return;
     }
 
     const confirm = Boolean(pad.A || pad.buttons[9]?.pressed);
+    const back = Boolean(pad.B);
+    if (this.confirmationOpen) {
+      if (confirm && !this.previousPadConfirm) {
+        if (this.confirmationSelected) this.confirmNewGamePlus();
+        else this.closeNewGamePlusConfirmation();
+      }
+      if (back && !this.previousPadBack) this.closeNewGamePlusConfirmation();
+      const left = pad.left || pad.leftStick.x < -0.5;
+      const right = pad.right || pad.leftStick.x > 0.5;
+      const direction = left ? 'left' : right ? 'right' : '';
+      if (direction && direction !== this.previousPadNavigation) this.setConfirmationSelection(direction === 'right');
+      this.previousPadNavigation = direction;
+      this.previousPadConfirm = confirm;
+      this.previousPadBack = back;
+      return;
+    }
+
     if (confirm && !this.previousPadConfirm) this.activateSelectedItem();
     this.previousPadConfirm = confirm;
+    this.previousPadBack = back;
 
     const dpadUp = pad.up;
     const dpadDown = pad.down;
@@ -109,12 +165,15 @@ export class MainMenuScene extends Phaser.Scene {
             : '';
 
     if (direction && direction !== this.previousPadNavigation) {
-      this.setSelectedItem(direction === 'left' || direction === 'up' ? 'new-run' : 'hunter-hub');
+      if (direction === 'left' || direction === 'up') this.setSelectedItem('new-run');
+      else if (direction === 'down' && this.newGamePlusAvailable) this.setSelectedItem('new-game-plus');
+      else this.setSelectedItem('hunter-hub');
     }
     this.previousPadNavigation = direction;
   }
 
   private setSelectedItem(item: MainMenuItem): void {
+    if (item === 'new-game-plus' && !this.newGamePlusAvailable) item = 'new-run';
     this.selectedItem = item;
     this.playButton?.setStyle({
       backgroundColor: item === 'new-run' ? '#79513c' : '#2b2528',
@@ -126,15 +185,98 @@ export class MainMenuScene extends Phaser.Scene {
       color: item === 'hunter-hub' ? '#ffffff' : '#bcb2a7',
       fontStyle: item === 'hunter-hub' ? 'bold' : 'normal'
     });
+    this.newGamePlusButton?.setStyle({
+      backgroundColor: item === 'new-game-plus' ? '#654d36' : '#29212b',
+      color: item === 'new-game-plus' ? '#fff0ce' : '#e7c98e',
+      fontStyle: item === 'new-game-plus' ? 'bold' : 'normal'
+    });
   }
 
   private activateSelectedItem(): void {
-    if (this.selectedItem === 'new-run') this.startNewRun();
+    if (this.confirmationOpen) {
+      if (this.confirmationSelected) this.confirmNewGamePlus();
+      else this.closeNewGamePlusConfirmation();
+    } else if (this.selectedItem === 'new-run') this.startNewRun();
+    else if (this.selectedItem === 'new-game-plus') this.openNewGamePlusConfirmation();
     else this.openHunterHub();
   }
 
   private startNewRun(): void {
     this.scene.start('character-select');
+  }
+
+  private openNewGamePlusConfirmation(): void {
+    if (!this.newGamePlusAvailable || this.confirmationOpen) return;
+    const w = this.scale.width;
+    const h = this.scale.height;
+    this.confirmationOpen = true;
+    this.confirmationSelected = true;
+    this.previousPadNavigation = '';
+    const shade = this.add.rectangle(w / 2, h / 2, w, h, 0x050408, 0.88).setDepth(50).setInteractive();
+    const panel = this.add.rectangle(w / 2, h / 2, 660, 350, 0x17131c, 1).setStrokeStyle(2, 0xb99a61, 0.9).setDepth(51).setInteractive();
+    const title = this.add.text(w / 2, h / 2 - 118, 'YENİ DÖNGÜYE BAŞLA?', {
+      fontFamily: 'Georgia, serif', fontSize: '30px', color: '#e9dfcb', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(52);
+    const description = this.add.text(w / 2, h / 2 - 38,
+      'Hikâye ve bölge ilerlemesi Lanetli Orman’dan yeniden başlayacak.\nAvcılar, Ruh Özü, kalıcı geliştirmeler, kalıntılar ve koleksiyonlar korunacak.\nNG+' + (this.newGamePlusLevel + 1) + ' zorluğu etkinleşecek.',
+      { fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#c7b9aa', align: 'center', lineSpacing: 9 }
+    ).setOrigin(0.5).setDepth(52);
+    this.confirmationStatus = this.add.text(w / 2, h / 2 + 72, '', {
+      fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#e29a8d', align: 'center'
+    }).setOrigin(0.5).setDepth(52);
+    const confirm = this.add.text(w / 2 - 145, h / 2 + 125, 'DÖNGÜYÜ BAŞLAT', {
+      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#fff0ce',
+      backgroundColor: '#654d36', padding: { x: 20, y: 13 }
+    }).setOrigin(0.5).setDepth(53).setInteractive({ useHandCursor: true });
+    const cancel = this.add.text(w / 2 + 145, h / 2 + 125, 'VAZGEÇ', {
+      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#d0c5b8',
+      backgroundColor: '#30272a', padding: { x: 24, y: 13 }
+    }).setOrigin(0.5).setDepth(53).setInteractive({ useHandCursor: true });
+    confirm.on('pointerover', () => this.setConfirmationSelection(true));
+    confirm.on('pointerup', () => this.confirmNewGamePlus());
+    cancel.on('pointerover', () => this.setConfirmationSelection(false));
+    cancel.on('pointerup', () => this.closeNewGamePlusConfirmation());
+    this.confirmationObjects = [shade, panel, title, description, this.confirmationStatus, confirm, cancel];
+    this.setConfirmationSelection(true);
+  }
+
+  private setConfirmationSelection(confirm: boolean): void {
+    this.confirmationSelected = confirm;
+    const confirmButton = this.confirmationObjects.find(object => object instanceof Phaser.GameObjects.Text && object.text === 'DÖNGÜYÜ BAŞLAT') as Phaser.GameObjects.Text | undefined;
+    const cancelButton = this.confirmationObjects.find(object => object instanceof Phaser.GameObjects.Text && object.text === 'VAZGEÇ') as Phaser.GameObjects.Text | undefined;
+    confirmButton?.setStyle({ backgroundColor: confirm ? '#795c3d' : '#3a302b', color: confirm ? '#fff4d8' : '#c5b9aa', fontStyle: confirm ? 'bold' : 'normal' });
+    cancelButton?.setStyle({ backgroundColor: confirm ? '#30272a' : '#79513c', color: confirm ? '#d0c5b8' : '#ffffff', fontStyle: confirm ? 'normal' : 'bold' });
+  }
+
+  private closeNewGamePlusConfirmation(): void {
+    if (!this.confirmationOpen) return;
+    this.confirmationObjects.forEach(object => object.destroy());
+    this.confirmationObjects = [];
+    this.confirmationStatus = undefined;
+    this.confirmationOpen = false;
+    this.previousPadNavigation = '';
+  }
+
+  private confirmNewGamePlus(): void {
+    if (!this.confirmationOpen) return;
+    const manager = this.registry.get('saveManager') as SaveManager | undefined;
+    const loaded = manager?.load();
+    if (!manager || !loaded || !('data' in loaded)) {
+      this.confirmationStatus?.setText('KAYIT OKUNAMADI. İLERLEMEN KORUNDU.');
+      return;
+    }
+    const next = beginNewGamePlus(loaded.data);
+    if (!next) {
+      this.confirmationStatus?.setText('NEW GAME+ HENÜZ AÇILMADI.');
+      return;
+    }
+    try {
+      manager.save(next);
+      this.closeNewGamePlusConfirmation();
+      this.scene.start('character-select');
+    } catch {
+      this.confirmationStatus?.setText('KAYIT BAŞARISIZ. İLERLEMEN KORUNDU.');
+    }
   }
 
   private openHunterHub(): void {

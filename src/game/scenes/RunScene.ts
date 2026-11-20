@@ -30,6 +30,7 @@ import { createBossArena, damageBossArenaObject, getBossArenaDamageMultiplier, g
 import { createHazardCycle, getRegionHazardMechanic, stepRegionHazard, type HazardCycle, type HazardEvent, type RegionHazardMechanic } from '../../gameplay/regions/region-runtime.js';
 import { applyBossHuntResult, applyRunResult } from '../../gameplay/run/run-results.js';
 import { getGameModeRules, resolveGameMode } from '../../gameplay/run/game-mode-runtime.js';
+import { getNewGamePlusModifiers, recordCompletedEnding, scaleNewGamePlusBoss, scaleNewGamePlusEnemy } from '../../gameplay/run/new-game-plus-runtime.js';
 import { completeEndlessBossCycle, createEndlessRuntimeState, getEndlessRule, getEndlessRuleModifiers, getEndlessSurvivalReward, scaleEndlessBoss, shouldSpawnEndlessBoss, type EndlessRuntimeState } from '../../gameplay/run/endless-runtime.js';
 import { canAddChallengeWeapon, getChallengeModifiers, getChallengeVictoryBonus, resolveChallengeId } from '../../gameplay/run/challenge-runtime.js';
 import { createWaveDirector, stepWaveDirector, waveRandom, type WaveDirectorState } from '../../gameplay/spawning/wave-director.js';
@@ -65,6 +66,8 @@ export class RunScene extends Phaser.Scene {
   private gameMode:GameMode='survival';
   private challengeId:ChallengeId|null=null;
   private endlessState:EndlessRuntimeState=createEndlessRuntimeState();
+  private newGamePlusLevel=0;
+  private scaledEnemyDefinitions=new Map<string,EnemyDefinition>();
   private build:BuildState={weapons:[],passives:[]};
   private player!:Phaser.Physics.Arcade.Sprite;
   private enemies!:Phaser.Physics.Arcade.Group;
@@ -322,7 +325,7 @@ export class RunScene extends Phaser.Scene {
 
   browserTestSnapshot():{
     ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number;delayedZoneFired:boolean;delayedZoneCandidateCount:number;delayedZoneInRangeCount:number;delayedZoneRunFinished:boolean;delayedZoneDamage:number;sceneTimePaused:boolean;sceneActive:boolean;sceneTimeNow:number;delayedTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null};
-    gameMode:GameMode;challengeId:ChallengeId|null;challengeModifiers:{maxWeaponSlots:number;maxHealthMultiplier:number;enemyMoveSpeedMultiplier:number;victorySoulEssenceBonus:number};weaponSlotsUsed:number;waveSpawnIndex:number;activeEnemyCount:number;
+    gameMode:GameMode;newGamePlusLevel:number;newGamePlusModifiers:ReturnType<typeof getNewGamePlusModifiers>;challengeId:ChallengeId|null;challengeModifiers:{maxWeaponSlots:number;maxHealthMultiplier:number;enemyMoveSpeedMultiplier:number;victorySoulEssenceBonus:number};weaponSlotsUsed:number;waveSpawnIndex:number;activeEnemyCount:number;
     endless:{bossCyclesCompleted:number;nextBossAtMs:number;ruleId:string|null;ruleName:string|null;ruleModifiers:{enemyHealthMultiplier:number;enemyMoveSpeedMultiplier:number;incomingDamageMultiplier:number;experienceMultiplier:number}};
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Partial<Record<ElementId,number>>};
@@ -344,7 +347,7 @@ export class RunScene extends Phaser.Scene {
       ability:{effect:this.character.ability.effect,cooldownRemainingMs:Math.max(0,this.abilityReady-this.time.now),guardActive:this.time.now<this.abilityGuardUntil,lastDamage:this.abilityLastDamage,lastHealing:this.abilityLastHealing,markedTargetCount:this.activeTargets().filter(target=>Number(target.getData('abilityMarkedUntil')??0)>this.time.now).length,delayedZoneFired:this.abilityDelayedZoneFired,delayedZoneCandidateCount:this.abilityDelayedZoneCandidateCount,delayedZoneInRangeCount:this.abilityDelayedZoneInRangeCount,delayedZoneRunFinished:this.abilityDelayedZoneRunFinished,delayedZoneDamage:this.abilityDelayedZoneDamage,sceneTimePaused:this.time.paused,sceneActive:this.sys.isActive(),sceneTimeNow:this.time.now,delayedTimer:this.abilityDelayedZoneTimer?{paused:this.abilityDelayedZoneTimer.paused,hasDispatched:this.abilityDelayedZoneTimer.hasDispatched,elapsed:this.abilityDelayedZoneTimer.getElapsed(),delay:this.abilityDelayedZoneTimer.delay,timeScale:this.abilityDelayedZoneTimer.timeScale}:null},
       level:this.state.level,experience:this.state.experience,experienceToNext:this.state.experienceToNext,
       regionMap:{regionId:this.mapLayout.regionId,roomIds:this.mapLayout.rooms.map(room=>room.id),wallCount:this.mapBoundaryCount,connected:this.mapConnected,playerWalkable:isRegionMapWalkable(this.mapLayout,this.player.x,this.player.y,-24)},
-      gameMode:this.gameMode,challengeId:this.challengeId,challengeModifiers:getChallengeModifiers(this.challengeId),weaponSlotsUsed:this.build.weapons.length,waveSpawnIndex:this.waveDirector.spawnIndex,activeEnemyCount:this.enemies.countActive(true),queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,environment:{timeOfDay:this.environmentState.timeOfDay,weather:this.environmentState.weather,timeLabel:this.environmentState.timeLabel,weatherLabel:this.environmentState.weatherLabel,enemyMoveSpeedMultiplier:this.environmentState.enemyMoveSpeedMultiplier,elementDamageMultipliers:{...this.environmentState.elementDamageMultipliers}},paused:this.paused,bossSpawned:this.bossSpawned,bossVariantId:this.activeBossVariantId,bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
+      gameMode:this.gameMode,newGamePlusLevel:this.newGamePlusLevel,newGamePlusModifiers:getNewGamePlusModifiers(this.newGamePlusLevel),challengeId:this.challengeId,challengeModifiers:getChallengeModifiers(this.challengeId),weaponSlotsUsed:this.build.weapons.length,waveSpawnIndex:this.waveDirector.spawnIndex,activeEnemyCount:this.enemies.countActive(true),queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,environment:{timeOfDay:this.environmentState.timeOfDay,weather:this.environmentState.weather,timeLabel:this.environmentState.timeLabel,weatherLabel:this.environmentState.weatherLabel,enemyMoveSpeedMultiplier:this.environmentState.enemyMoveSpeedMultiplier,elementDamageMultipliers:{...this.environmentState.elementDamageMultipliers}},paused:this.paused,bossSpawned:this.bossSpawned,bossVariantId:this.activeBossVariantId,bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
       evolvedWeaponIds:this.build.weapons.filter(weapon=>weapon.evolved).map(weapon=>weapon.weaponId),
       choices:this.currentLevelChoices.map(({id,title,kind,contentId,branchId})=>({id,title,kind,contentId,branchId})),
       passives:this.build.passives.map(item=>({...item})),activePassiveSpecialIds:this.build.passives.filter(item=>item.special).map(item=>item.passiveId),
@@ -705,6 +708,26 @@ export class RunScene extends Phaser.Scene {
     this.bossState={...encounter,attackReadyAt:Object.fromEntries(definition.phases.flatMap(phase=>phase.attacks.map(attack=>[attack.id,Number.POSITIVE_INFINITY])))};
   }
 
+  browserTestNewGamePlusProbe():{
+    level:number;
+    enemy:{health:number;maxHealth:number;speed:number;contactDamage:number;attackDamage:number};
+    boss:{health:number;maxHealth:number;contactDamage:number;attackDamage:number;movementMultiplier:number};
+  } {
+    this.assertBrowserTestMode();
+    const baseEnemy=ENEMIES.find(enemy=>enemy.id===this.region.enemyIds[0]);
+    if(!baseEnemy)throw new Error('New Game+ probe requires a regional enemy.');
+    const enemy=this.createEnemy(this.player.x+220,this.player.y,baseEnemy,1);
+    const scaledEnemy=this.scaledEnemyDefinitions.get(baseEnemy.id)??baseEnemy;
+    this.spawnBoss();
+    if(!this.bossDefinition||!this.bossState)throw new Error('New Game+ probe could not spawn the regional boss.');
+    const phase=this.bossDefinition.phases[0]!;
+    return {
+      level:this.newGamePlusLevel,
+      enemy:{health:Number(enemy.getData('health')),maxHealth:Number(enemy.getData('maxHealth')),speed:scaledEnemy.speed,contactDamage:scaledEnemy.contactDamage,attackDamage:scaledEnemy.attack.damage},
+      boss:{health:this.bossState.health,maxHealth:this.bossState.maxHealth,contactDamage:this.bossDefinition.contactDamage,attackDamage:phase.attacks[0]!.damage,movementMultiplier:phase.movementMultiplier??1}
+    };
+  }
+
   browserTestAdvanceBossPhase():{phaseIndex:number;spawnedSupportEnemyIds:string[]} {
     this.assertBrowserTestMode();
     if(!this.bossSprite||!this.bossDefinition||!this.bossState)throw new Error('No boss encounter is active.');
@@ -847,12 +870,16 @@ export class RunScene extends Phaser.Scene {
     this.gameMode=requestedMode==='challenge'&&!this.challengeId?'survival':requestedMode;
     this.runDiscoveredEnemyIds=[];
     this.runDiscoveredWeaponIds=[];
+    this.newGamePlusLevel=0;
+    this.scaledEnemyDefinitions.clear();
   }
 
   create():void {
     this.time.paused=false;this.physics.world.resume();
     const saveManager=this.registry.get('saveManager') as SaveManager|undefined;
     const loadedSave=saveManager?.load();
+    this.newGamePlusLevel=loadedSave&&'data' in loadedSave?loadedSave.data.progression.newGamePlusLevel:0;
+    this.scaledEnemyDefinitions=new Map(ENEMIES.map(enemy=>[enemy.id,scaleNewGamePlusEnemy(enemy,this.newGamePlusLevel)]));
     this.questSaveData=getGameModeRules(this.gameMode).storyQuestsEnabled&&loadedSave&&'data' in loadedSave?startAvailableQuests(loadedSave.data,this.region.id):undefined;
      this.bossEncounterIdsAtRegionEntry=loadedSave&&'data' in loadedSave?[...loadedSave.data.story.bossEncounterIds]:[];
      this.activeBossVariantId=null;
@@ -1075,7 +1102,8 @@ export class RunScene extends Phaser.Scene {
       // Ability probe dummies stay fixed so delayed area effects are tested against a stable hit area.
       if(enemy.getData('abilityProbeTarget')===true){enemy.setVelocity(0,0);continue;}
       if(enemy.getData('isBoss')){this.moveBoss(enemy,time);continue;}
-      const def=this.enemyDefinition(enemy);if(!def)continue;
+      const baseDef=this.enemyDefinition(enemy);if(!baseDef)continue;
+      const def=this.scaledEnemyDefinitions.get(baseDef.id)??baseDef;
       const old=this.enemyStates.get(enemy)??{x:enemy.x,y:enemy.y,health:Number(enemy.getData('health')),nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false};
       const state={...old,x:enemy.x,y:enemy.y,health:Number(enemy.getData('health'))};
       const intent=stepEnemyAI(def,state,{x:this.player.x,y:this.player.y},time,16);
@@ -1145,7 +1173,8 @@ export class RunScene extends Phaser.Scene {
     const phase=this.bossDefinition.phases[this.bossState.phaseIndex]!;
      const challengeSpeed=getChallengeModifiers(this.challengeId).enemyMoveSpeedMultiplier;
      const endlessSpeed=this.gameMode==='endless'?getEndlessRuleModifiers(this.state.elapsedMs).enemyMoveSpeedMultiplier:1;
-     if(dist>145)boss.setVelocity(dx/dist*this.bossDefinition.health*.006*(phase.movementMultiplier??1)*challengeSpeed*endlessSpeed,dy/dist*this.bossDefinition.health*.006*(phase.movementMultiplier??1)*challengeSpeed*endlessSpeed);else boss.setVelocity(0,0);
+     const baseBossHealth=BOSSES.find(item=>item.id===this.bossDefinition!.id)?.health??this.bossDefinition.health;
+     if(dist>145)boss.setVelocity(dx/dist*baseBossHealth*.006*(phase.movementMultiplier??1)*challengeSpeed*endlessSpeed,dy/dist*baseBossHealth*.006*(phase.movementMultiplier??1)*challengeSpeed*endlessSpeed);else boss.setVelocity(0,0);
      const attack=getBossAttack(this.bossState,phase,time);this.bossState=attack.state;
      if(attack.attack)this.telegraphAttack(boss,undefined,this.player.x,this.player.y,attack.attack.damage*(phase.bossDamageMultiplier??1),attack.attack.telegraph.warningMs,attack.attack.telegraph.shape,100);
   }
@@ -1241,7 +1270,8 @@ export class RunScene extends Phaser.Scene {
 
   private createEnemy(x:number,y:number,def:EnemyDefinition,scale:number,isElite=false):Phaser.Physics.Arcade.Sprite {
     const endlessModifiers=this.gameMode==='endless'?getEndlessRuleModifiers(this.state.elapsedMs):getEndlessRuleModifiers(0);
-    const healthScale=scale*(isElite?2.4:1)*endlessModifiers.enemyHealthMultiplier;
+    const newGamePlusModifiers=getNewGamePlusModifiers(this.newGamePlusLevel);
+    const healthScale=scale*(isElite?2.4:1)*endlessModifiers.enemyHealthMultiplier*newGamePlusModifiers.enemyHealthMultiplier;
     const maxHealth=Math.round(def.health*healthScale);
     const experience=Math.round(def.experience*(isElite?3:1)*endlessModifiers.experienceMultiplier);
     const safe=resolveRegionMapPosition(this.mapLayout,x,y,def.radius+24);
@@ -1416,7 +1446,8 @@ export class RunScene extends Phaser.Scene {
     const baseBoss=BOSSES.find(b=>b.id===this.region.bossId);
      if(!baseBoss)return;
      const resolution=resolveBossVariant(baseBoss,this.bossEncounterIdsAtRegionEntry);
-     const scaledBoss=this.gameMode==='endless'?scaleEndlessBoss(resolution.boss,this.endlessState.bossCyclesCompleted):resolution.boss;
+     const newGamePlusBoss=scaleNewGamePlusBoss(resolution.boss,this.newGamePlusLevel);
+     const scaledBoss=this.gameMode==='endless'?scaleEndlessBoss(newGamePlusBoss,this.endlessState.bossCyclesCompleted):newGamePlusBoss;
       const endlessHealth=this.gameMode==='endless'?getEndlessRuleModifiers(this.state.elapsedMs).enemyHealthMultiplier:1;
       this.bossDefinition=endlessHealth===1?scaledBoss:{...scaledBoss,health:Math.round(scaledBoss.health*endlessHealth)};this.activeBossVariantId=resolution.variantId;
      this.bossState=createBossEncounter(this.bossDefinition);
@@ -2076,7 +2107,7 @@ export class RunScene extends Phaser.Scene {
 
   private contactDamage(enemy:Phaser.Physics.Arcade.Sprite):void {
     if(this.time.now<this.nextDamage||this.time.now<this.dashUntil||!enemy.active)return;
-    const def=this.enemyDefinition(enemy);const actor=this.enemyStates.get(enemy);if(actor?.burrowed||Number(enemy.getData('untargetableUntil')??0)>this.time.now)return;
+    const baseDef=this.enemyDefinition(enemy);const def=baseDef?this.scaledEnemyDefinitions.get(baseDef.id)??baseDef:undefined;const actor=this.enemyStates.get(enemy);if(actor?.burrowed||Number(enemy.getData('untargetableUntil')??0)>this.time.now)return;
     const base=enemy.getData('isBoss')?(this.bossDefinition?.contactDamage??24):(def?.contactDamage??9)*(enemy.getData('isElite')?1.4:1);
     const damage=base*getWeakenedDamageMultiplier(Number(enemy.getData('weakenedUntil')??0),this.time.now,Number(enemy.getData('weakenedMultiplier')??1));
     this.nextDamage=this.time.now+650;this.receiveCombatDamage(damage);
@@ -2577,7 +2608,8 @@ export class RunScene extends Phaser.Scene {
       const runResult=applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,bossChestOpened:this.bossChestOpened,completedTreasureHunt:this.completedTreasureHunt,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length,enemyIdsEarned:this.runDiscoveredEnemyIds,weaponIdsEarned:this.runDiscoveredWeaponIds,loreIdsEarned:this.runDiscoveredLoreIds,discoveredPathIdsEarned:this.runDiscoveredPathIds,challengeId:this.gameMode==='challenge'?this.challengeId??undefined:undefined});
       const questStory=this.questSaveData?.story;
       const mergedSave={...runResult,story:{...runResult.story,...(questStory??{}),unlockedPathIds:[...new Set([...runResult.story.unlockedPathIds,...(questStory?.unlockedPathIds??[])])],completedEndingId:runResult.story.completedEndingId??questStory?.completedEndingId??null}};
-      manager.save(completeEnding(mergedSave,{regionId:this.region.id,bossId:this.bossDefinition?.id??'',victory:won&&this.bossChestOpened}));
+      const completedSave=completeEnding(mergedSave,{regionId:this.region.id,bossId:this.bossDefinition?.id??'',victory:won&&this.bossChestOpened});
+      manager.save(recordCompletedEnding(completedSave));
       return true;
     } catch {
       return false;
@@ -2611,7 +2643,7 @@ export class RunScene extends Phaser.Scene {
     const seconds=Math.floor(this.state.elapsedMs/1000);
     this.clock.setText(String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0'));
     const abilityRemaining=Math.max(0,this.abilityReady-this.time.now);
-    const modeLabel=this.gameMode==='boss-hunt'?'BOSS HUNT':this.gameMode==='challenge'?'MEYDAN OKUMA':this.gameMode==='endless'?'SONSUZ':'SURVIVAL';
+    const modeLabel=(this.gameMode==='boss-hunt'?'BOSS HUNT':this.gameMode==='challenge'?'MEYDAN OKUMA':this.gameMode==='endless'?'SONSUZ':'SURVIVAL')+(this.newGamePlusLevel>0?'  •  NG+'+this.newGamePlusLevel:'');
     const endlessRule=this.gameMode==='endless'?getEndlessRule(this.state.elapsedMs):null;
     this.hud.setText(this.character.name+'  •  '+modeLabel+(endlessRule?'  •  '+endlessRule.name:'')+'  •  LV '+this.state.level+'\nXP '+Math.floor(this.state.experience)+' / '+this.state.experienceToNext+'  •  Düşman '+this.state.kills+'\n'+this.region.name+'  •  Silah '+this.build.weapons.length+'/6  •  Pasif '+this.build.passives.length+'/6\nE: '+this.character.activeAbility+'  •  '+(abilityRemaining>0?(abilityRemaining/1000).toFixed(1)+'s':'HAZIR'));
     this.health.setSize(160*Phaser.Math.Clamp(this.state.health/this.state.maxHealth,0,1),8);

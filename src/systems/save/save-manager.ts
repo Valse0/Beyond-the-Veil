@@ -14,7 +14,7 @@ import type { PermanentUpgradeRespecQuote } from '../../gameplay/progression/per
 import { createInitialQuestStoryState, isQuestStoryState } from '../../gameplay/quests/quest-runtime.js';
 import { buildEquipmentProfile, getActiveEquipmentProfile, isActiveEquipmentProfileRecord, isEquipmentProfilesRecord, MAX_EQUIPMENT_PROFILES_PER_CHARACTER, type EquipmentProfile, type EquipmentProfileDraft } from '../../gameplay/progression/equipment-profiles.js';
 
-const CURRENT_SCHEMA_VERSION = 10;
+const CURRENT_SCHEMA_VERSION = 11;
 const RELIC_IDS = new Set(RELICS.map(relic => relic.id));
 const MATERIAL_IDS = new Set(CRAFTING_MATERIALS.map(material => material.id));
 const WEAPON_VARIANT_IDS = new Set(WEAPONS.flatMap(weapon => weapon.branches.flatMap(branch => branch.variant ? [branch.variant.id] : [])));
@@ -80,6 +80,12 @@ function isSaveData(value: unknown): value is SaveData {
     && typeof progression.completedRuns === 'number'
     && Number.isInteger(progression.completedRuns)
     && progression.completedRuns >= 0
+    && typeof progression.newGamePlusLevel === 'number'
+    && Number.isInteger(progression.newGamePlusLevel)
+    && progression.newGamePlusLevel >= 0
+    && progression.newGamePlusLevel <= 5
+    && isStringArray(progression.completedEndingIds)
+    && new Set(progression.completedEndingIds).size === progression.completedEndingIds.length
     && isStringArray(progression.unlockedCharacterIds)
     && progression.unlockedCharacterIds.length > 0
     && isStringArray(progression.unlockedRegionIds)
@@ -123,6 +129,8 @@ export function createInitialSaveData(now = new Date().toISOString()): SaveData 
     progression: {
       soulEssence: 0,
       completedRuns: 0,
+      newGamePlusLevel: 0,
+      completedEndingIds: [],
       unlockedCharacterIds: [CHARACTERS[0]!.id],
       unlockedRegionIds: [REGIONS[0]!.id],
       completedDifficulties: {},
@@ -137,12 +145,24 @@ export function createInitialSaveData(now = new Date().toISOString()): SaveData 
   };
 }
 
+function withNewGamePlusDefaults(value: Record<string, unknown>): Record<string, unknown> {
+  const progression = isObject(value.progression) ? value.progression : {};
+  return {
+    ...value,
+    progression: {
+      ...progression,
+      newGamePlusLevel: typeof progression.newGamePlusLevel === 'number' ? progression.newGamePlusLevel : 0,
+      completedEndingIds: isStringArray(progression.completedEndingIds) ? progression.completedEndingIds : []
+    }
+  };
+}
+
 function migrateV0(value: Record<string, unknown>, now: string): SaveData {
   const defaults = createInitialSaveData(now);
   const profile = isObject(value.profile) ? value.profile : {};
   const progression = isObject(value.progression) ? value.progression : {};
   const collections = isObject(value.collections) ? value.collections : {};
-  const candidate: unknown = {
+  const candidate: unknown = withNewGamePlusDefaults({
     schemaVersion: CURRENT_SCHEMA_VERSION,
     profile: {
       createdAt: typeof profile.createdAt === 'string' ? profile.createdAt : defaults.profile.createdAt,
@@ -178,7 +198,7 @@ function migrateV0(value: Record<string, unknown>, now: string): SaveData {
     },
     story: createInitialQuestStoryState(),
     settings: isJsonObject(value.settings) ? value.settings : defaults.settings
-  };
+  });
   if (!isSaveData(candidate)) throw new Error('Legacy save contains invalid values.');
   return candidate;
 }
@@ -188,13 +208,13 @@ function migrateV1(value: Record<string, unknown>): SaveData {
   if (!isObject(progression)) throw new Error('Legacy version-one progression is invalid.');
   const upgrades = progression.permanentUpgrades === undefined ? {} : progression.permanentUpgrades;
   const collections = isObject(value.collections) ? value.collections : {};
-  const candidate: unknown = {
+  const candidate: unknown = withNewGamePlusDefaults({
     ...value,
     schemaVersion: CURRENT_SCHEMA_VERSION,
     story: createInitialQuestStoryState(),
     progression: { ...progression, permanentUpgrades: upgrades, equippedRelicIds: [], equipmentProfiles: {}, activeEquipmentProfileIds: {} },
     collections: { ...collections, relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [], achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] }
-  };
+  });
   if (!isSaveData(candidate)) throw new Error('Legacy version-one save contains invalid values.');
   return candidate;
 }
@@ -202,13 +222,13 @@ function migrateV1(value: Record<string, unknown>): SaveData {
 function migrateV2(value: Record<string, unknown>): SaveData {
   const progression = isObject(value.progression) ? value.progression : {};
   const collections = isObject(value.collections) ? value.collections : {};
-  const candidate: unknown = {
+  const candidate: unknown = withNewGamePlusDefaults({
     ...value,
     schemaVersion: CURRENT_SCHEMA_VERSION,
     story: createInitialQuestStoryState(),
     progression: { ...progression, equippedRelicIds: [], equipmentProfiles: {}, activeEquipmentProfileIds: {} },
     collections: { ...collections, relicIds: [], craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [], achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] }
-  };
+  });
   if (!isSaveData(candidate)) throw new Error('Legacy version-two save contains invalid values.');
   return candidate;
 }
@@ -216,13 +236,13 @@ function migrateV2(value: Record<string, unknown>): SaveData {
 function migrateV3(value: Record<string, unknown>): SaveData {
   const collections = isObject(value.collections) ? value.collections : {};
   const progression = isObject(value.progression) ? value.progression : {};
-  const candidate: unknown = {
+  const candidate: unknown = withNewGamePlusDefaults({
     ...value,
     schemaVersion: CURRENT_SCHEMA_VERSION,
     story: createInitialQuestStoryState(),
     progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} },
     collections: { ...collections, craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [], achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] }
-  };
+  });
   if (!isSaveData(candidate)) throw new Error('Legacy version-three save contains invalid values.');
   return candidate;
 }
@@ -230,8 +250,8 @@ function migrateV3(value: Record<string, unknown>): SaveData {
 function migrateV4(value: Record<string, unknown>): SaveData {
   const collections = isObject(value.collections) ? value.collections : {};
   const progression = isObject(value.progression) ? value.progression : {};
-  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION,
-    story: createInitialQuestStoryState(), collections: { ...collections, unlockedMasteryRewardIds: [], achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] }, progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} } };
+  const candidate: unknown = withNewGamePlusDefaults({ ...value, schemaVersion: CURRENT_SCHEMA_VERSION,
+    story: createInitialQuestStoryState(), collections: { ...collections, unlockedMasteryRewardIds: [], achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] }, progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} } });
   if (!isSaveData(candidate)) throw new Error('Legacy version-four save contains invalid values.');
   return candidate;
 }
@@ -239,39 +259,54 @@ function migrateV4(value: Record<string, unknown>): SaveData {
 function migrateV5(value: Record<string, unknown>): SaveData {
   const progression = isObject(value.progression) ? value.progression : {};
   const collections = isObject(value.collections) ? value.collections : {};
-  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION,
-    story: createInitialQuestStoryState(), progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} }, collections: { ...collections, achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] } };
+  const candidate: unknown = withNewGamePlusDefaults({ ...value, schemaVersion: CURRENT_SCHEMA_VERSION,
+    story: createInitialQuestStoryState(), progression: { ...progression, equipmentProfiles: {}, activeEquipmentProfileIds: {} }, collections: { ...collections, achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] } });
   if (!isSaveData(candidate)) throw new Error('Legacy version-five save contains invalid values.');
   return candidate;
 }
 
 function migrateV6(value: Record<string, unknown>): SaveData {
   const collections = isObject(value.collections) ? value.collections : {};
-  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION,
-    story: createInitialQuestStoryState(), collections: { ...collections, achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] } };
+  const candidate: unknown = withNewGamePlusDefaults({ ...value, schemaVersion: CURRENT_SCHEMA_VERSION,
+    story: createInitialQuestStoryState(), collections: { ...collections, achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [], achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] } });
   if (!isSaveData(candidate)) throw new Error('Legacy version-six save contains invalid values.');
   return candidate;
 }
 
 function migrateV7(value: Record<string, unknown>): SaveData {
   const collections = isObject(value.collections) ? value.collections : {};
-  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION,
-    story: createInitialQuestStoryState(), collections: { ...collections, discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] } };
+  const candidate: unknown = withNewGamePlusDefaults({ ...value, schemaVersion: CURRENT_SCHEMA_VERSION,
+    story: createInitialQuestStoryState(), collections: { ...collections, discoveredEnemyIds: [], discoveredWeaponIds: [], discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: [] } });
   if (!isSaveData(candidate)) throw new Error('Legacy version-seven save contains invalid values.');
   return candidate;
 }
 
 
 function migrateV8(value: Record<string, unknown>): SaveData {
-  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION, story: createInitialQuestStoryState() };
+  const candidate: unknown = withNewGamePlusDefaults({ ...value, schemaVersion: CURRENT_SCHEMA_VERSION, story: createInitialQuestStoryState() });
   if (!isSaveData(candidate)) throw new Error('Legacy version-eight save contains invalid values.');
   return candidate;
 }
 
 function migrateV9(value: Record<string, unknown>): SaveData {
   if (!isObject(value.story)) throw new Error('Legacy version-nine story state is invalid.');
-  const candidate: unknown = { ...value, schemaVersion: CURRENT_SCHEMA_VERSION, story: { ...value.story, completedEndingId: null } };
+  const candidate: unknown = withNewGamePlusDefaults({ ...value, schemaVersion: CURRENT_SCHEMA_VERSION, story: { ...value.story, completedEndingId: null } });
   if (!isSaveData(candidate)) throw new Error('Legacy version-nine save contains invalid values.');
+  return candidate;
+}
+
+function migrateV10(value: Record<string, unknown>): SaveData {
+  const progression = isObject(value.progression) ? value.progression : {};
+  const story = isObject(value.story) ? value.story : {};
+  const completedEndingIds = typeof story.completedEndingId === 'string' && story.completedEndingId.length > 0
+    ? [story.completedEndingId]
+    : [];
+  const candidate: unknown = {
+    ...value,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    progression: { ...progression, newGamePlusLevel: 0, completedEndingIds }
+  };
+  if (!isSaveData(candidate)) throw new Error('Legacy version-ten save contains invalid values.');
   return candidate;
 }
 
@@ -534,6 +569,7 @@ export class SaveManager {
       if (version === 7) return { status: 'migrated', data: migrateV7(value) };
       if (version === 8) return { status: 'migrated', data: migrateV8(value) };
       if (version === 9) return { status: 'migrated', data: migrateV9(value) };
+      if (version === 10) return { status: 'migrated', data: migrateV10(value) };
       if (!isSaveData(value)) return { status: 'corrupt', message: 'Save data failed validation.' };
       return { status: 'loaded', data: value };
     } catch (error) {

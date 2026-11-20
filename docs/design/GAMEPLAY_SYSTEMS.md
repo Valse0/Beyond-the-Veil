@@ -337,3 +337,14 @@ From 15:00, one rotating world rule changes every three minutes:
 Endless ends on player defeat. The result grants 25 bonus Ruh Özü per completed five-minute milestone and 75 bonus Ruh Özü per opened boss chest, in addition to normal enemy and boss rewards. The ordinary run-result pipeline persists progression; no save migration or online service is needed.
 
 No final UI art, balance sign-off, or physical-device validation is claimed by this runtime implementation.
+
+
+## New Game+ progression
+
+- Unlocks after a completed story ending and is started from the main menu behind an explicit confirmation.
+- Starting a cycle resets the active quest/story branch and unlocked region path to Cursed Forest; it does not delete the profile or reset permanent progression.
+- Persistent fields: New Game+ level (0–5) and unique completed-ending IDs. The active ending state resets for the next campaign.
+- Preserved: Soul Essence, completed run count, unlocked hunters, permanent upgrades, relic ownership/equipment profiles, weapon variants, mastery, achievements, collections, crafting materials, settings and profile timestamps.
+- Per New Game+ level: normal enemies gain +10% health, +5% attack/contact damage and +2% movement speed; bosses gain +15% health, +7% attack/contact damage and +3% movement speed. Level 5 is the cap; further cycles remain at that difficulty.
+- Enemy and boss scaling is applied to the definitions used by live Phaser combat; boss movement derives from base boss health so health scaling does not accidentally increase movement a second time.
+- Save schema v11 migrates schema v10 by preserving the previously completed ending ID in the persistent ending history. Older migrations initialize New Game+ progression safely.
