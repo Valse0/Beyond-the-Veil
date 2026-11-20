@@ -18,7 +18,6 @@ export class HunterHubScene extends Phaser.Scene {
   private blacksmithRecipeButtons: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private blacksmithRecipeLabels: Map<string, Phaser.GameObjects.Text> = new Map();
   private craftableRecipeIds = new Set<string>();
-  private blacksmithStatusText?: Phaser.GameObjects.Text;
   private blacksmithSelection = 0;
   private respecButton?: Phaser.GameObjects.Text;
   private respecDialog?: Phaser.GameObjects.Container;
@@ -319,7 +318,7 @@ export class HunterHubScene extends Phaser.Scene {
       }
     });
 
-    this.blacksmithStatusText = this.add.text(width / 2, height - 88, statusMessage, {
+    this.add.text(width / 2, height - 88, statusMessage, {
       fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#d9c9aa', align: 'center'
     }).setOrigin(0.5);
     const backButton = this.add.text(64, height - 54, '← KARARGAHA DÖN', {
