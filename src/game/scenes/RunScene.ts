@@ -101,6 +101,7 @@ export class RunScene extends Phaser.Scene {
   private abilityDelayedZoneInRangeCount=0;
   private abilityDelayedZoneRunFinished=false;
   private abilityDelayedZoneDamage=0;
+  private abilityDelayedZoneTimer?:Phaser.Time.TimerEvent;
   private lastHud=0;
   private waveDirector:WaveDirectorState=createWaveDirector(1);
   private runEventState:RunEventState=createRunEventState(1);
@@ -267,7 +268,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   browserTestSnapshot():{
-    ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number;delayedZoneFired:boolean;delayedZoneCandidateCount:number;delayedZoneInRangeCount:number;delayedZoneRunFinished:boolean;delayedZoneDamage:number;sceneTimePaused:boolean;sceneActive:boolean;sceneTimeNow:number};
+    ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number;delayedZoneFired:boolean;delayedZoneCandidateCount:number;delayedZoneInRangeCount:number;delayedZoneRunFinished:boolean;delayedZoneDamage:number;sceneTimePaused:boolean;sceneActive:boolean;sceneTimeNow:number;pendingTimerCount:number;delayedTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null};
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Partial<Record<ElementId,number>>};
     regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};
@@ -285,7 +286,7 @@ export class RunScene extends Phaser.Scene {
   } {
     this.assertBrowserTestMode();
     return {
-      ability:{effect:this.character.ability.effect,cooldownRemainingMs:Math.max(0,this.abilityReady-this.time.now),guardActive:this.time.now<this.abilityGuardUntil,lastDamage:this.abilityLastDamage,lastHealing:this.abilityLastHealing,markedTargetCount:this.activeTargets().filter(target=>Number(target.getData('abilityMarkedUntil')??0)>this.time.now).length,delayedZoneFired:this.abilityDelayedZoneFired,delayedZoneCandidateCount:this.abilityDelayedZoneCandidateCount,delayedZoneInRangeCount:this.abilityDelayedZoneInRangeCount,delayedZoneRunFinished:this.abilityDelayedZoneRunFinished,delayedZoneDamage:this.abilityDelayedZoneDamage,sceneTimePaused:this.time.paused,sceneActive:this.sys.isActive(),sceneTimeNow:this.time.now},
+      ability:{effect:this.character.ability.effect,cooldownRemainingMs:Math.max(0,this.abilityReady-this.time.now),guardActive:this.time.now<this.abilityGuardUntil,lastDamage:this.abilityLastDamage,lastHealing:this.abilityLastHealing,markedTargetCount:this.activeTargets().filter(target=>Number(target.getData('abilityMarkedUntil')??0)>this.time.now).length,delayedZoneFired:this.abilityDelayedZoneFired,delayedZoneCandidateCount:this.abilityDelayedZoneCandidateCount,delayedZoneInRangeCount:this.abilityDelayedZoneInRangeCount,delayedZoneRunFinished:this.abilityDelayedZoneRunFinished,delayedZoneDamage:this.abilityDelayedZoneDamage,sceneTimePaused:this.time.paused,sceneActive:this.sys.isActive(),sceneTimeNow:this.time.now,pendingTimerCount:this.time.getEventCount(),delayedTimer:this.abilityDelayedZoneTimer?{paused:this.abilityDelayedZoneTimer.paused,hasDispatched:this.abilityDelayedZoneTimer.hasDispatched,elapsed:this.abilityDelayedZoneTimer.getElapsed(),delay:this.abilityDelayedZoneTimer.delay,timeScale:this.abilityDelayedZoneTimer.timeScale}:null},
       level:this.state.level,experience:this.state.experience,experienceToNext:this.state.experienceToNext,
       regionMap:{regionId:this.mapLayout.regionId,roomIds:this.mapLayout.rooms.map(room=>room.id),wallCount:this.mapBoundaryCount,connected:this.mapConnected,playerWalkable:isRegionMapWalkable(this.mapLayout,this.player.x,this.player.y,-24)},
       queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,environment:{timeOfDay:this.environmentState.timeOfDay,weather:this.environmentState.weather,timeLabel:this.environmentState.timeLabel,weatherLabel:this.environmentState.weatherLabel,enemyMoveSpeedMultiplier:this.environmentState.enemyMoveSpeedMultiplier,elementDamageMultipliers:{...this.environmentState.elementDamageMultipliers}},paused:this.paused,bossSpawned:this.bossSpawned,bossVariantId:this.activeBossVariantId,bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
@@ -963,7 +964,7 @@ export class RunScene extends Phaser.Scene {
     }else if(resolution.effect==='delayed-spirit-zone'&&resolution.delayedZone){
       const zone=resolution.delayedZone,marker=this.add.circle(zone.x,zone.y,zone.radius,0x73d7c8,.16).setStrokeStyle(3,0x9be8dc,.9).setDepth(4);
       this.tweens.add({targets:marker,alpha:.38,scale:.92,duration:zone.delayMs,yoyo:true,repeat:0});
-      this.time.delayedCall(zone.delayMs,()=>{this.abilityDelayedZoneFired=true;if(this.runFinished){this.abilityDelayedZoneRunFinished=true;marker.destroy();return;}const candidates=this.activeTargets();const targetsInRange=candidates.filter(target=>Phaser.Math.Distance.Between(zone.x,zone.y,target.x,target.y)<=zone.radius);this.abilityDelayedZoneCandidateCount=candidates.length;this.abilityDelayedZoneInRangeCount=targetsInRange.length;for(const target of targetsInRange){const dealt=this.damageEnemy(target,damage,element);this.abilityDelayedZoneDamage+=dealt;this.abilityLastDamage+=dealt;}marker.setFillStyle(0x73d7c8,.3).setStrokeStyle(4,0xb8fff2,1);this.cameras.main.flash(120,70,170,160);this.time.delayedCall(zone.visualDurationMs,()=>marker.destroy());});
+      this.abilityDelayedZoneTimer=this.time.delayedCall(zone.delayMs,()=>{this.abilityDelayedZoneFired=true;if(this.runFinished){this.abilityDelayedZoneRunFinished=true;marker.destroy();return;}const candidates=this.activeTargets();const targetsInRange=candidates.filter(target=>Phaser.Math.Distance.Between(zone.x,zone.y,target.x,target.y)<=zone.radius);this.abilityDelayedZoneCandidateCount=candidates.length;this.abilityDelayedZoneInRangeCount=targetsInRange.length;for(const target of targetsInRange){const dealt=this.damageEnemy(target,damage,element);this.abilityDelayedZoneDamage+=dealt;this.abilityLastDamage+=dealt;}marker.setFillStyle(0x73d7c8,.3).setStrokeStyle(4,0xb8fff2,1);this.cameras.main.flash(120,70,170,160);this.time.delayedCall(zone.visualDurationMs,()=>marker.destroy());});
       this.cameras.main.shake(70,.0015);
     }else if(resolution.effect==='blink-and-mark'){
       const destination=resolution.blinkDestination!,safe=resolveRegionMapPosition(this.mapLayout,destination.x,destination.y,30);
