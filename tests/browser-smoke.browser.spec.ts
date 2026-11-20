@@ -2053,6 +2053,28 @@ test('New Game+ unlocks after an ending, confirms the reset, and scales live ene
 });
 
 
+test('adaptive enemies respond to elemental, area and precision builds without hard counters',async({page})=>{
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  const result=await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestEnemyAdaptationProbe:()=>{
+      areaLateralRatio:number;precisionLateralRatio:number;elementShieldActive:boolean;
+      elementShieldDamageRatio:number;elementMarkerVisible:boolean;eliteExcluded:boolean;summonExcluded:boolean;
+    }}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('run').browserTestEnemyAdaptationProbe();
+  });
+  expect(result.areaLateralRatio).toBeGreaterThan(.15);
+  expect(result.precisionLateralRatio).toBeGreaterThan(.15);
+  expect(result.elementShieldActive).toBe(true);
+  expect(result.elementShieldDamageRatio).toBeCloseTo(.85,1);
+  expect(result.elementMarkerVisible).toBe(true);
+  expect(result.eliteExcluded).toBe(true);
+  expect(result.summonExcluded).toBe(true);
+  expect(pageErrors).toEqual([]);
+});
+
 test('six seeded enemy mutations execute their live Phaser combat effects and readable markers',async({page})=>{
   const pageErrors:string[]=[];
   page.on('pageerror',error=>pageErrors.push(error.message));

@@ -22,6 +22,7 @@ import { findNearestTarget } from '../../gameplay/combat/combat-rules.js';
 import { advanceRun, applyUpgrade, createRunState, gainExperience, recordKill } from '../../gameplay/run/run-model.js';
 import { stepEnemyAI, type EnemyActorState } from '../../gameplay/enemies/enemy-runtime.js';
 import { resolveEnemyMutation, getEnemyMutation, getEnemyMutationDamageMultiplier, getEnemyMutationMoveSpeedMultiplier, ENEMY_MUTATION_CURSE_DAMAGE_MULTIPLIER, ENEMY_MUTATION_CURSE_DURATION_MS, ENEMY_MUTATION_EXPLOSION_DAMAGE_MULTIPLIER, ENEMY_MUTATION_EXPLOSION_RADIUS, ENEMY_MUTATION_POISON_DURATION_MS, ENEMY_MUTATION_VAMPIRIC_HEAL_RATIO } from '../../gameplay/enemies/enemy-mutations.js';
+import { EMPTY_ENEMY_ADAPTATION_PROFILE, EMPTY_ENEMY_ADAPTATION_STATE, deriveEnemyAdaptationProfile, getEnemyAdaptationDamageMultiplier, isEnemyAdaptationEligible as canEnemyAdapt, recordEnemyAdaptationElementHit, resolveEnemyAdaptationVelocity, type EnemyAdaptationProfile, type EnemyAdaptationTactic } from '../../gameplay/enemies/enemy-adaptation.js';
 import { applyElementHit, tickElementStatuses, type ElementState } from '../../gameplay/elements/element-runtime.js';
 import { addPassive, addWeapon, choosePassiveSpecial, chooseWeaponBranch, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState } from '../../gameplay/weapons/build-runtime.js';
 import { getActiveWeaponSynergies, getWeaponSynergyChainBonus, getWeaponSynergyDamageMultiplier } from '../../gameplay/weapons/weapon-synergies.js';
@@ -71,6 +72,8 @@ export class RunScene extends Phaser.Scene {
   private newGamePlusLevel=0;
   private scaledEnemyDefinitions=new Map<string,EnemyDefinition>();
   private build:BuildState={weapons:[],passives:[]};
+  private enemyAdaptationProfile:EnemyAdaptationProfile={...EMPTY_ENEMY_ADAPTATION_PROFILE};
+  private nextEnemyAdaptationRefreshAt=0;
   private player!:Phaser.Physics.Arcade.Sprite;
   private enemies!:Phaser.Physics.Arcade.Group;
   private shots!:Phaser.Physics.Arcade.Group;
@@ -644,6 +647,56 @@ export class RunScene extends Phaser.Scene {
     return Promise.resolve(result);
   }
 
+  browserTestEnemyAdaptationProbe():{
+    areaLateralRatio:number;precisionLateralRatio:number;elementShieldActive:boolean;
+    elementShieldDamageRatio:number;elementMarkerVisible:boolean;eliteExcluded:boolean;summonExcluded:boolean;
+  } {
+    this.assertBrowserTestMode();
+    this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};
+    const clearEnemies=():void=>{for(const child of [...this.enemies.getChildren()]){const enemy=child as Phaser.Physics.Arcade.Sprite;(enemy.getData('eliteMarker') as Phaser.GameObjects.GameObject|undefined)?.destroy();enemy.destroy();}};
+    const originalState=this.state,originalCharacter=this.character,originalBuild=this.build,originalRelicStats=this.relicStats;
+    const originalProfile=this.enemyAdaptationProfile,originalRefreshAt=this.nextEnemyAdaptationRefreshAt,originalWaveDirector=this.waveDirector;
+    this.state={...this.state,elapsedMs:0};this.build=EMPTY_BUILD;
+    this.character={...this.character,stats:{...this.character.stats,criticalChance:0}};
+    this.relicStats=deriveRelicStats([],this.character.id);this.nextEnemyAdaptationRefreshAt=Number.POSITIVE_INFINITY;
+    const definition=ENEMIES.find(item=>item.behavior==='pursue');if(!definition)throw new Error('Enemy adaptation probe requires a pursuing enemy.');
+    clearEnemies();
+    const first=this.createEnemy(this.player.x+240,this.player.y,definition,100,false,1001);
+    this.createEnemy(this.player.x+240,this.player.y+48,definition,100,false,1002);
+    this.enemyAdaptationProfile={...EMPTY_ENEMY_ADAPTATION_PROFILE};
+    this.moveEnemies(this.time.now+16);
+    this.enemyAdaptationProfile={...EMPTY_ENEMY_ADAPTATION_PROFILE,tactic:'spread'};
+    this.moveEnemies(this.time.now+32);
+    const spreadVelocity=(first.body as Phaser.Physics.Arcade.Body).velocity;
+    const areaLateralRatio=Math.abs(spreadVelocity.y)/Math.max(1,spreadVelocity.length());
+    clearEnemies();
+    const precise=this.createEnemy(this.player.x+240,this.player.y,definition,100,false,1003);
+    this.enemyAdaptationProfile={...EMPTY_ENEMY_ADAPTATION_PROFILE,tactic:'strafe'};
+    this.moveEnemies(this.time.now+48);
+    const strafeVelocity=(precise.body as Phaser.Physics.Arcade.Body).velocity;
+    const precisionLateralRatio=Math.abs(strafeVelocity.y)/Math.max(1,strafeVelocity.length());
+    clearEnemies();
+    const elementDefinition=ENEMIES.find(item=>item.resistances.fire===undefined||item.resistances.fire===0);
+    if(!elementDefinition)throw new Error('Enemy adaptation probe requires an enemy without fire resistance.');
+    const shielded=this.createEnemy(this.player.x+240,this.player.y,elementDefinition,100,false,1004);
+    const control=this.createEnemy(this.player.x+280,this.player.y+70,elementDefinition,100,false,1005);
+    this.enemyAdaptationProfile={...EMPTY_ENEMY_ADAPTATION_PROFILE,dominantElement:'fire'};
+    for(let hit=0;hit<3;hit++)this.damageEnemy(shielded,1,'fire');
+    const shieldState=shielded.getData('enemyAdaptationState') as typeof EMPTY_ENEMY_ADAPTATION_STATE;
+    const elementShieldActive=shieldState.shieldUntil>this.time.now;
+    const marker=shielded.getData('adaptationMarker') as Phaser.GameObjects.Container|undefined;
+    const elementMarkerVisible=Boolean(marker?.visible);
+    const shieldedDamage=this.damageEnemy(shielded,100,'fire'),controlDamage=this.damageEnemy(control,100,'fire');
+    const elementShieldDamageRatio=controlDamage>0?shieldedDamage/controlDamage:0;
+    const elite=this.createEnemy(this.player.x+300,this.player.y,definition,1,true,1006);
+    const summoned=this.createEnemy(this.player.x+330,this.player.y,definition,1,false,1007).setData('summonedBy',elite);
+    const eliteExcluded=!this.isEnemyAdaptationEligible(elite),summonExcluded=!this.isEnemyAdaptationEligible(summoned);
+    clearEnemies();
+    this.state=originalState;this.character=originalCharacter;this.build=originalBuild;this.relicStats=originalRelicStats;
+    this.enemyAdaptationProfile=originalProfile;this.nextEnemyAdaptationRefreshAt=originalRefreshAt;this.waveDirector=originalWaveDirector;
+    return{areaLateralRatio,precisionLateralRatio,elementShieldActive,elementShieldDamageRatio,elementMarkerVisible,eliteExcluded,summonExcluded};
+  }
+
   browserTestEnemySupportProbe():{hexSpeedMultiplier:number;webEnemySlowMultiplier:number;webPlayerSlowMultiplier:number} {
     this.assertBrowserTestMode();
     this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};
@@ -1015,6 +1068,7 @@ export class RunScene extends Phaser.Scene {
     const startingWeapon=WEAPONS.find(w=>w.id===(activeEquipmentProfile?.startingWeaponId??this.character.startingWeaponId))??WEAPONS[0]!;
     const startingPassive=PASSIVES.find(p=>p.id===(activeEquipmentProfile?.startingPassiveId??this.character.startingPassiveId))??PASSIVES[0]!;
     this.build=addWeapon(this.build,startingWeapon);this.build=addPassive(this.build,startingPassive);
+    this.enemyAdaptationProfile=deriveEnemyAdaptationProfile(this.build,WEAPONS,PASSIVES);this.nextEnemyAdaptationRefreshAt=0;
     this.runDiscoveredWeaponIds=[startingWeapon.id];
     this.paused=false;this.queuedLevels=0;this.levelUpControls=createLevelUpControlState(this.permanentUpgradeEffects.extraRerolls);this.currentLevelChoices=[];this.banishMode=false;this.nextDamage=0;this.dashReady=0;this.dashUntil=0;this.abilityReady=0;this.abilityGuardUntil=0;this.abilityGuardDamageMultiplier=.35;this.abilityLastEffect='';this.abilityLastDamage=0;this.abilityLastHealing=0;
     this.previousGamepadFrame=EMPTY_GAMEPAD_FRAME;this.gamepadMoveX=0;this.gamepadMoveY=0;this.clearOverlay();
@@ -1241,7 +1295,39 @@ export class RunScene extends Phaser.Scene {
     this.time.delayedCall(950,()=>label.destroy());
   }
 
+  private isEnemyAdaptationEligible(enemy:Phaser.Physics.Arcade.Sprite):boolean {
+    const spawnIndex=enemy.getData('adaptationSpawnIndex');
+    return canEnemyAdapt({isBoss:Boolean(enemy.getData('isBoss')),isElite:Boolean(enemy.getData('isElite')),isSummoned:Boolean(enemy.getData('summonedBy')||enemy.getData('summonedByHazard')),hasRegularSpawnIndex:Number.isInteger(spawnIndex)&&Number(spawnIndex)>=0});
+  }
+
+  private updateEnemyAdaptationMarker(enemy:Phaser.Physics.Arcade.Sprite,time:number,mode:EnemyAdaptationTactic):void {
+    if(!this.isEnemyAdaptationEligible(enemy))return;
+    const state=(enemy.getData('enemyAdaptationState') as typeof EMPTY_ENEMY_ADAPTATION_STATE|undefined)??EMPTY_ENEMY_ADAPTATION_STATE;
+    const shieldActive=state.shieldUntil>time&&state.shieldElement!==null;
+    const label=shieldActive?'UYUM KALKANI':mode==='spread'?'DAĞIL':mode==='strafe'?'YAN ADIM':'';
+    let marker=enemy.getData('adaptationMarker') as Phaser.GameObjects.Container|undefined;
+    if(!label){marker?.setVisible(false);return;}
+    const definition=this.enemyDefinition(enemy);if(!definition)return;
+    const color=shieldActive&&state.shieldElement?elementTint[state.shieldElement]:mode==='spread'?0x73d7c8:0xf2c078;
+    if(!marker){
+      marker=this.add.container(enemy.x,enemy.y).setDepth(6);
+      const ring=this.add.circle(0,0,definition.radius+13,0x73d7c8,0).setStrokeStyle(2,color,.92);
+      const text=this.add.text(0,-definition.radius-30,'',{fontFamily:'Georgia',fontSize:'9px',fontStyle:'bold',color:'#73d7c8',stroke:'#17131b',strokeThickness:3}).setOrigin(.5);
+      marker.add([ring,text]);enemy.setData('adaptationMarker',marker);
+      enemy.once(Phaser.GameObjects.Events.DESTROY,()=>marker?.destroy());
+    }
+    const ring=marker.getAt(0) as Phaser.GameObjects.Arc;
+    const text=marker.getAt(1) as Phaser.GameObjects.Text;
+    ring.setStrokeStyle(2,color,.92);text.setText(label).setColor('#'+color.toString(16).padStart(6,'0'));
+    marker.setPosition(enemy.x,enemy.y).setVisible(true);
+  }
+
   private moveEnemies(time:number):void {
+    if(time>=this.nextEnemyAdaptationRefreshAt){
+      this.enemyAdaptationProfile=deriveEnemyAdaptationProfile(this.build,WEAPONS,PASSIVES);
+      this.nextEnemyAdaptationRefreshAt=time+500;
+    }
+    const activeEnemies=(this.enemies.getChildren() as Phaser.Physics.Arcade.Sprite[]).filter(enemy=>enemy.active&&!enemy.getData('isBoss'));
     for(const child of this.enemies.getChildren()){
       const enemy=child as Phaser.Physics.Arcade.Sprite;if(!enemy.active)continue;
       // Ability probe dummies stay fixed so delayed area effects are tested against a stable hit area.
@@ -1253,6 +1339,14 @@ export class RunScene extends Phaser.Scene {
       const old=this.enemyStates.get(enemy)??{x:enemy.x,y:enemy.y,health:Number(enemy.getData('health')),nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false};
       const state={...old,x:enemy.x,y:enemy.y,health:Number(enemy.getData('health'))};
       const intent=stepEnemyAI(def,state,{x:this.player.x,y:this.player.y},time,16);
+      let adaptiveMode:EnemyAdaptationTactic|null=null;
+      let adaptiveVelocity={x:intent.velocityX,y:intent.velocityY};
+      if(this.isEnemyAdaptationEligible(enemy)&&!intent.attack&&!intent.special&&this.enemyAdaptationProfile.tactic){
+        const nearby=activeEnemies.filter(other=>other!==enemy&&this.isEnemyAdaptationEligible(other)).map(other=>({x:other.x,y:other.y}));
+        const adapted=resolveEnemyAdaptationVelocity(def,adaptiveVelocity,{x:enemy.x,y:enemy.y},{x:this.player.x,y:this.player.y},nearby,this.enemyAdaptationProfile.tactic,Number(enemy.getData('adaptationSide')??1));
+        adaptiveVelocity={x:adapted.velocityX,y:adapted.velocityY};adaptiveMode=adapted.mode;
+      }
+      this.updateEnemyAdaptationMarker(enemy,time,adaptiveMode);
       this.enemyStates.set(enemy,intent.state);
       if(intent.special)this.applyEnemySpecial(enemy,def,intent.special);
       if(def.behavior==='mimic'&&!intent.state.burrowed&&!enemy.getData('mimicRevealed')){enemy.setData('mimicRevealed',true);this.enemyStates.set(enemy,{...intent.state,burrowed:false,exposedUntil:Number.MAX_SAFE_INTEGER});enemy.clearTint();enemy.setAlpha(1);(enemy.getData('mutationMarker') as Phaser.GameObjects.Container|undefined)?.setVisible(true);this.cameras.main.shake(70,.001);}
@@ -1278,7 +1372,7 @@ export class RunScene extends Phaser.Scene {
       const slow=effects.slowed?.55:1;
       const nightHunter=['pursue','flank','surge','swarm','ambush','phase-stalk','frost-hunt','wraith'].includes(def.behavior);
       const nightBoost=this.environmentState.timeOfDay==='night'&&nightHunter?this.environmentState.enemyMoveSpeedMultiplier:1;
-      let vx=intent.velocityX*slow*nightBoost,vy=intent.velocityY*slow*nightBoost;
+      let vx=adaptiveVelocity.x*slow*nightBoost,vy=adaptiveVelocity.y*slow*nightBoost;
       const challengeSpeed=getChallengeModifiers(this.challengeId).enemyMoveSpeedMultiplier;
       if(isElite){const boost=enemy.getData('eliteEnraged')?1.32:1.12;vx*=boost;vy*=boost;}
       if(Number(enemy.getData('pounceUntil')??0)>time){vx=Number(enemy.getData('pounceX'))*def.speed*3.1;vy=Number(enemy.getData('pounceY'))*def.speed*3.1;}
@@ -1413,7 +1507,7 @@ export class RunScene extends Phaser.Scene {
     const x=Phaser.Math.Clamp(this.player.x+Math.cos(angle)*distance,35,WORLD_W-35);
     const y=Phaser.Math.Clamp(this.player.y+Math.sin(angle)*distance,35,WORLD_H-35);
     const spawn=resolveRegionMapPosition(this.mapLayout,x,y,def.radius+24);
-    this.createEnemy(spawn.x,spawn.y,def,1);
+    this.createEnemy(spawn.x,spawn.y,def,1,false,0);
   }
 
   private createEnemy(x:number,y:number,def:EnemyDefinition,scale:number,isElite=false,spawnIndex?:number):Phaser.Physics.Arcade.Sprite {
@@ -1424,7 +1518,10 @@ export class RunScene extends Phaser.Scene {
     const experience=Math.round(def.experience*(isElite?3:1)*endlessModifiers.experienceMultiplier);
     const safe=resolveRegionMapPosition(this.mapLayout,x,y,def.radius+24);
     const enemy=this.enemies.create(safe.x,safe.y,'enemy-'+def.id) as Phaser.Physics.Arcade.Sprite;
-    enemy.setDepth(2).setCircle(def.radius).setData('enemyType',def.id).setData('health',maxHealth).setData('maxHealth',maxHealth).setData('experience',experience);
+    enemy.setDepth(2).setCircle(def.radius).setData('enemyType',def.id).setData('health',maxHealth).setData('maxHealth',maxHealth).setData('experience',experience)
+      .setData('adaptationSpawnIndex',Number.isInteger(spawnIndex)?spawnIndex:null)
+      .setData('adaptationSide',spawnIndex!==undefined&&spawnIndex%2===0?1:-1)
+      .setData('enemyAdaptationState',{...EMPTY_ENEMY_ADAPTATION_STATE});
     if(isElite){
       const marker=this.add.circle(safe.x,safe.y,def.radius+8,0xd9ad5c,.12).setStrokeStyle(3,0xe8c77a,.95).setDepth(1);
       enemy.setTint(0xd9ad5c).setData('isElite',true) .setData('eliteId',this.region.elite.id).setData('eliteName',this.region.elite.name).setData('eliteBehavior',this.region.elite.behavior).setData('eliteReward',this.region.elite.reward).setData('eliteMarker',marker).setData('eliteAttackReady',this.time.now+2400).setData('eliteEnraged',false);
@@ -1834,6 +1931,9 @@ export class RunScene extends Phaser.Scene {
     const curse=existing.dark&&existing.dark.expiresAt>this.time.now?existing.dark.stacks:0;
     const poison=existing.poison&&existing.poison.expiresAt>this.time.now?existing.poison.stacks:0;
     let damage=baseDamage*(1+curse*.06+poison*.025);
+    const adaptationEligible=this.isEnemyAdaptationEligible(enemy);
+    const adaptationState=(enemy.getData('enemyAdaptationState') as typeof EMPTY_ENEMY_ADAPTATION_STATE|undefined)??EMPTY_ENEMY_ADAPTATION_STATE;
+    if(element&&adaptationEligible)damage*=getEnemyAdaptationDamageMultiplier(adaptationState,element,this.time.now);
     if(actor&&def.behavior!=='mimic'&&actor.exposedUntil>this.time.now)damage*=1.25;
     if(Number(enemy.getData('abilityMarkedUntil')??0)>this.time.now)damage*=1.3;
     const armorBroken=Number(enemy.getData('armorBrokenUntil')??0)>this.time.now;
@@ -1862,6 +1962,11 @@ export class RunScene extends Phaser.Scene {
     if(element==='fire'&&isPassiveSpecialActive(this.build,'ashen-heart')){const fire=PASSIVES.find(item=>item.id==='ashen-heart')!.specialUpgrade.mechanic;if(fire.kind==='fire-explosion'){const ready=tryPassiveCooldown(this.passiveSpecialState,'ember-core',this.time.now,fire.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)for(const nearby of this.activeTargets()){if(nearby!==enemy&&Phaser.Math.Distance.Between(enemy.x,enemy.y,nearby.x,nearby.y)<=fire.radius)this.damageEnemy(nearby,damage*fire.damageMultiplier);}}}
     const ice=PASSIVES.find(item=>item.id==='frostbound-sigil')!.specialUpgrade.mechanic;
     if(ice.kind==='ice-shatter'&&isPassiveSpecialActive(this.build,'frostbound-sigil')&&baseDamage>=ice.minimumHitDamage&&isFrozenTarget(existing.ice?.expiresAt,this.time.now)&&Number(enemy.getData('iceShatteredUntil')??0)<(existing.ice?.expiresAt??0)){damage+=baseDamage*ice.damageMultiplier;enemy.setData('iceShatteredUntil',existing.ice!.expiresAt);}
+    if(element&&adaptationEligible&&this.enemyAdaptationProfile.dominantElement===element){
+      const adaptation=recordEnemyAdaptationElementHit(adaptationState,element,this.enemyAdaptationProfile.dominantElement,this.time.now);
+      enemy.setData('enemyAdaptationState',adaptation.state);
+      if(adaptation.activated)this.updateEnemyAdaptationMarker(enemy,this.time.now,null);
+    }
     damage*=getEnemyMutationDamageMultiplier(enemy.getData('mutationId'));
     const previousHealth=Number(enemy.getData('health'));const hp=previousHealth-damage;enemy.setData('health',hp).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(enemy.active){if(enemy.getData('isElite'))enemy.setTint(enemy.getData('eliteEnraged')?0xf2a85c:0xd9ad5c);else enemy.clearTint();}});

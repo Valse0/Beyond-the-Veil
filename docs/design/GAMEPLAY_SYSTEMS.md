@@ -388,3 +388,11 @@ No final UI art, balance sign-off, or physical-device validation is claimed by t
 - Each mutated enemy receives a colored ring and Turkish mutation label. Mimics keep the marker hidden until their reveal, preserving the chest-disguise surprise.
 - The run clock and save schema are unchanged. No final art, dependencies, backend, paid services or external systems were added. Browser tests exercise each mutation through the live Phaser scene.
 - CI #450 (run `44772621890`, commit `bdc551435b73590966cb6549b319023405bc3cad`) passed TypeScript, 258/258 unit tests, production build, Chromium Playwright 49/49 and npm audit with 0 vulnerabilities. The live browser probe verifies all six mutation effects and their labels.
+
+
+## Adaptive Enemy Behavior v1 (2026-11-20)
+
+- Added a Phaser-independent build profiler. Two or more owned weapons sharing an element establish a dominant element; ties do not select one. Area and precision scores combine selected spread/focus branches, authored weapon behaviors and activated passive special mechanics. A tactic is selected only at score 2 or higher and only when it leads the competing score.
+- Regular-wave normal enemies with eligible spawn IDs only: after three hits of the dominant element within four seconds, an enemy gains a 2.5-second shield that reduces damage from that element by 15%; activation has a 10-second cooldown. A ring and UYUM KALKANI marker make the temporary defense readable.
+- With an area-focused profile, eligible pursuers, swarmers, volatile bombers, wraiths and frost hunters repel nearby allies within 132 px. With a precision-focused profile, those same eligible behaviors strafe around the player at 120–360 px. Both tactics preserve current movement speed and do not interrupt an enemy's attack or special telegraph. Temporary DAĞIL and YAN ADIM markers identify the active tactic.
+- Bosses, elites, summoned minions and enemies not created by regular waves are excluded. No save migration, dependencies, backend, paid services or final art were added.

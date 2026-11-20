@@ -431,9 +431,15 @@ Mutasyonlar görsel ve mekanik olarak ayırt edilmelidir.
 
 8.3 Adaptif düşman davranışı
 
-Bazı düşmanlar oyuncunun build’ine göre geçici savunma veya taktik değişikliği gösterebilir.
+Bazı normal dalga düşmanları oyuncunun silah/pasif build'ini izleyerek geçici savunma veya konumlanma taktiği kullanır. Build profili 500 ms aralıklarla yenilenir.
 
-Ancak hiçbir düşman oyuncunun bütün build’ini etkisiz hale getirmemelidir.
+* Element odağı: Aynı elementte en az iki silahı bulunan build'in baskın elementi belirlenir. Uygun bir düşman 4 saniye içinde bu elementten üç darbe alırsa 2,5 saniyeliğine o elementten aldığı hasarı %15 azaltan uyum kalkanı açar. Tekrar tetiklenmesi için 10 saniye bekleme gerekir.
+* Alan odağı: Yayılım dalları, alan saldırısı davranışları ve etkin alan pasifleri puanlanır. Alan puanı en az 2 ve hassas saldırı puanından yüksekse uygun düşmanlar 132 piksel içindeki müttefiklerinden uzaklaşarak kümelenmeyi azaltır.
+* Hassas saldırı odağı: Odak dalları, delici/takipli silah davranışları ve etkin tek hedef pasifleri puanlanır. Hassas saldırı puanı en az 2 ve alan puanından yüksekse uygun düşmanlar 120–360 piksel çatışma mesafesinde yana kayarak saldırı hattını değiştirir.
+
+Alan ve hassas saldırı taktikleri düşmanların hareket hızını artırmaz; yalnızca yönlerini değiştirir. Puanlar eşitse taktik seçilmez. Boss'lar, elitler, çağrılan minyonlar ve normal dalga dışı düşmanlar adaptasyon kullanmaz.
+
+Adaptasyon geçicidir ve yalnızca belirli normal düşman davranışlarına uygulanır. Hiçbir düşman element bağışıklığı kazanmaz veya oyuncunun bütün build'ini etkisiz hâle getirmez.
 
 ⸻
 
