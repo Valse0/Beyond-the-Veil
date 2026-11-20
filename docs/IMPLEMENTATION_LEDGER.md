@@ -614,7 +614,7 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Adaptive mechanics are code/CI verified; natural-run fairness, final visual/audio feedback and physical-device playtesting remain open. ENEMY-ADAPTATION therefore remains IN_PROGRESS.
 
 
-## Blacksmith Service v1 — implementation pending CI (2026-11-20)
+## Blacksmith Service v1 — verified (2026-11-20)
 
 - Added a Demirci entry to Hunter Hub and a dedicated service view for all five existing crafting recipes. Each card identifies its weapon and region, explains the variant, and displays Ruh Özü/material costs beside the current balances.
 - Craft controls are available only when the profile can afford the recipe and does not already own its variant. A successful action delegates to the existing `SaveManager.craftRecipe()` transaction; costs and permanent variant ownership therefore remain a single save operation. The screen refreshes immediately and reports success/failure.
