@@ -4,7 +4,7 @@ Source of truth: `Game Design Document.md` (Sections 1–30), `PLAN.md`, and the
 
 Last reconciled: 2026-11-20  
 Tracked branch: `full-game-development`  
-Latest baseline verification: [CI #44802787920](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44802787920) — SUCCESS (TypeScript, 265/265 unit tests, production build, Chromium 52/52, npm audit: 0 vulnerabilities).
+Latest baseline verification: [CI #44805396833](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44805396833) — SUCCESS (attempt 2; TypeScript, 265/265 unit tests, production build, Chromium 52/52, npm audit: 0 vulnerabilities).
 
 ## How to use this ledger
 
@@ -537,9 +537,9 @@ Playwright Chromium smoke coverage on `full-game-development`:
 - Separated the selected story ending (`story.endingId`) from the completed campaign ending (`story.completedEndingId`). The latter is set only after a victorious Cursed Castle run defeats the Unwritten Regent and opens the boss chest.
 - The ending resolver validates the completed final quest, selected choice, matching outcome and ending ID. Defeat, wrong region/boss, incomplete quest, malformed branch linkage and repeat completion cannot create or replace a completed ending.
 - Save schema v10 adds the nullable completed-ending ID. Schema-v9 migration preserves all existing story choices/progress and initializes the new field to null; earlier migrations continue to converge on the current schema.
-- Added unit coverage for both authored endings, invalid/mismatched choices, defeat, wrong boss/region and idempotency; added migration coverage and a live Phaser final-boss victory/reload browser test.
+- Added unit coverage for both authored endings, invalid/mismatched choices, defeat, wrong boss/region and idempotency; schema-v9 migration preserves story state and initializes completion, while schema-v10 migration carries the completed ending into New Game+ history. The live Phaser final-boss victory/reload browser test also invokes the finish callback twice and verifies Ruh Özü and completed-run rewards are not duplicated.
 - Final-scene UI, dialogue, animation, final art/audio and physical-device/natural-run validation remain later work.
-- CI #382 (run `44630060065`), tested commit `ee16762ecabf54d4a21a5d963c27cb845afa757d`: TypeScript PASS; 201/201 unit tests PASS; production build PASS; Chromium Playwright 32/32 PASS; npm audit 0 vulnerabilities.
+- Original implementation CI #382 (run `44630060065`), tested commit `ee16762ecabf54d4a21a5d963c27cb845afa757d`: TypeScript PASS; 201/201 unit tests PASS; production build PASS; Chromium Playwright 32/32 PASS; npm audit 0 vulnerabilities. Regression verification CI [#44805396833](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44805396833), commit `f16e61dbb2cec5a2616c2cd3d0334f6396f2fffd`, attempt 2: TypeScript PASS; 265/265 unit tests PASS; production build PASS; Chromium Playwright 52/52 PASS; npm audit 0 vulnerabilities. Attempt 1 had one unrelated Equipment Profiles browser timeout; the failed job was rerun and passed.
 
 ## Boss Arena Environmental Traces v1 implementation pass (2026-11-19)
 
