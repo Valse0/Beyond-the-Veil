@@ -39,7 +39,7 @@ function thisRegionSecretPath(regionId:RegionId):string|undefined {
 
 /**
  * Boss Hunt only persists its authored boss reward after a victorious, opened chest.
- * It never advances campaign, mastery, achievements, collections or run counters.
+ * It never advances campaign, mastery, achievements, unrelated collections or run counters.
  */
 export function applyBossHuntResult(save: SaveData, result: BossHuntResultInput): SaveData {
   const chestVictory = result.won && result.bossChestOpened === true;
