@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { ElementId, RegionId, RegionPathDefinition, EnemyDefinition, BossDefinition, CharacterDefinition, WeaponDefinition, PassiveSpecialMechanic } from '../../core/types/content.js';
-import type { GameMode, RunState, UpgradeId } from '../../core/types/game.js';
+import type { ChallengeId, GameMode, RunState, UpgradeId } from '../../core/types/game.js';
 import { CHARACTERS, STARTING_CHARACTER } from '../../data/characters.js';
 import { ENEMIES } from '../../data/enemies.js';
 import { BOSSES } from '../../data/bosses.js';
@@ -30,6 +30,7 @@ import { createBossArena, damageBossArenaObject, getBossArenaDamageMultiplier, g
 import { createHazardCycle, getRegionHazardMechanic, stepRegionHazard, type HazardCycle, type HazardEvent, type RegionHazardMechanic } from '../../gameplay/regions/region-runtime.js';
 import { applyBossHuntResult, applyRunResult } from '../../gameplay/run/run-results.js';
 import { getGameModeRules, resolveGameMode } from '../../gameplay/run/game-mode-runtime.js';
+import { canAddChallengeWeapon, getChallengeModifiers, getChallengeVictoryBonus, resolveChallengeId } from '../../gameplay/run/challenge-runtime.js';
 import { createWaveDirector, stepWaveDirector, waveRandom, type WaveDirectorState } from '../../gameplay/spawning/wave-director.js';
 import { advanceRunEvent, createRunEventState, getRunEventName, getRunEventObjective, getRunEventReward, recordRunEventAction, startDueRunEvent, type RunEventAction, type RunEventKind, type RunEventState } from '../../gameplay/events/run-events.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
@@ -61,6 +62,7 @@ export class RunScene extends Phaser.Scene {
   private character:CharacterDefinition=STARTING_CHARACTER;
   private region=REGIONS[0]!;
   private gameMode:GameMode='survival';
+  private challengeId:ChallengeId|null=null;
   private build:BuildState={weapons:[],passives:[]};
   private player!:Phaser.Physics.Arcade.Sprite;
   private enemies!:Phaser.Physics.Arcade.Group;
@@ -239,13 +241,13 @@ export class RunScene extends Phaser.Scene {
   browserTestRestartRegion(regionId:string):void {
     this.assertBrowserTestMode();
     if(!REGIONS.some(region=>region.id===regionId))throw new Error('Unknown region map: '+regionId);
-    this.scene.restart({characterId:this.character.id,regionId:regionId as RegionId,gameMode:this.gameMode});
+    this.scene.restart({characterId:this.character.id,regionId:regionId as RegionId,gameMode:this.gameMode,challengeId:this.challengeId??undefined});
   }
 
   browserTestRestartCharacter(characterId:string):void {
     this.assertBrowserTestMode();
     if(!CHARACTERS.some(character=>character.id===characterId))throw new Error('Unknown test character: '+characterId);
-    this.scene.restart({characterId,regionId:this.region.id,gameMode:this.gameMode});
+    this.scene.restart({characterId,regionId:this.region.id,gameMode:this.gameMode,challengeId:this.challengeId??undefined});
   }
 
   browserTestAbilityProbe():{effect:string;beforeHealth:number;afterHealth:number;beforePlayerX:number;afterPlayerX:number;targetVelocity:number;targetHealthBefore:number;targetHealthAfter:number;guardActive:boolean;markedTargetCount:number;cooldownRemainingMs:number} {
@@ -269,9 +271,56 @@ export class RunScene extends Phaser.Scene {
     return {effect:this.abilityLastEffect,beforeHealth,afterHealth:this.state.health,beforePlayerX,afterPlayerX:this.player.x,targetVelocity,targetHealthBefore,targetHealthAfter:target.active?Number(target.getData('health')):0,guardActive:this.time.now<this.abilityGuardUntil,markedTargetCount:targets.filter(item=>Number(item.getData('abilityMarkedUntil')??0)>this.time.now).length,cooldownRemainingMs:Math.max(0,this.abilityReady-this.time.now)};
   }
 
+  browserTestChallengeProbe():{
+    challengeId:ChallengeId;maxWeaponSlots:number;maxHealthMultiplier:number;enemyMoveSpeedMultiplier:number;
+    maxHealth:number;expectedMaxHealth:number;weaponSlotsUsed:number;weaponAddChoiceCount:number;
+    enemySpeedRatio:number;bossSpeedRatio:number;
+  } {
+    this.assertBrowserTestMode();
+    if(!this.challengeId)throw new Error('Challenge probe requires a valid challenge selection.');
+    const modifiers=getChallengeModifiers(this.challengeId);
+    const baseMaxHealth=this.character.health+this.permanentUpgradeEffects.maxHealthBonus+this.relicStats.maxHealthBonus;
+    const originalBuild=this.build;
+    this.build={weapons:WEAPONS.slice(0,3).map(weapon=>({weaponId:weapon.id,level:1,evolved:false})),passives:[]};
+    const weaponAddChoiceCount=this.buildChoices().filter(choice=>choice.kind==='weapon-add').length;
+    this.build=originalBuild;
+    for(const child of [...this.enemies.getChildren()]){
+      const enemy=child as Phaser.Physics.Arcade.Sprite;
+      (enemy.getData('eliteMarker') as Phaser.GameObjects.GameObject|undefined)?.destroy();
+      enemy.destroy();
+    }
+    this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};
+    const definition=ENEMIES.find(enemy=>enemy.id===this.region.enemyIds[0]);
+    if(!definition)throw new Error('Challenge probe requires a regional enemy.');
+    const enemy=this.createEnemy(this.player.x+220,this.player.y,definition,1);
+    const actor=this.enemyStates.get(enemy);
+    if(!actor)throw new Error('Challenge enemy state was not initialized.');
+    const probeTime=this.time.now+32;
+    const intent=stepEnemyAI(definition,{...actor,x:enemy.x,y:enemy.y,health:Number(enemy.getData('health'))},{x:this.player.x,y:this.player.y},probeTime,16);
+    this.moveEnemies(probeTime);
+    const baseEnemySpeed=Math.hypot(intent.velocityX,intent.velocityY);
+    const actualEnemySpeed=(enemy.body as Phaser.Physics.Arcade.Body).velocity.length();
+    const enemySpeedRatio=baseEnemySpeed>0?actualEnemySpeed/baseEnemySpeed:0;
+    for(const child of [...this.enemies.getChildren()])(child as Phaser.Physics.Arcade.Sprite).destroy();
+    this.spawnBoss();
+    if(!this.bossSprite||!this.bossDefinition||!this.bossState)throw new Error('Challenge probe could not spawn the regional boss.');
+    this.bossSprite.setPosition(this.player.x+420,this.player.y);
+    (this.bossSprite.body as Phaser.Physics.Arcade.Body).reset(this.bossSprite.x,this.bossSprite.y);
+    const phase=this.bossDefinition.phases[this.bossState.phaseIndex]!;
+    const baseBossSpeed=this.bossDefinition.health*.006*(phase.movementMultiplier??1);
+    this.moveBoss(this.bossSprite,probeTime+32);
+    const actualBossSpeed=(this.bossSprite.body as Phaser.Physics.Arcade.Body).velocity.length();
+    return {
+      challengeId:this.challengeId,maxWeaponSlots:modifiers.maxWeaponSlots,maxHealthMultiplier:modifiers.maxHealthMultiplier,
+      enemyMoveSpeedMultiplier:modifiers.enemyMoveSpeedMultiplier,maxHealth:this.state.maxHealth,
+      expectedMaxHealth:Math.max(1,Math.floor(baseMaxHealth*modifiers.maxHealthMultiplier)),
+      weaponSlotsUsed:3,weaponAddChoiceCount,enemySpeedRatio,bossSpeedRatio:baseBossSpeed>0?actualBossSpeed/baseBossSpeed:0
+    };
+  }
+
   browserTestSnapshot():{
     ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number;delayedZoneFired:boolean;delayedZoneCandidateCount:number;delayedZoneInRangeCount:number;delayedZoneRunFinished:boolean;delayedZoneDamage:number;sceneTimePaused:boolean;sceneActive:boolean;sceneTimeNow:number;delayedTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null};
-    gameMode:GameMode;waveSpawnIndex:number;activeEnemyCount:number;
+    gameMode:GameMode;challengeId:ChallengeId|null;challengeModifiers:{maxWeaponSlots:number;maxHealthMultiplier:number;enemyMoveSpeedMultiplier:number;victorySoulEssenceBonus:number};weaponSlotsUsed:number;waveSpawnIndex:number;activeEnemyCount:number;
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Partial<Record<ElementId,number>>};
     regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};
@@ -292,7 +341,7 @@ export class RunScene extends Phaser.Scene {
       ability:{effect:this.character.ability.effect,cooldownRemainingMs:Math.max(0,this.abilityReady-this.time.now),guardActive:this.time.now<this.abilityGuardUntil,lastDamage:this.abilityLastDamage,lastHealing:this.abilityLastHealing,markedTargetCount:this.activeTargets().filter(target=>Number(target.getData('abilityMarkedUntil')??0)>this.time.now).length,delayedZoneFired:this.abilityDelayedZoneFired,delayedZoneCandidateCount:this.abilityDelayedZoneCandidateCount,delayedZoneInRangeCount:this.abilityDelayedZoneInRangeCount,delayedZoneRunFinished:this.abilityDelayedZoneRunFinished,delayedZoneDamage:this.abilityDelayedZoneDamage,sceneTimePaused:this.time.paused,sceneActive:this.sys.isActive(),sceneTimeNow:this.time.now,delayedTimer:this.abilityDelayedZoneTimer?{paused:this.abilityDelayedZoneTimer.paused,hasDispatched:this.abilityDelayedZoneTimer.hasDispatched,elapsed:this.abilityDelayedZoneTimer.getElapsed(),delay:this.abilityDelayedZoneTimer.delay,timeScale:this.abilityDelayedZoneTimer.timeScale}:null},
       level:this.state.level,experience:this.state.experience,experienceToNext:this.state.experienceToNext,
       regionMap:{regionId:this.mapLayout.regionId,roomIds:this.mapLayout.rooms.map(room=>room.id),wallCount:this.mapBoundaryCount,connected:this.mapConnected,playerWalkable:isRegionMapWalkable(this.mapLayout,this.player.x,this.player.y,-24)},
-      gameMode:this.gameMode,waveSpawnIndex:this.waveDirector.spawnIndex,activeEnemyCount:this.enemies.countActive(true),queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,environment:{timeOfDay:this.environmentState.timeOfDay,weather:this.environmentState.weather,timeLabel:this.environmentState.timeLabel,weatherLabel:this.environmentState.weatherLabel,enemyMoveSpeedMultiplier:this.environmentState.enemyMoveSpeedMultiplier,elementDamageMultipliers:{...this.environmentState.elementDamageMultipliers}},paused:this.paused,bossSpawned:this.bossSpawned,bossVariantId:this.activeBossVariantId,bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
+      gameMode:this.gameMode,challengeId:this.challengeId,challengeModifiers:getChallengeModifiers(this.challengeId),weaponSlotsUsed:this.build.weapons.length,waveSpawnIndex:this.waveDirector.spawnIndex,activeEnemyCount:this.enemies.countActive(true),queuedLevels:this.queuedLevels,elapsedMs:this.state.elapsedMs,playerX:this.player.x,playerY:this.player.y,environment:{timeOfDay:this.environmentState.timeOfDay,weather:this.environmentState.weather,timeLabel:this.environmentState.timeLabel,weatherLabel:this.environmentState.weatherLabel,enemyMoveSpeedMultiplier:this.environmentState.enemyMoveSpeedMultiplier,elementDamageMultipliers:{...this.environmentState.elementDamageMultipliers}},paused:this.paused,bossSpawned:this.bossSpawned,bossVariantId:this.activeBossVariantId,bossChestAvailable:this.eventObjects.getChildren().some(object=>object.getData('eventObjectType')==='boss-chest'),bossVictoryPending:this.bossVictoryPending,
       evolvedWeaponIds:this.build.weapons.filter(weapon=>weapon.evolved).map(weapon=>weapon.weaponId),
       choices:this.currentLevelChoices.map(({id,title,kind,contentId,branchId})=>({id,title,kind,contentId,branchId})),
       passives:this.build.passives.map(item=>({...item})),activePassiveSpecialIds:this.build.passives.filter(item=>item.special).map(item=>item.passiveId),
@@ -443,13 +492,13 @@ export class RunScene extends Phaser.Scene {
     this.assertBrowserTestMode();
     if(!Number.isFinite(milliseconds)||milliseconds<0)throw new Error('Test time must be a non-negative finite number.');
     const nextElapsed=this.state.elapsedMs+milliseconds;
-    this.state={...this.state,elapsedMs:this.gameMode==='survival'?Math.min(RUN_MS,nextElapsed):nextElapsed};
+    this.state={...this.state,elapsedMs:getGameModeRules(this.gameMode).survivalTimeLimitEnabled?Math.min(RUN_MS,nextElapsed):nextElapsed};
     this.updateEnvironment();
     if(getGameModeRules(this.gameMode).timedEventsEnabled){
       if(skipTimedSystems){this.runEventState={...this.runEventState,nextEventIndex:3,activeEvent:null};this.eventSetupPending=false;this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};}
       else this.updateRunEvent(this.time.now);
     }
-    if(this.gameMode==='survival'&&!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
+    if(getGameModeRules(this.gameMode).survivalTimeLimitEnabled&&!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
     this.refreshHud();
   }
 
@@ -777,10 +826,12 @@ export class RunScene extends Phaser.Scene {
     this.finishRun(false);
   }
 
-  init(data:{characterId?:string;regionId?:RegionId;gameMode?:unknown}):void {
+  init(data:{characterId?:string;regionId?:RegionId;gameMode?:unknown;challengeId?:unknown}):void {
     this.character=CHARACTERS.find(c=>c.id===data?.characterId)??STARTING_CHARACTER;
     this.region=REGIONS.find(r=>r.id===data?.regionId)??REGIONS[0]!;
-    this.gameMode=resolveGameMode(data?.gameMode);
+    const requestedMode=resolveGameMode(data?.gameMode);
+    this.challengeId=requestedMode==='challenge'?resolveChallengeId(data?.challengeId):null;
+    this.gameMode=requestedMode==='challenge'&&!this.challengeId?'survival':requestedMode;
     this.runDiscoveredEnemyIds=[];
     this.runDiscoveredWeaponIds=[];
   }
@@ -797,7 +848,8 @@ export class RunScene extends Phaser.Scene {
     this.equippedRelicIds=activeEquipmentProfile?[...activeEquipmentProfile.relicIds]:loadedSave&&'data' in loadedSave?[...loadedSave.data.progression.equippedRelicIds]:[];
     this.unlockedWeaponVariantIds=loadedSave&&'data' in loadedSave?[...loadedSave.data.collections.unlockedWeaponVariantIds]:[];
     this.relicStats=deriveRelicStats(this.equippedRelicIds,this.character.id);
-    const maxHealth=this.character.health+this.permanentUpgradeEffects.maxHealthBonus+this.relicStats.maxHealthBonus;
+    const baseMaxHealth=this.character.health+this.permanentUpgradeEffects.maxHealthBonus+this.relicStats.maxHealthBonus;
+    const maxHealth=Math.max(1,Math.floor(baseMaxHealth*getChallengeModifiers(this.challengeId).maxHealthMultiplier));
     this.state={...createRunState(),health:maxHealth,maxHealth,moveSpeed:this.character.moveSpeed*this.permanentUpgradeEffects.moveSpeedMultiplier*this.relicStats.moveSpeedMultiplier,damage:18*this.character.stats.damageMultiplier*this.permanentUpgradeEffects.damageMultiplier,attackIntervalMs:720};
     this.build=EMPTY_BUILD;
     const startingWeapon=WEAPONS.find(w=>w.id===(activeEquipmentProfile?.startingWeaponId??this.character.startingWeaponId))??WEAPONS[0]!;
@@ -926,7 +978,7 @@ export class RunScene extends Phaser.Scene {
     this.move(time);if(this.paused)return;this.moveEnemies(time);this.updateEnemyZones(time);this.updatePassiveZones(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
     this.expireShots(time);this.magnetize();this.updateElementStatuses(time);this.updateRegionHazard(time);this.updateBossArena(time);
     if(this.gameMode==='survival'&&!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
-    if(this.gameMode==='survival'&&this.state.elapsedMs>=RUN_MS&&!this.bossState&&!this.bossSpawned)this.spawnBoss();
+    if(getGameModeRules(this.gameMode).survivalTimeLimitEnabled&&this.state.elapsedMs>=RUN_MS&&!this.bossState&&!this.bossSpawned)this.spawnBoss();
     if(time-this.lastHud>120){this.refreshHud();this.lastHud=time;}
   }
 
@@ -1039,6 +1091,7 @@ export class RunScene extends Phaser.Scene {
       const nightHunter=['pursue','flank','surge','swarm','ambush','phase-stalk','frost-hunt','wraith'].includes(def.behavior);
       const nightBoost=this.environmentState.timeOfDay==='night'&&nightHunter?this.environmentState.enemyMoveSpeedMultiplier:1;
       let vx=intent.velocityX*slow*nightBoost,vy=intent.velocityY*slow*nightBoost;
+      const challengeSpeed=getChallengeModifiers(this.challengeId).enemyMoveSpeedMultiplier;
       if(isElite){const boost=enemy.getData('eliteEnraged')?1.32:1.12;vx*=boost;vy*=boost;}
       if(Number(enemy.getData('pounceUntil')??0)>time){vx=Number(enemy.getData('pounceX'))*def.speed*3.1;vy=Number(enemy.getData('pounceY'))*def.speed*3.1;}
       if(def.behavior==='swarm'){
@@ -1047,7 +1100,7 @@ export class RunScene extends Phaser.Scene {
       }
       const enemySlow=Number(enemy.getData('enemySlowUntil')??0)>time?Number(enemy.getData('enemySlowMultiplier')??1):1;
       const moveBuff=Number(enemy.getData('moveSpeedBuffUntil')??0)>time?Number(enemy.getData('moveSpeedBuff')??1):1;
-      vx*=enemySlow*moveBuff;vy*=enemySlow*moveBuff;
+      vx*=enemySlow*moveBuff*challengeSpeed;vy*=enemySlow*moveBuff*challengeSpeed;
       const abilityStaggered=Number(enemy.getData('abilityStaggeredUntil')??0)>time;
       enemy.setVelocity(effects.stunned||effects.frozen||abilityStaggered?0:vx,effects.stunned||effects.frozen||abilityStaggered?0:vy);
       if(effects.damage>0)this.damageEnemy(enemy,effects.damage);
@@ -1075,7 +1128,8 @@ export class RunScene extends Phaser.Scene {
     if((lightning?.stunnedUntil??0)>time||(ice?.frozenUntil??0)>time){boss.setVelocity(0,0);return;}
     const dx=this.player.x-boss.x,dy=this.player.y-boss.y,dist=Math.hypot(dx,dy)||1;
     const phase=this.bossDefinition.phases[this.bossState.phaseIndex]!;
-     if(dist>145)boss.setVelocity(dx/dist*this.bossDefinition.health*.006*(phase.movementMultiplier??1),dy/dist*this.bossDefinition.health*.006*(phase.movementMultiplier??1));else boss.setVelocity(0,0);
+     const challengeSpeed=getChallengeModifiers(this.challengeId).enemyMoveSpeedMultiplier;
+     if(dist>145)boss.setVelocity(dx/dist*this.bossDefinition.health*.006*(phase.movementMultiplier??1)*challengeSpeed,dy/dist*this.bossDefinition.health*.006*(phase.movementMultiplier??1)*challengeSpeed);else boss.setVelocity(0,0);
      const attack=getBossAttack(this.bossState,phase,time);this.bossState=attack.state;
      if(attack.attack)this.telegraphAttack(boss,undefined,this.player.x,this.player.y,attack.attack.damage*(phase.bossDamageMultiplier??1),attack.attack.telegraph.warningMs,attack.attack.telegraph.shape,100);
   }
@@ -2294,7 +2348,7 @@ export class RunScene extends Phaser.Scene {
       if(owned){
         if(owned.level<weapon.maxLevel)choices.push({id:'weapon-up:'+weapon.id,title:weapon.name+' +',detail:'Silah seviyesi '+(owned.level+1),kind:'weapon-up',contentId:weapon.id});
         if(owned.level>=3&&!owned.branchId)for(const branch of weapon.branches)choices.push({id:'weapon-branch:'+weapon.id+':'+branch.id,title:weapon.name+' — '+branch.name,detail:branch.effect,kind:'weapon-branch',contentId:weapon.id,branchId:branch.id});
-      }else if(this.build.weapons.length<6)choices.push({id:'weapon-add:'+weapon.id,title:weapon.name,detail:weapon.category+' silahını kuşan',kind:'weapon-add',contentId:weapon.id});
+      }else if(canAddChallengeWeapon(this.challengeId,this.build.weapons.length))choices.push({id:'weapon-add:'+weapon.id,title:weapon.name,detail:weapon.category+' silahını kuşan',kind:'weapon-add',contentId:weapon.id});
     }
     for(const passive of PASSIVES){
       const owned=this.build.passives.find(p=>p.passiveId===passive.id);
@@ -2437,7 +2491,11 @@ export class RunScene extends Phaser.Scene {
       if(choice.id==='power'){this.basePowerBonus+=6;this.refreshBuildStats();}
       else if(choice.id==='haste'){this.baseHasteMultiplier=Math.min(1.65,this.baseHasteMultiplier*1.1);}
       else if(choice.id==='magnet'){this.baseMagnetBonus+=65;this.refreshBuildStats();}
-      else this.state=applyUpgrade(this.state,choice.id as UpgradeId);
+      else if(choice.id==='vitality'&&this.challengeId){
+        const gain=Math.max(1,Math.round(20*getChallengeModifiers(this.challengeId).maxHealthMultiplier));
+        const maxHealth=this.state.maxHealth+gain;
+        this.state={...this.state,maxHealth,health:Math.min(maxHealth,this.state.health+gain)};
+      }else this.state=applyUpgrade(this.state,choice.id as UpgradeId);
     }
     if(choice.kind==='weapon-add'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def){this.build=addWeapon(this.build,def);if(!this.runDiscoveredWeaponIds.includes(def.id))this.runDiscoveredWeaponIds.push(def.id);}}
     if(choice.kind==='weapon-up'){const def=WEAPONS.find(w=>w.id===choice.contentId);if(def)this.build=upgradeWeapon(this.build,def);}
@@ -2463,10 +2521,11 @@ export class RunScene extends Phaser.Scene {
     if(this.runFinished)return;this.runFinished=true;this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
     const saved=this.persistRunResult(won);this.lastRunSaved=saved;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.9).setScrollFactor(0).setDepth(200);
-    const title=this.add.text(w/2,h*.29,won?(this.gameMode==='boss-hunt'?'BOSS HUNT TAMAMLANDI':'KOŞU TAMAMLANDI'):'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
-    const summary=this.add.text(w/2,h*.43,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman\n+'+this.runSoulEssence+' RUH ÖZÜ\n'+(saved?'İLERLEME KAYDEDİLDİ':'KAYIT BAŞARISIZ — İLERLEME KORUNAMADI'),{fontSize:'16px',color:saved?'#c0b5a8':'#e29a8d',align:'center',lineSpacing:7}).setOrigin(.5).setScrollFactor(0).setDepth(201);
+    const title=this.add.text(w/2,h*.29,won?(this.gameMode==='boss-hunt'?'BOSS HUNT TAMAMLANDI':this.gameMode==='challenge'?'MEYDAN OKUMA TAMAMLANDI':'KOŞU TAMAMLANDI'):'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
+    const challengeBonus=this.gameMode==='challenge'&&won&&this.bossChestOpened?getChallengeVictoryBonus(this.challengeId,won,this.bossChestOpened):0;
+    const summary=this.add.text(w/2,h*.43,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman\n+'+(this.runSoulEssence+challengeBonus)+' RUH ÖZÜ'+(challengeBonus?'\nMEYDAN OKUMA ÖDÜLÜ +'+challengeBonus:'')+'\n'+(saved?'İLERLEME KAYDEDİLDİ':'KAYIT BAŞARISIZ — İLERLEME KORUNAMADI'),{fontSize:'16px',color:saved?'#c0b5a8':'#e29a8d',align:'center',lineSpacing:7}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     this.overlay.push(shade,title,summary);
-    this.createOverlayButton(w/2,h*.62,260,54,'YENİ KOŞU',()=>this.scene.restart({characterId:this.character.id,regionId:this.region.id,gameMode:this.gameMode}));
+    this.createOverlayButton(w/2,h*.62,260,54,'YENİ KOŞU',()=>this.scene.restart({characterId:this.character.id,regionId:this.region.id,gameMode:this.gameMode,challengeId:this.challengeId??undefined}));
     this.createOverlayButton(w/2,h*.73,260,54,'ANA MENÜ',()=>this.scene.start('main-menu'));
     this.overlayBackIndex=1;
   }
@@ -2481,7 +2540,7 @@ export class RunScene extends Phaser.Scene {
         manager.save(applyBossHuntResult(loaded.data,{regionId:this.region.id,won,bossChestOpened:this.bossChestOpened,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds}));
         return true;
       }
-      const runResult=applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,bossChestOpened:this.bossChestOpened,completedTreasureHunt:this.completedTreasureHunt,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length,enemyIdsEarned:this.runDiscoveredEnemyIds,weaponIdsEarned:this.runDiscoveredWeaponIds,loreIdsEarned:this.runDiscoveredLoreIds,discoveredPathIdsEarned:this.runDiscoveredPathIds});
+      const runResult=applyRunResult(loaded.data,{regionId:this.region.id,won,soulEssenceEarned:this.runSoulEssence,relicIdsEarned:this.runRelicIds,bossChestOpened:this.bossChestOpened,completedTreasureHunt:this.completedTreasureHunt,craftingMaterialsEarned:this.runCraftingMaterials,characterId:this.character.id,kills:this.state.kills,explorationEventsCompleted:this.runEventState.completedEvents.length,enemyIdsEarned:this.runDiscoveredEnemyIds,weaponIdsEarned:this.runDiscoveredWeaponIds,loreIdsEarned:this.runDiscoveredLoreIds,discoveredPathIdsEarned:this.runDiscoveredPathIds,challengeId:this.gameMode==='challenge'?this.challengeId??undefined:undefined});
       const questStory=this.questSaveData?.story;
       const mergedSave={...runResult,story:{...runResult.story,...(questStory??{}),unlockedPathIds:[...new Set([...runResult.story.unlockedPathIds,...(questStory?.unlockedPathIds??[])])],completedEndingId:runResult.story.completedEndingId??questStory?.completedEndingId??null}};
       manager.save(completeEnding(mergedSave,{regionId:this.region.id,bossId:this.bossDefinition?.id??'',victory:won&&this.bossChestOpened}));

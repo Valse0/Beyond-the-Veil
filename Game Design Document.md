@@ -350,6 +350,16 @@ Zorluk yalnızca can ve hasar değerlerini artırmamalıdır. Yeni saldırı kom
 * New Game+
 * Haftalık özel koşular
 
+Lanetli Meydan Okumalar üç sabit koşuldan biri seçilerek başlatılır. Her meydan okuma, standart Survival akışını (15 dakikalık koşu, bölge etkinlikleri, görevler, keşif, final boss ve normal kalıcı ilerleme) korur:
+
+| Meydan okuma | Kural |
+|---|---|
+| Kısıtlı Teçhizat | Koşu boyunca en fazla 3 silah yuvası kullanılabilir. |
+| Cam Yemin | Başlangıç azami canı, karakterin kalıcı bonuslar ve ekipman dahil normal azami canının %60'ıdır. Can yükseltmeleri de aynı oranda küçülür. |
+| Avcıların Kabusu | Normal düşmanlar ve bölge boss'u %20 daha hızlı hareket eder. |
+
+Meydan okuma zaferi yalnızca final boss yenilip boss sandığı açıldığında tamamlanır ve normal koşu ödüllerine ek 200 Ruh Özü verir. Yenilgi meydan okuma bonusu vermez; normal koşu yenilgi ilerlemesi korunur. Meydan okumalar tekrar oynanabilir; çevrimdışı ve profil tabanlıdır.
+
 7.4 Koşu etkinlikleri
 
 Her standart koşuda beş etkinlik havuzundan üç farklı etkinlik, koşu seed'ine bağlı olarak tekrarsız seçilir. Etkinlik başlangıç pencereleri 03:30, 07:30 ve 11:30'dur. Aynı anda yalnızca bir etkinlik çalışır; açılışın ilk üç dakikası ve 14:00 final boss başlangıcı etkinliklerden etkilenmez. Etkinlikler tamamlanırsa Ruh Özü verir; süre dolarsa ödül verilmeden başarısız olur.

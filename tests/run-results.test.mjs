@@ -226,3 +226,26 @@ test('Boss Hunt defeat or unopened chest grants no permanent reward or campaign 
     assert.deepEqual(result.story, save.story);
   }
 });
+
+
+test('challenge victory grants its 200 essence bonus only after opening the boss chest', () => {
+  const save = createInitialSaveData('2026-11-19T12:00:00.000Z');
+  const base = { regionId: 'cursed-forest', soulEssenceEarned: 180, challengeId: 'glass-oath' };
+  const wonWithoutChest = applyRunResult(save, { ...base, won: true });
+  const defeatWithChestFlag = applyRunResult(save, { ...base, won: false, bossChestOpened: true });
+  const victory = applyRunResult(save, { ...base, won: true, bossChestOpened: true });
+  assert.equal(wonWithoutChest.progression.soulEssence, 180);
+  assert.equal(defeatWithChestFlag.progression.soulEssence, 180);
+  assert.equal(victory.progression.soulEssence, 380);
+  assert.equal(victory.progression.completedRuns, 1);
+  assert.deepEqual(victory.progression.unlockedRegionIds, ['cursed-forest', 'forgotten-graveyard']);
+});
+
+test('unknown challenge IDs never grant a challenge bonus', () => {
+  const save = createInitialSaveData();
+  const result = applyRunResult(save, {
+    regionId: 'cursed-forest', won: true, bossChestOpened: true,
+    soulEssenceEarned: 90, challengeId: 'not-a-challenge'
+  });
+  assert.equal(result.progression.soulEssence, 90);
+});

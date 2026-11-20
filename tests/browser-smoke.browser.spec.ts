@@ -202,7 +202,7 @@ test('region selection reads unlocked regions from the persisted profile', async
 });
 
 type BrowserRunSnapshot = {
-  gameMode:'survival'|'boss-hunt';waveSpawnIndex:number;activeEnemyCount:number;
+  gameMode:'survival'|'boss-hunt'|'challenge';challengeId:string|null;challengeModifiers:{maxWeaponSlots:number;maxHealthMultiplier:number;enemyMoveSpeedMultiplier:number;victorySoulEssenceBonus:number};weaponSlotsUsed:number;waveSpawnIndex:number;activeEnemyCount:number;
   ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number};
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;
@@ -221,7 +221,7 @@ type BrowserRunSnapshot = {
   runEvents:{selected:string[];active:{kind:string;progress:number;stage:number;status:string}|null;completed:string[];failed:string[]};
 };
 
-async function startBrowserTestRun(page: import('@playwright/test').Page,unlockedPathIds:string[]=[],gameMode:'survival'|'boss-hunt'='survival'): Promise<import('@playwright/test').Locator> {
+async function startBrowserTestRun(page: import('@playwright/test').Page,unlockedPathIds:string[]=[],gameMode:'survival'|'boss-hunt'|'challenge'='survival',challengeId:'limited-arsenal'|'glass-oath'|'hunters-nightmare'='limited-arsenal'): Promise<import('@playwright/test').Locator> {
   await page.goto('/?bv-test=1');
   const canvas=page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
@@ -242,6 +242,11 @@ async function startBrowserTestRun(page: import('@playwright/test').Page,unlocke
   await page.waitForTimeout(120);
   if(gameMode==='boss-hunt'){
     await page.mouse.click(750,588);
+    await page.mouse.click(1124,644);
+  }else if(gameMode==='challenge'){
+    await page.mouse.click(976,588);
+    const challengeX:Record<string,number>={'limited-arsenal':450,'glass-oath':640,'hunters-nightmare':830};
+    await page.mouse.click(challengeX[challengeId]!,640);
     await page.mouse.click(1124,644);
   }else{
     await page.keyboard.press('Enter');
@@ -1566,6 +1571,42 @@ test('dynamic day and regional weather cycles stay deterministic across all five
   expect(pageErrors).toEqual([]);
 });
 
+
+
+for (const challengeCase of [
+  { id: 'limited-arsenal' as const, slots: 3, health: 1, speed: 1 },
+  { id: 'glass-oath' as const, slots: 6, health: 0.6, speed: 1 },
+  { id: 'hunters-nightmare' as const, slots: 6, health: 1, speed: 1.2 }
+]) {
+  test('Challenge mode applies '+challengeCase.id+' rules to live Phaser combat', async ({ page }) => {
+    const pageErrors:string[]=[];
+    page.on('pageerror',error=>pageErrors.push(error.message));
+    await startBrowserTestRun(page,[],'challenge',challengeCase.id);
+    const started=await readBrowserRunSnapshot(page);
+    expect(started.gameMode).toBe('challenge');
+    expect(started.challengeId).toBe(challengeCase.id);
+    expect(started.bossSpawned).toBe(false);
+    expect(started.waveSpawnIndex).toBeGreaterThan(0);
+    expect(started.challengeModifiers.maxWeaponSlots).toBe(challengeCase.slots);
+    expect(started.challengeModifiers.maxHealthMultiplier).toBe(challengeCase.health);
+    expect(started.challengeModifiers.enemyMoveSpeedMultiplier).toBe(challengeCase.speed);
+
+    const probe=await page.evaluate(()=>{
+      const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestChallengeProbe:()=>{challengeId:string;maxWeaponSlots:number;maxHealthMultiplier:number;enemyMoveSpeedMultiplier:number;maxHealth:number;expectedMaxHealth:number;weaponSlotsUsed:number;weaponAddChoiceCount:number;enemySpeedRatio:number;bossSpeedRatio:number}}}}}).__BEYOND_VEIL_GAME__;
+      if(!game)throw new Error('Development browser test bridge is not available.');
+      return game.scene.getScene('run').browserTestChallengeProbe();
+    });
+    expect(probe.challengeId).toBe(challengeCase.id);
+    expect(probe.maxHealth).toBe(probe.expectedMaxHealth);
+    expect(probe.maxWeaponSlots).toBe(challengeCase.slots);
+    expect(probe.weaponSlotsUsed).toBe(3);
+    if(challengeCase.id==='limited-arsenal')expect(probe.weaponAddChoiceCount).toBe(0);
+    else expect(probe.weaponAddChoiceCount).toBeGreaterThan(0);
+    expect(probe.enemySpeedRatio).toBeCloseTo(challengeCase.speed,1);
+    expect(probe.bossSpeedRatio).toBeCloseTo(challengeCase.speed,1);
+    expect(pageErrors).toEqual([]);
+  });
+}
 
 test('Boss Hunt starts the selected regional boss immediately and persists only chest rewards', async ({ page }) => {
   const pageErrors:string[]=[];

@@ -305,3 +305,14 @@ Boss Hunt is selected from the existing region-selection screen and uses the cur
 Boss Hunt does not start regular wave spawns, timed run events, story quests, exploration discoveries or story-path travel. It does not alter the Survival run clock or campaign state. A victorious, opened boss chest grants only that boss's region-matched boss relic and the boss's authored Ruh Özü reward. Defeat or leaving the chest unopened grants no permanent Boss Hunt reward. The mode does not increment completed-run counters, grant character mastery or achievements, unlock regions, update story or other collection progress, or complete endings; only the boss relic is added to the relic collection. Existing Survival behavior remains the default when a mode value is missing or invalid.
 
 The mode rules and Boss Hunt reward application are engine-independent; RegionSelectScene owns the temporary mode choice and RunScene owns Phaser presentation/combat. No save migration, dependency, backend or online requirement is introduced. Challenges, Endless and New Game+ remain separate work; Boss Hunt v1 is not completion of the aggregate RUN-09 requirement. CI #421 (run `44664690422`, code commit `9d45c07d67a2322106e673b5c2eadf59ed8f741f`) verifies TypeScript, 232/232 unit tests, production build, Chromium Playwright 38/38 and npm audit with zero vulnerabilities; the browser probe covers immediate boss entry, chest collection, reward isolation and reload persistence.
+
+
+## Cursed Challenges v1
+
+Cursed Challenges are selectable variants of the normal Survival run, not a separate boss-rush mode. They retain the regular wave director, timed run events, story quests, exploration, the 15-minute Survival progression, regional boss encounter and ordinary run-result progression. The region-selection screen exposes three authored choices:
+
+- **Limited Arsenal (Kısıtlı Teçhizat):** weapon additions stop at three owned weapon slots; upgrades and evolutions for the existing weapons remain available.
+- **Glass Oath (Cam Yemin):** starting maximum health is 60% of the normal character maximum after permanent upgrades and equipped relic modifiers. Vitality upgrades grant 60% of their normal health gain, and all healing remains capped by the reduced maximum.
+- **Hunters' Nightmare (Avcıların Kabusu):** normal enemies and the regional boss move 20% faster. Existing status slows, elite buffs, boss phase movement multipliers and environmental modifiers continue to compose with this multiplier.
+
+A challenge victory bonus of 200 Ruh Özü is added only when the run wins and the final boss chest is actually opened. Defeat or an unopened chest grants no challenge bonus; normal Survival run persistence remains unchanged. Challenges are repeatable, local and offline. No save migration or external service is required.

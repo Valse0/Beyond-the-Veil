@@ -1,4 +1,6 @@
 import type { RegionId } from '../../core/types/content.js';
+import type { ChallengeId } from '../../core/types/game.js';
+import { getChallengeVictoryBonus } from './challenge-runtime.js';
 import { REGIONS } from '../../data/regions.js';
 import { RELICS } from '../../data/relics.js';
 import { CRAFTING_MATERIALS } from '../../data/crafting.js';
@@ -31,6 +33,7 @@ export interface RunResultInput {
   weaponIdsEarned?: readonly string[];
   loreIdsEarned?: readonly string[];
   discoveredPathIdsEarned?: readonly string[];
+  challengeId?: ChallengeId;
 }
 
 function thisRegionSecretPath(regionId:RegionId):string|undefined {
@@ -61,9 +64,10 @@ export function applyBossHuntResult(save: SaveData, result: BossHuntResultInput)
 }
 
 export function applyRunResult(save: SaveData, result: RunResultInput): SaveData {
-  const reward = Number.isFinite(result.soulEssenceEarned)
+  const baseReward = Number.isFinite(result.soulEssenceEarned)
     ? Math.max(0, Math.floor(result.soulEssenceEarned))
     : 0;
+  const reward = baseReward + getChallengeVictoryBonus(result.challengeId, result.won, result.bossChestOpened === true);
   const unlockedRegionIds = new Set(save.progression.unlockedRegionIds);
 
   if (result.won) {

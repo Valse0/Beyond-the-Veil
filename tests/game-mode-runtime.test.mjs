@@ -24,3 +24,16 @@ test('Boss Hunt starts its boss immediately without Survival waves, events, ques
   assert.equal(rules.survivalTimeLimitEnabled, false);
   assert.equal(rules.fullRunProgressionEnabled, false);
 });
+
+
+test('Challenge mode preserves the complete Survival run loop and progression', () => {
+  assert.equal(resolveGameMode('challenge'), 'challenge');
+  const rules = getGameModeRules('challenge');
+  assert.equal(rules.startsBossImmediately, false);
+  assert.equal(rules.regularWavesEnabled, true);
+  assert.equal(rules.timedEventsEnabled, true);
+  assert.equal(rules.storyQuestsEnabled, true);
+  assert.equal(rules.explorationEnabled, true);
+  assert.equal(rules.survivalTimeLimitEnabled, true);
+  assert.equal(rules.fullRunProgressionEnabled, true);
+});

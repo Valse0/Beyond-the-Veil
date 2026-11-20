@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { RegionId } from '../../core/types/content.js';
-import type { GameMode } from '../../core/types/game.js';
+import type { ChallengeId, GameMode } from '../../core/types/game.js';
+import { CHALLENGES } from '../../data/challenges.js';
 import { CHARACTERS } from '../../data/characters.js';
 import { REGIONS } from '../../data/regions.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
@@ -9,10 +10,14 @@ export class RegionSelectScene extends Phaser.Scene {
   private characterId = CHARACTERS[0]!.id;
   private selectedIndex = 0;
   private frames: Phaser.GameObjects.Graphics[] = [];
-  private previousPad = { left: false, right: false, confirm: false, back: false, mode: false };
+  private previousPad = { left: false, right: false, confirm: false, back: false, mode: false, challenge: false };
   private unlockedRegionIds = new Set<RegionId>([REGIONS[0]!.id]);
   private gameMode: GameMode = 'survival';
   private modeButtons: Phaser.GameObjects.Text[] = [];
+  private challengeId: ChallengeId = 'limited-arsenal';
+  private challengeButtons: Phaser.GameObjects.Text[] = [];
+  private modeHelp?: Phaser.GameObjects.Text;
+  private challengeLabel?: Phaser.GameObjects.Text;
 
   constructor() { super('region-select'); }
 
@@ -23,9 +28,13 @@ export class RegionSelectScene extends Phaser.Scene {
     this.selectedIndex = 0;
     this.unlockedRegionIds = new Set([REGIONS[0]!.id]);
     this.frames = [];
-    this.previousPad = { left: false, right: false, confirm: false, back: false, mode: false };
+    this.previousPad = { left: false, right: false, confirm: false, back: false, mode: false, challenge: false };
     this.gameMode = 'survival';
     this.modeButtons = [];
+    this.challengeId = 'limited-arsenal';
+    this.challengeButtons = [];
+    this.modeHelp = undefined;
+    this.challengeLabel = undefined;
   }
 
   create(): void {
@@ -129,9 +138,15 @@ export class RegionSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.makeModeButton(width / 2 - 112, 588, 'SURVIVAL', 'survival');
     this.makeModeButton(width / 2 + 112, 588, 'BOSS HUNT', 'boss-hunt');
-    this.add.text(width / 2, 616, 'Survival: standart koşu ve hikâye ilerlemesi  •  Boss Hunt: doğrudan bölge boss’u', {
+    this.makeModeButton(width / 2 + 336, 588, 'MEYDAN OKUMA', 'challenge');
+    this.modeHelp = this.add.text(width / 2, 616, 'Survival: standart koşu  •  Boss Hunt: doğrudan boss  •  M: mod değiştir', {
       fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#89818a'
     }).setOrigin(0.5);
+    this.challengeLabel = this.add.text(width / 2, 616, 'MEYDAN OKUMA SEÇ  •  C / LB / RB: SONRAKİ', {
+      fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#c7ad7b'
+    }).setOrigin(0.5).setVisible(false);
+    CHALLENGES.forEach((challenge, index) => this.makeChallengeButton(width / 2 - 190 + index * 190, 640, challenge.id, challenge.name));
+    this.refreshModeSelection();
 
     this.makeButton(64, height - 76, '‹  AVCIYA GERİ DÖN', () => {
       this.scene.start('character-select', { characterId: this.characterId });
@@ -145,6 +160,7 @@ export class RegionSelectScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-RIGHT', () => this.moveSelection(1));
     this.input.keyboard?.on('keydown-ENTER', () => this.startRun());
     this.input.keyboard?.on('keydown-M', () => this.toggleGameMode());
+    this.input.keyboard?.on('keydown-C', () => this.cycleChallenge());
     this.input.keyboard?.on('keydown-ESC', () => this.scene.start('character-select', { characterId: this.characterId }));
     this.input.keyboard?.on('keydown-BACKSPACE', () => this.scene.start('character-select', { characterId: this.characterId }));
     this.refreshSelection();
@@ -158,17 +174,40 @@ export class RegionSelectScene extends Phaser.Scene {
     const confirm = pad.A || Boolean(pad.buttons[9]?.pressed);
     const back = pad.B;
     const mode = Boolean(pad.buttons[3]?.pressed);
+    const challenge = Boolean(pad.buttons[4]?.pressed || pad.buttons[5]?.pressed);
     if (left && !this.previousPad.left) this.moveSelection(-1);
     if (right && !this.previousPad.right) this.moveSelection(1);
     if (confirm && !this.previousPad.confirm) this.startRun();
     if (back && !this.previousPad.back) this.scene.start('character-select', { characterId: this.characterId });
     if (mode && !this.previousPad.mode) this.toggleGameMode();
-    this.previousPad = { left, right, confirm, back, mode };
+    if (challenge && !this.previousPad.challenge) this.cycleChallenge();
+    this.previousPad = { left, right, confirm, back, mode, challenge };
   }
 
   private toggleGameMode(): void {
-    this.gameMode = this.gameMode === 'survival' ? 'boss-hunt' : 'survival';
+    const modes: GameMode[] = ['survival', 'boss-hunt', 'challenge'];
+    const current = modes.indexOf(this.gameMode);
+    this.gameMode = modes[(current + 1) % modes.length]!;
     this.refreshModeSelection();
+  }
+
+  private cycleChallenge(): void {
+    const current = CHALLENGES.findIndex(challenge => challenge.id === this.challengeId);
+    this.challengeId = CHALLENGES[(current + 1) % CHALLENGES.length]!.id;
+    this.refreshChallengeSelection();
+  }
+
+  private makeChallengeButton(x: number, y: number, challengeId: ChallengeId, label: string): void {
+    const button = this.add.text(x, y, label.toLocaleUpperCase('tr-TR'), {
+      fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#aaa2a0',
+      backgroundColor: '#242127', padding: { x: 8, y: 8 }, align: 'center'
+    }).setOrigin(0.5).setFixedSize(176, 34).setInteractive({ useHandCursor: true });
+    button.on('pointerup', () => {
+      this.challengeId = challengeId;
+      this.refreshChallengeSelection();
+    });
+    this.challengeButtons.push(button);
+    this.refreshChallengeSelection();
   }
 
   private makeModeButton(x: number, y: number, label: string, mode: GameMode): void {
@@ -186,11 +225,23 @@ export class RegionSelectScene extends Phaser.Scene {
 
   private refreshModeSelection(): void {
     this.modeButtons.forEach((button, index) => {
-      const selected = (index === 0 && this.gameMode === 'survival') || (index === 1 && this.gameMode === 'boss-hunt');
+      const modes: GameMode[] = ['survival', 'boss-hunt', 'challenge'];
+      const selected = modes[index] === this.gameMode;
       button.setStyle({
         color: selected ? '#f2d39a' : '#aaa2a0',
         backgroundColor: selected ? '#5b3d32' : '#242127'
       });
+      button.setStroke('#9b8059', selected ? 2 : 1);
+    });
+    this.modeHelp?.setVisible(this.gameMode !== 'challenge');
+    this.challengeLabel?.setVisible(this.gameMode === 'challenge');
+    this.challengeButtons.forEach(button => button.setVisible(this.gameMode === 'challenge'));
+  }
+
+  private refreshChallengeSelection(): void {
+    this.challengeButtons.forEach((button, index) => {
+      const selected = CHALLENGES[index]?.id === this.challengeId;
+      button.setStyle({ color: selected ? '#f2d39a' : '#aaa2a0', backgroundColor: selected ? '#5b3d32' : '#242127' });
       button.setStroke('#9b8059', selected ? 2 : 1);
     });
   }
@@ -236,6 +287,6 @@ export class RegionSelectScene extends Phaser.Scene {
   private startRun(): void {
     const region = REGIONS[this.selectedIndex];
     if (!region || !this.unlockedRegionIds.has(region.id)) return;
-    this.scene.start('run', { characterId: this.characterId, regionId: region.id, gameMode: this.gameMode });
+    this.scene.start('run', { characterId: this.characterId, regionId: region.id, gameMode: this.gameMode, challengeId: this.gameMode === 'challenge' ? this.challengeId : undefined });
   }
 }

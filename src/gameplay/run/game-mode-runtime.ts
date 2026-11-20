@@ -22,6 +22,16 @@ export const GAME_MODE_RULES: Readonly<Record<GameMode, GameModeRules>> = {
     survivalTimeLimitEnabled: true,
     fullRunProgressionEnabled: true
   },
+  challenge: {
+    id: 'challenge',
+    startsBossImmediately: false,
+    regularWavesEnabled: true,
+    timedEventsEnabled: true,
+    storyQuestsEnabled: true,
+    explorationEnabled: true,
+    survivalTimeLimitEnabled: true,
+    fullRunProgressionEnabled: true
+  },
   'boss-hunt': {
     id: 'boss-hunt',
     startsBossImmediately: true,
@@ -35,7 +45,7 @@ export const GAME_MODE_RULES: Readonly<Record<GameMode, GameModeRules>> = {
 };
 
 export function resolveGameMode(value: unknown): GameMode {
-  return value === 'boss-hunt' ? 'boss-hunt' : 'survival';
+  return value === 'boss-hunt' || value === 'challenge' ? value : 'survival';
 }
 
 export function getGameModeRules(mode: GameMode): GameModeRules {
