@@ -565,10 +565,21 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
   });
 
   const before = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  for (let index = 0; index < 8; index += 1) {
+  await page.mouse.move(20, 20);
+  await page.mouse.click(20, 20);
+  await page.waitForTimeout(80);
+  const readHubSelection = async () => page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number } } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('hunter-hub').browserTestSnapshot().selectedIndex;
+  });
+  const respecStartIndex = await readHubSelection();
+  for (let index = 0; index < (8 - respecStartIndex + 9) % 9; index += 1) {
     await page.keyboard.press('ArrowDown');
-    await page.waitForTimeout(40);
+    await expect.poll(readHubSelection).toBe((respecStartIndex + index + 1) % 9);
   }
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(100);
   await page.keyboard.press('Enter');
   const dialog = await canvas.screenshot();
   expect(dialog.length).toBeGreaterThan(1_000);
@@ -643,9 +654,14 @@ test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaffor
       if (!game) throw new Error('Development browser test bridge is not available.');
       return game.scene.getScene('hunter-hub').browserTestSnapshot().selectedIndex;
     });
-    for (let index = 1; index <= 6; index += 1) {
+    await page.mouse.move(20, 20);
+    await page.mouse.click(20, 20);
+    await page.waitForTimeout(80);
+    const startIndex = await readHubSelection();
+    const downCount = (6 - startIndex + 9) % 9;
+    for (let index = 0; index < downCount; index += 1) {
       await page.keyboard.press('ArrowDown');
-      await expect.poll(readHubSelection).toBe(index);
+      await expect.poll(readHubSelection).toBe((startIndex + index + 1) % 9);
     }
     await page.keyboard.press('Enter');
     await page.waitForTimeout(100);
@@ -769,9 +785,14 @@ test('Hunter Hub equipment profiles create, edit, activate, persist and delete p
       if (!game) throw new Error('Development browser test bridge is not available.');
       return game.scene.getScene('hunter-hub').browserTestSnapshot().selectedIndex;
     });
-    for (let index = 1; index <= 7; index += 1) {
+    await page.mouse.move(20, 20);
+    await page.mouse.click(20, 20);
+    await page.waitForTimeout(80);
+    const startIndex = await readHubSelection();
+    const downCount = (7 - startIndex + 9) % 9;
+    for (let index = 0; index < downCount; index += 1) {
       await press('ArrowDown');
-      await expect.poll(readHubSelection).toBe(index);
+      await expect.poll(readHubSelection).toBe((startIndex + index + 1) % 9);
     }
     await press('Enter');
     await expect.poll(async () => (await snapshot()).screen).toBe('equipment-profiles');
