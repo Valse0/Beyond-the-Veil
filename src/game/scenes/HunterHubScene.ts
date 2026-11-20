@@ -238,6 +238,7 @@ export class HunterHubScene extends Phaser.Scene {
     this.blacksmithSelection = Math.max(0, Math.min(CRAFTING_RECIPES.length, selectedIndex));
     this.blacksmithRecipeButtons.clear();
     this.blacksmithRecipeLabels.clear();
+    this.craftableRecipeIds.clear();
     this.essenceText = undefined;
     this.blacksmithEntryButton = undefined;
     this.respecButton = undefined;
