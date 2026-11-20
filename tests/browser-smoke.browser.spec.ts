@@ -663,7 +663,16 @@ test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaffor
   expect(blacksmithView.length).toBeGreaterThan(1_000);
 
   // Pointer activation is the same path used by touch on the recipe card.
-  await page.mouse.click(1158, 171);
+  // Convert Phaser's logical 1280x720 coordinates to the canvas's actual viewport bounds.
+  const recipeButtonPoint = await canvas.evaluate(element => {
+    const bounds = element.getBoundingClientRect();
+    const gameCanvas = element as HTMLCanvasElement;
+    return {
+      x: bounds.left + bounds.width * (1158 / gameCanvas.width),
+      y: bounds.top + bounds.height * (171 / gameCanvas.height)
+    };
+  });
+  await page.mouse.click(recipeButtonPoint.x, recipeButtonPoint.y);
   await expect.poll(async () => page.evaluate(() => {
     const save = JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!);
     return {
