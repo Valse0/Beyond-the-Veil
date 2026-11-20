@@ -2615,3 +2615,97 @@ test('smart TV remote keys navigate menu, journal, hunter and region screens', a
   await sendRemoteKey('ColorF0Red');
   await expect.poll(() => isActive('main-menu')).toBe(true);
 });
+
+
+test('touch-first hunter, region and run-preparation layouts keep large selection targets and preserve choices', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true });
+  const page = await context.newPage();
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    window.localStorage.setItem('beyond-the-veil.save', JSON.stringify({
+      schemaVersion: 11,
+      profile: { createdAt: '2026-11-19T00:00:00.000Z', updatedAt: '2026-11-19T00:00:00.000Z' },
+      progression: {
+        soulEssence: 0, completedRuns: 0, newGamePlusLevel: 0, completedEndingIds: [],
+        unlockedCharacterIds: ['cursed-hunter'], unlockedRegionIds: ['cursed-forest'],
+        completedDifficulties: {}, permanentUpgrades: {}, equippedRelicIds: [],
+        equipmentProfiles: {
+          'cursed-hunter': [{
+            id: 'touch-profile-1', characterId: 'cursed-hunter', name: 'Dokunmatik Profil',
+            startingWeaponId: 'gravecleaver', startingPassiveId: 'storm-conductor',
+            relicIds: ['forest-heart']
+          }]
+        },
+        activeEquipmentProfileIds: {}
+      },
+      collections: {
+        characterMastery: {}, unlockedCosmeticIds: [], discoveredLoreIds: [], relicIds: ['forest-heart'],
+        craftingMaterials: {}, unlockedWeaponVariantIds: [], unlockedMasteryRewardIds: [],
+        achievementProgress: {}, completedAchievementIds: [], achievementPlayedCharacterIds: [],
+        achievementExploredRegionIds: [], discoveredEnemyIds: [], discoveredWeaponIds: [],
+        discoveredCharacterBioIds: [], completedCollectionIds: [], unlockedCollectionRewardIds: []
+      },
+      story: {
+        quests: {}, npcFates: {}, regionAtmospheres: {}, unlockedPathIds: [], bossEncounterIds: [],
+        unlockedRewardIds: [], unlockedAlternateQuestIds: [], endingId: null, completedEndingId: null,
+        appliedOutcomeIds: []
+      },
+      settings: {}
+    }));
+  });
+
+  await page.goto('/?bv-test=1');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  const tapLogical = async (x: number, y: number): Promise<void> => {
+    const bounds = await canvas.boundingBox();
+    if (!bounds) throw new Error('Game canvas has no visible bounds.');
+    await page.touchscreen.tap(bounds.x + bounds.width * x / 1280, bounds.y + bounds.height * y / 720);
+  };
+  const isActive = (key: string) => page.evaluate(sceneKey => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (scene: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive(sceneKey));
+  }, key);
+  const snapshot = (key: string) => page.evaluate(sceneKey => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (scene: string) => { browserTestSnapshot: () => Record<string, unknown> } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene(sceneKey).browserTestSnapshot();
+  }, key);
+
+  await tapLogical(160, 555);
+  await expect.poll(() => isActive('character-select')).toBe(true);
+  const firstHunter = await snapshot('character-select') as { selectedIndex: number; characterId: string; layoutMode: string };
+  expect(firstHunter.layoutMode).toBe('touch');
+  await tapLogical(1138, 354);
+  await expect.poll(async () => (await snapshot('character-select')).selectedIndex).toBe(1);
+  const secondHunter = await snapshot('character-select') as { selectedIndex: number; characterId: string; layoutMode: string };
+  expect(secondHunter.characterId).not.toBe(firstHunter.characterId);
+
+  await tapLogical(1102, 660);
+  await expect.poll(() => isActive('region-select')).toBe(true);
+  const firstRegion = await snapshot('region-select') as { selectedIndex: number; regionId: string; layoutMode: string };
+  expect(firstRegion.layoutMode).toBe('touch');
+  await tapLogical(1138, 255);
+  await expect.poll(async () => (await snapshot('region-select')).selectedIndex).toBe(1);
+  await tapLogical(142, 255);
+  await expect.poll(async () => (await snapshot('region-select')).selectedIndex).toBe(0);
+  await tapLogical(1102, 660);
+  await expect.poll(() => isActive('run-preparation')).toBe(true);
+
+  const initialLoadout = await snapshot('run-preparation') as { selectedProfileId: string | null; layoutMode: string; profileCount: number };
+  expect(initialLoadout.layoutMode).toBe('touch');
+  expect(initialLoadout.profileCount).toBe(1);
+  expect(initialLoadout.selectedProfileId).toBeNull();
+  await tapLogical(1202, 350);
+  await expect.poll(async () => (await snapshot('run-preparation')).selectedProfileId).toBe('touch-profile-1');
+
+  await tapLogical(1102, 660);
+  await expect.poll(() => isActive('run')).toBe(true);
+  const run = await readBrowserRunSnapshot(page);
+  expect(run.weapons[0]?.weaponId).toBe('gravecleaver');
+  expect(run.passives[0]?.passiveId).toBe('storm-conductor');
+  expect(run.equippedRelicIds).toEqual(['forest-heart']);
+  expect(pageErrors).toEqual([]);
+  await context.close();
+});
