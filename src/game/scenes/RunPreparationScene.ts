@@ -340,7 +340,7 @@ export class RunPreparationScene extends Phaser.Scene {
   private makeButton(x: number, y: number, label: string, action: () => void, width: number, fontSize = 14, height = 44): void {
     const button = this.add.text(x, y, label, {
       fontFamily: 'Arial, sans-serif', fontSize: `${fontSize}px`, color: '#f2e8d4',
-      backgroundColor: '#5b3d32', padding: { x: 17, y: 12 }
+      backgroundColor: '#5b3d32', padding: { x: 17, y: height > 44 ? 28 : 12 }
     }).setInteractive({ useHandCursor: true });
     button.setFixedSize(width, height);
     button.on('pointerover', () => button.setStyle({ backgroundColor: '#79513c', color: '#ffffff' }));
