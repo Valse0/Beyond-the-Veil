@@ -1502,8 +1502,9 @@ test('five hunter active abilities have distinct live Phaser combat effects',asy
     if(hunter.id==='cursed-hunter')expect(probe.targetVelocity).toBeGreaterThan(100);
     if(hunter.id==='black-knight')expect(probe.guardActive).toBe(true);
     if(hunter.id==='spirit-mage'){
-      await expect.poll(async()=>(await readBrowserRunSnapshot(page)).ability.delayedZoneFired,{timeout:3_000}).toBe(true);
+      await page.waitForTimeout(1_200);
       const impact=await readBrowserRunSnapshot(page);
+      expect(impact.ability.delayedZoneFired,JSON.stringify({ability:impact.ability,paused:impact.paused,runFinished:impact.runFinished})).toBe(true);
       expect(impact.ability.delayedZoneRunFinished).toBe(false);
       expect(impact.ability.delayedZoneCandidateCount).toBeGreaterThan(0);
       expect(impact.ability.delayedZoneInRangeCount).toBeGreaterThan(0);
