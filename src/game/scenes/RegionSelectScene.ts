@@ -170,11 +170,11 @@ export class RegionSelectScene extends Phaser.Scene {
       this.makeTouchArrow(142, 255, '‹', () => this.moveSelection(-1));
       this.makeTouchArrow(width - 142, 255, '›', () => this.moveSelection(1));
     }
-    this.makeButton(64, height - 88, '‹  AVCIYA GERİ DÖN', () => {
+    this.makeButton(64, height - 102, '‹  AVCIYA GERİ DÖN', () => {
       this.scene.start('character-select', { characterId: this.characterId });
-    }, this.touchLayout ? 230 : 190, this.touchLayout ? 18 : 14, this.touchLayout ? 58 : 44);
-    this.makeButton(width - (this.touchLayout ? 292 : 248), height - 88, 'KOŞUYU BAŞLAT  ›', () => this.startRun(), this.touchLayout ? 228 : 184, this.touchLayout ? 18 : 14, this.touchLayout ? 58 : 44);
-    this.add.text(width / 2, height - 26, '← / → veya D-PAD: BÖLGE SEÇ     A / ENTER: BAŞLAT     B / ESC: GERİ', {
+    }, this.touchLayout ? 230 : 190, this.touchLayout ? 18 : 14, this.touchLayout ? 82 : 44);
+    this.makeButton(width - (this.touchLayout ? 292 : 248), height - 88, 'KOŞUYU BAŞLAT  ›', () => this.startRun(), this.touchLayout ? 228 : 184, this.touchLayout ? 18 : 14, this.touchLayout ? 82 : 44);
+    this.add.text(width / 2, height - 8, '← / → veya D-PAD: BÖLGE SEÇ     A / ENTER: BAŞLAT     B / ESC: GERİ', {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '10px', color: '#77727a'
     }).setOrigin(0.5);
 
@@ -320,7 +320,7 @@ export class RegionSelectScene extends Phaser.Scene {
     const button = this.add.text(x, y, label, {
       fontFamily: 'Georgia, serif', fontSize: '56px', color: '#f2e8d4', backgroundColor: '#5b3d32',
       padding: { x: 18, y: 6 }
-    }).setOrigin(0.5).setFixedSize(76, 88).setInteractive({ useHandCursor: true });
+    }).setOrigin(0.5).setFixedSize(88, 96).setInteractive({ useHandCursor: true });
     button.on('pointerover', () => button.setStyle({ backgroundColor: '#79513c', color: '#ffffff' }));
     button.on('pointerout', () => button.setStyle({ backgroundColor: '#5b3d32', color: '#f2e8d4' }));
     button.on('pointerup', action);
