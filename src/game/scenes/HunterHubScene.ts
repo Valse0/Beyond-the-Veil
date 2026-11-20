@@ -114,6 +114,21 @@ export class HunterHubScene extends Phaser.Scene {
     this.previousPad = { up, down, left: false, right: false, confirm, back };
   }
 
+
+  browserTestSnapshot(): {
+    screen: 'hub' | 'blacksmith';
+    selectedRecipeId: string | null;
+    recipeIds: string[];
+    craftableRecipeIds: string[];
+  } {
+    return {
+      screen: this.currentScreen,
+      selectedRecipeId: CRAFTING_RECIPES[this.blacksmithSelection]?.id ?? null,
+      recipeIds: CRAFTING_RECIPES.map(recipe => recipe.id),
+      craftableRecipeIds: [...this.craftableRecipeIds]
+    };
+  }
+
   private drawBackdrop(width: number, height: number): void {
     this.cameras.main.setBackgroundColor('#0b0b10');
     const backdrop = this.add.graphics();

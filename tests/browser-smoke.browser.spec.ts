@@ -640,10 +640,19 @@ test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaffor
     });
     for (let index = 0; index < 6; index += 1) {
       await page.keyboard.press('ArrowDown');
-      await page.waitForTimeout(35);
+      await page.waitForTimeout(70);
     }
     await page.keyboard.press('Enter');
     await page.waitForTimeout(100);
+    const snapshot = await page.evaluate(() => {
+      const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { screen: string; selectedRecipeId: string | null; recipeIds: string[]; craftableRecipeIds: string[] } } } } }).__BEYOND_VEIL_GAME__;
+      if (!game) throw new Error('Development browser test bridge is not available.');
+      return game.scene.getScene('hunter-hub').browserTestSnapshot();
+    });
+    expect(snapshot.screen).toBe('blacksmith');
+    expect(snapshot.selectedRecipeId).toBe('recipe-verdant-spread');
+    expect(snapshot.recipeIds).toHaveLength(5);
+    return snapshot;
   };
 
   await page.goto('/?bv-test=1');
@@ -666,8 +675,9 @@ test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaffor
 
   await page.reload();
   await expect(canvas).toBeVisible();
-  await openBlacksmith();
+  const reloadedBlacksmith = await openBlacksmith();
 
+  expect(reloadedBlacksmith.craftableRecipeIds).not.toContain('recipe-verdant-spread');
   // A crafted recipe and a recipe missing its regional material must both be inert.
   await page.keyboard.press('Enter');
   await page.keyboard.press('ArrowDown');
