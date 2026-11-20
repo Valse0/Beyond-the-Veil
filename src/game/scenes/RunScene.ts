@@ -3022,7 +3022,7 @@ export class RunScene extends Phaser.Scene {
     const title=this.add.text(w/2,h*.29,won?(this.gameMode==='boss-hunt'?'BOSS HUNT TAMAMLANDI':this.gameMode==='challenge'?'MEYDAN OKUMA TAMAMLANDI':'KOŞU TAMAMLANDI'):'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     const summary=this.add.text(w/2,h*.43,'Seviye '+this.state.level+'   •   '+this.state.kills+' düşman\\n+'+(this.runSoulEssence+challengeBonus)+' RUH ÖZÜ'+(challengeBonus?'\\nMEYDAN OKUMA ÖDÜLÜ +'+challengeBonus:'')+'\\n'+(saved?'İLERLEME KAYDEDİLDİ':'KAYIT BAŞARISIZ — İLERLEME KORUNAMADI'),{fontSize:'16px',color:saved?'#c0b5a8':'#e29a8d',align:'center',lineSpacing:7}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     this.overlay.push(shade,title,summary);
-    this.createOverlayButton(w/2,h*.62,260,54,'YENİ KOŞU',()=>this.scene.restart({characterId:this.character.id,regionId:this.region.id,gameMode:this.gameMode,challengeId:this.challengeId??undefined}));
+    this.createOverlayButton(w/2,h*.62,260,54,'YENİ KOŞU',()=>this.scene.restart({characterId:this.character.id,regionId:this.region.id,gameMode:this.gameMode,challengeId:this.challengeId??undefined,equipmentProfileId:this.selectedEquipmentProfileId}));
     this.createOverlayButton(w/2,h*.73,260,54,'ANA MENÜ',()=>this.scene.start('main-menu'));
     this.overlayBackIndex=1;
   }
