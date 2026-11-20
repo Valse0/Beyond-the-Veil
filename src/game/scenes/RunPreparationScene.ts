@@ -27,7 +27,6 @@ export class RunPreparationScene extends Phaser.Scene {
   private challengeId: ChallengeId | null = null;
   private profiles: EquipmentProfile[] = [];
   private options: ProfileOption[] = [null];
-  private ownedRelicIds = new Set<string>();
   private selectedIndex = 0;
   private frames: Phaser.GameObjects.Graphics[] = [];
   private previousPad = { left: false, right: false, confirm: false, back: false, next: false, previous: false };
@@ -52,7 +51,6 @@ export class RunPreparationScene extends Phaser.Scene {
       : this.gameMode === 'challenge' ? CHALLENGES[0]!.id : null;
     this.profiles = [];
     this.options = [null];
-    this.ownedRelicIds = new Set();
     this.selectedIndex = 0;
     this.frames = [];
     this.previousPad = { left: false, right: false, confirm: false, back: false, next: false, previous: false };
@@ -67,7 +65,6 @@ export class RunPreparationScene extends Phaser.Scene {
       if (!save.progression.unlockedCharacterIds.includes(this.characterId)) this.characterId = CHARACTERS[0]!.id;
       if (!save.progression.unlockedRegionIds.includes(this.regionId)) this.regionId = REGIONS[0]!.id;
       this.profiles = [...(save.progression.equipmentProfiles[this.characterId] ?? [])];
-      this.ownedRelicIds = new Set(save.collections.relicIds);
       this.options = [null, ...this.profiles];
       const activeId = save.progression.activeEquipmentProfileIds[this.characterId];
       const activeIndex = this.options.findIndex(option => option?.id === activeId);
