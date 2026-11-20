@@ -665,6 +665,8 @@ test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaffor
     const downCount = (6 - startIndex + 9) % 9;
     for (let index = 0; index < downCount; index += 1) {
       await page.keyboard.press('ArrowDown');
+      // Allow Phaser's next update tick to consume JustDown before asserting.
+      await page.waitForTimeout(80);
       await expect.poll(readHubSelection).toBe((startIndex + index + 1) % 9);
     }
     await page.keyboard.press('Enter');
