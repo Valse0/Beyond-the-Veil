@@ -37,3 +37,16 @@ test('Challenge mode preserves the complete Survival run loop and progression', 
   assert.equal(rules.survivalTimeLimitEnabled, true);
   assert.equal(rules.fullRunProgressionEnabled, true);
 });
+
+
+test('Endless mode keeps the full Survival loop and removes the fixed time limit', () => {
+  assert.equal(resolveGameMode('endless'), 'endless');
+  const rules = getGameModeRules('endless');
+  assert.equal(rules.startsBossImmediately, false);
+  assert.equal(rules.regularWavesEnabled, true);
+  assert.equal(rules.timedEventsEnabled, true);
+  assert.equal(rules.storyQuestsEnabled, true);
+  assert.equal(rules.explorationEnabled, true);
+  assert.equal(rules.survivalTimeLimitEnabled, false);
+  assert.equal(rules.fullRunProgressionEnabled, true);
+});

@@ -136,10 +136,11 @@ export class RegionSelectScene extends Phaser.Scene {
     this.add.text(width / 2, 558, 'OYUN MODU', {
       fontFamily: 'Georgia, serif', fontSize: '15px', color: '#d9c9aa'
     }).setOrigin(0.5);
-    this.makeModeButton(width / 2 - 112, 588, 'SURVIVAL', 'survival');
-    this.makeModeButton(width / 2 + 112, 588, 'BOSS HUNT', 'boss-hunt');
-    this.makeModeButton(width / 2 + 336, 588, 'MEYDAN OKUMA', 'challenge');
-    this.modeHelp = this.add.text(width / 2, 616, 'Survival: standart koşu  •  Boss Hunt: doğrudan boss  •  M: mod değiştir', {
+    this.makeModeButton(width / 2 - 288, 588, 'SURVIVAL', 'survival');
+    this.makeModeButton(width / 2 - 96, 588, 'BOSS HUNT', 'boss-hunt');
+    this.makeModeButton(width / 2 + 96, 588, 'MEYDAN OKUMA', 'challenge');
+    this.makeModeButton(width / 2 + 288, 588, 'SONSUZ', 'endless');
+    this.modeHelp = this.add.text(width / 2, 616, 'Survival: standart koşu  •  M: mod değiştir', {
       fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#89818a'
     }).setOrigin(0.5);
     this.challengeLabel = this.add.text(width / 2, 616, 'MEYDAN OKUMA SEÇ  •  C / LB / RB: SONRAKİ', {
@@ -185,7 +186,7 @@ export class RegionSelectScene extends Phaser.Scene {
   }
 
   private toggleGameMode(): void {
-    const modes: GameMode[] = ['survival', 'boss-hunt', 'challenge'];
+    const modes: GameMode[] = ['survival', 'boss-hunt', 'challenge', 'endless'];
     const current = modes.indexOf(this.gameMode);
     this.gameMode = modes[(current + 1) % modes.length]!;
     this.refreshModeSelection();
@@ -225,7 +226,7 @@ export class RegionSelectScene extends Phaser.Scene {
 
   private refreshModeSelection(): void {
     this.modeButtons.forEach((button, index) => {
-      const modes: GameMode[] = ['survival', 'boss-hunt', 'challenge'];
+      const modes: GameMode[] = ['survival', 'boss-hunt', 'challenge', 'endless'];
       const selected = modes[index] === this.gameMode;
       button.setStyle({
         color: selected ? '#f2d39a' : '#aaa2a0',
@@ -233,7 +234,8 @@ export class RegionSelectScene extends Phaser.Scene {
       });
       button.setStroke('#9b8059', selected ? 2 : 1);
     });
-    this.modeHelp?.setVisible(this.gameMode !== 'challenge');
+    const descriptions:Record<GameMode,string>={survival:'Survival: standart 15 dakikalık koşu  •  M: mod değiştir','boss-hunt':'Boss Hunt: doğrudan bölge boss’u  •  M: mod değiştir',challenge:'',endless:'Sonsuz: bitmeyen dalgalar, boss döngüleri ve değişen lanetler  •  M: mod değiştir'};
+    this.modeHelp?.setText(descriptions[this.gameMode]).setVisible(this.gameMode !== 'challenge');
     this.challengeLabel?.setVisible(this.gameMode === 'challenge');
     this.challengeButtons.forEach(button => button.setVisible(this.gameMode === 'challenge'));
   }

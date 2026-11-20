@@ -319,3 +319,21 @@ A challenge victory bonus of 200 Ruh Özü is added only when the run wins and t
 
 
 CI verification: workflow run [#424](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44667058816) on commit `bdf743b6aad1312ac2214d9c5ca1662bdff03ba1` passed TypeScript, 239/239 unit tests, production build, Chromium Playwright 41/41 (including live Phaser probes for all three challenge rules), and npm audit with zero vulnerabilities.
+
+
+## Endless Mode v1
+
+Endless is a selectable extension of the complete Survival loop. It retains region quests, exploration, timed events, ordinary run progression and profile persistence, but removes the fixed 15-minute run limit. The first regional boss still arrives at 14:00. Regular waves continue during boss encounters and between bosses, subject to the existing 42-active-enemy cap.
+
+After the player opens a boss chest, the next boss is scheduled five minutes later. The same region boss and its story-linked variant are retained. Each opened boss cycle increases the next boss's health by 20%, attack/contact damage by 8%, and movement by 4%, capped at ten scaling steps.
+
+From 14:00 onward, Endless waves use a 620 ms spawn interval that decreases by 35 ms every five minutes, down to a 360 ms floor. Spawn groups grow from 3 to a maximum of 6 enemies, respecting free arena slots. Elites continue on the existing two-minute schedule, but a new elite waits until the previous elite is defeated.
+
+From 15:00, one rotating world rule changes every three minutes:
+- **Hunter's Moon:** enemy movement speed +18%.
+- **Blood Tide:** all incoming player damage +20%.
+- **Iron Veil:** enemy and boss health +25%, enemy XP +25%.
+
+Endless ends on player defeat. The result grants 25 bonus Ruh Özü per completed five-minute milestone and 75 bonus Ruh Özü per opened boss chest, in addition to normal enemy and boss rewards. The ordinary run-result pipeline persists progression; no save migration or online service is needed.
+
+No final UI art, balance sign-off, or physical-device validation is claimed by this runtime implementation.

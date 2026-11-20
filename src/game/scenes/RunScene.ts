@@ -30,6 +30,7 @@ import { createBossArena, damageBossArenaObject, getBossArenaDamageMultiplier, g
 import { createHazardCycle, getRegionHazardMechanic, stepRegionHazard, type HazardCycle, type HazardEvent, type RegionHazardMechanic } from '../../gameplay/regions/region-runtime.js';
 import { applyBossHuntResult, applyRunResult } from '../../gameplay/run/run-results.js';
 import { getGameModeRules, resolveGameMode } from '../../gameplay/run/game-mode-runtime.js';
+import { completeEndlessBossCycle, createEndlessRuntimeState, getEndlessRule, getEndlessRuleModifiers, getEndlessSurvivalReward, scaleEndlessBoss, shouldSpawnEndlessBoss, type EndlessRuntimeState } from '../../gameplay/run/endless-runtime.js';
 import { canAddChallengeWeapon, getChallengeModifiers, getChallengeVictoryBonus, resolveChallengeId } from '../../gameplay/run/challenge-runtime.js';
 import { createWaveDirector, stepWaveDirector, waveRandom, type WaveDirectorState } from '../../gameplay/spawning/wave-director.js';
 import { advanceRunEvent, createRunEventState, getRunEventName, getRunEventObjective, getRunEventReward, recordRunEventAction, startDueRunEvent, type RunEventAction, type RunEventKind, type RunEventState } from '../../gameplay/events/run-events.js';
@@ -63,6 +64,7 @@ export class RunScene extends Phaser.Scene {
   private region=REGIONS[0]!;
   private gameMode:GameMode='survival';
   private challengeId:ChallengeId|null=null;
+  private endlessState:EndlessRuntimeState=createEndlessRuntimeState();
   private build:BuildState={weapons:[],passives:[]};
   private player!:Phaser.Physics.Arcade.Sprite;
   private enemies!:Phaser.Physics.Arcade.Group;
@@ -321,11 +323,12 @@ export class RunScene extends Phaser.Scene {
   browserTestSnapshot():{
     ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number;delayedZoneFired:boolean;delayedZoneCandidateCount:number;delayedZoneInRangeCount:number;delayedZoneRunFinished:boolean;delayedZoneDamage:number;sceneTimePaused:boolean;sceneActive:boolean;sceneTimeNow:number;delayedTimer:{paused:boolean;hasDispatched:boolean;elapsed:number;delay:number;timeScale:number}|null};
     gameMode:GameMode;challengeId:ChallengeId|null;challengeModifiers:{maxWeaponSlots:number;maxHealthMultiplier:number;enemyMoveSpeedMultiplier:number;victorySoulEssenceBonus:number};weaponSlotsUsed:number;waveSpawnIndex:number;activeEnemyCount:number;
+    endless:{bossCyclesCompleted:number;nextBossAtMs:number;ruleId:string|null;ruleName:string|null;ruleModifiers:{enemyHealthMultiplier:number;enemyMoveSpeedMultiplier:number;incomingDamageMultiplier:number;experienceMultiplier:number}};
     level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
     environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Partial<Record<ElementId,number>>};
     regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};
     paused:boolean;bossSpawned:boolean;bossVariantId:string|null;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
-    runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
+    runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;bossMaxHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
     questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
     discoveredLoreIds:string[];discoveredPathIds:string[];explorationLandmarks:{id:string;kind:string;name:string;description:string;motif:string;decorationVisible:boolean}[];availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
     storyWorldState:{npcId:string|null;npcName:string|null;npcFateId:string|null;npcFateLabel:string|null;atmosphereId:string|null;atmosphereName:string|null;renderedObjectCount:number};
@@ -349,7 +352,7 @@ export class RunScene extends Phaser.Scene {
       weapons:this.build.weapons.map(progress=>{const definition=WEAPONS.find(item=>item.id===progress.weaponId);const stats=definition?weaponLevelStats(progress,definition,this.unlockedWeaponVariantIds):undefined;return {weaponId:progress.weaponId,level:progress.level,branchId:progress.branchId??null,evolved:progress.evolved,stats:stats?{damage:stats.damage,intervalMs:stats.intervalMs,range:stats.range,projectiles:stats.projectiles,pierce:stats.pierce,areaMultiplier:stats.areaMultiplier,chainTargetBonus:stats.chainTargetBonus,branchName:stats.branchName??null}:null};}),
       shotDiagnostics:this.shots.getChildren().filter(child=>child.active&&child.getData('weaponId')).map(child=>({weaponId:String(child.getData('weaponId')),damage:Number(child.getData('damage'))})), 
       runSoulEssence:this.runSoulEssence,runRelicIds:[...this.runRelicIds],equippedRelicIds:[...this.equippedRelicIds],runCraftingMaterials:{...this.runCraftingMaterials},kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
-      bossHealth:this.bossState?.health??null,health:this.state.health,maxHealth:this.state.maxHealth,damage:this.state.damage,moveSpeed:this.state.moveSpeed,
+      bossHealth:this.bossState?.health??null,bossMaxHealth:this.bossState?.maxHealth??null,endless:{bossCyclesCompleted:this.endlessState.bossCyclesCompleted,nextBossAtMs:this.endlessState.nextBossAtMs,ruleId:getEndlessRule(this.state.elapsedMs)?.id??null,ruleName:getEndlessRule(this.state.elapsedMs)?.name??null,ruleModifiers:getEndlessRuleModifiers(this.state.elapsedMs)},health:this.state.health,maxHealth:this.state.maxHealth,damage:this.state.damage,moveSpeed:this.state.moveSpeed,
       questProgress:Object.fromEntries(Object.entries(this.questSaveData?.story.quests??{}).map(([id,progress])=>[id,{status:progress.status,objectiveProgress:{...progress.objectiveProgress}}])),
       discoveredLoreIds:[...this.runDiscoveredLoreIds],discoveredPathIds:[...this.runDiscoveredPathIds],explorationLandmarks:this.eventObjects.getChildren().filter(object=>object.getData('eventObjectType')==='exploration-lore'||object.getData('eventObjectType')==='exploration-secret').map(object=>({id:String(object.getData('explorationPointId')),kind:String(object.getData('eventObjectType')),name:String(object.getData('explorationName')),description:String(object.getData('explorationDescription')),motif:String(object.getData('explorationMotif')),decorationVisible:Boolean((object.getData('eventObjectDecoration') as Phaser.GameObjects.GameObject|undefined)?.active)})),availableStoryPathIds:this.activeStoryPaths.map(path=>path.id),lastTraversedStoryPathId:this.lastTraversedStoryPathId,
       storyWorldState:{npcId:this.activeStoryWorldState?.npc?.definition.id??null,npcName:this.activeStoryWorldState?.npc?.definition.name??null,npcFateId:this.activeStoryWorldState?.npc?.fateId??null,npcFateLabel:this.activeStoryWorldState?.npc?.fate.label??null,atmosphereId:this.activeStoryWorldState?.atmosphere?.id??null,atmosphereName:this.activeStoryWorldState?.atmosphere?.name??null,renderedObjectCount:this.storyWorldObjectCount},
@@ -495,10 +498,11 @@ export class RunScene extends Phaser.Scene {
     this.state={...this.state,elapsedMs:getGameModeRules(this.gameMode).survivalTimeLimitEnabled?Math.min(RUN_MS,nextElapsed):nextElapsed};
     this.updateEnvironment();
     if(getGameModeRules(this.gameMode).timedEventsEnabled){
-      if(skipTimedSystems){this.runEventState={...this.runEventState,nextEventIndex:3,activeEvent:null};this.eventSetupPending=false;this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};}
+      if(skipTimedSystems){this.runEventState={...this.runEventState,nextEventIndex:3,activeEvent:null};this.eventSetupPending=false;if(this.gameMode!=='endless')this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};}
       else this.updateRunEvent(this.time.now);
     }
     if(getGameModeRules(this.gameMode).survivalTimeLimitEnabled&&!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
+    if(this.gameMode==='endless'&&shouldSpawnEndlessBoss(this.endlessState,this.state.elapsedMs,this.bossSpawned,this.bossVictoryPending))this.spawnBoss();
     this.refreshHud();
   }
 
@@ -821,6 +825,15 @@ export class RunScene extends Phaser.Scene {
     if(this.runEventState.activeEvent?.status!=='completed')throw new Error('Treasure chest interaction did not complete the event.');
   }
 
+  browserTestClearEnemies():void {
+    this.assertBrowserTestMode();
+    for(const child of [...this.enemies.getChildren()]){
+      const enemy=child as Phaser.Physics.Arcade.Sprite;
+      (enemy.getData('eliteMarker') as Phaser.GameObjects.GameObject|undefined)?.destroy();
+      enemy.destroy();
+    }
+  }
+
   browserTestFinishRun():void {
     this.assertBrowserTestMode();
     this.finishRun(false);
@@ -861,7 +874,7 @@ export class RunScene extends Phaser.Scene {
     const requestedSeed=this.registry.get('runSeed');
     this.runSeed=typeof requestedSeed==='number'&&Number.isFinite(requestedSeed)?requestedSeed>>>0:((Date.now()^Math.floor(Math.random()*0xffffffff))>>>0);
     if(this.runSeed===0)this.runSeed=1;
-    this.waveDirector=createWaveDirector(this.runSeed);this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
+    this.waveDirector=createWaveDirector(this.runSeed);this.endlessState=createEndlessRuntimeState();this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
     this.bossElementState={};this.bossArenaState=undefined;this.playerPoisonStacks=0;this.playerPoisonExpiresAt=0;this.playerPoisonNextTickAt=0;this.arenaInteractionReadyAt=0;this.lastBossArenaVisualsAt=0;this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;this.weaponSynergyGuardUntil=0;this.weaponSynergyGuardReduction=.28;this.weaponSynergyTriggers=[];
     this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.hazardTargetForced=false;this.hazardPoisonStacks=0;this.hazardPoisonExpiresAt=0;this.hazardPoisonNextTickAt=0;this.hazardLastEffectId='';this.hazardLastDamage=0;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.runDiscoveredLoreIds=[];this.runDiscoveredPathIds=[];this.activeStoryPaths=[];this.lastTraversedStoryPathId=null;this.activeStoryWorldState=null;this.storyWorldObjectCount=0;this.bossChestOpened=false;this.completedTreasureHunt=false;this.runCraftingMaterials={};this.lastRunSaved=null;
@@ -978,6 +991,7 @@ export class RunScene extends Phaser.Scene {
     this.move(time);if(this.paused)return;this.moveEnemies(time);this.updateEnemyZones(time);this.updatePassiveZones(time);this.spawnDirector(time);this.fireWeapons(time);this.updateProjectiles(time);
     this.expireShots(time);this.magnetize();this.updateElementStatuses(time);this.updateRegionHazard(time);this.updateBossArena(time);
     if(this.gameMode==='survival'&&!this.bossSpawned&&this.state.elapsedMs>=BOSS_START_MS)this.spawnBoss();
+    if(this.gameMode==='endless'&&shouldSpawnEndlessBoss(this.endlessState,this.state.elapsedMs,this.bossSpawned,this.bossVictoryPending))this.spawnBoss();
     if(getGameModeRules(this.gameMode).survivalTimeLimitEnabled&&this.state.elapsedMs>=RUN_MS&&!this.bossState&&!this.bossSpawned)this.spawnBoss();
     if(time-this.lastHud>120){this.refreshHud();this.lastHud=time;}
   }
@@ -1100,7 +1114,8 @@ export class RunScene extends Phaser.Scene {
       }
       const enemySlow=Number(enemy.getData('enemySlowUntil')??0)>time?Number(enemy.getData('enemySlowMultiplier')??1):1;
       const moveBuff=Number(enemy.getData('moveSpeedBuffUntil')??0)>time?Number(enemy.getData('moveSpeedBuff')??1):1;
-      vx*=enemySlow*moveBuff*challengeSpeed;vy*=enemySlow*moveBuff*challengeSpeed;
+      const endlessSpeed=this.gameMode==='endless'?getEndlessRuleModifiers(this.state.elapsedMs).enemyMoveSpeedMultiplier:1;
+      vx*=enemySlow*moveBuff*challengeSpeed*endlessSpeed;vy*=enemySlow*moveBuff*challengeSpeed*endlessSpeed;
       const abilityStaggered=Number(enemy.getData('abilityStaggeredUntil')??0)>time;
       enemy.setVelocity(effects.stunned||effects.frozen||abilityStaggered?0:vx,effects.stunned||effects.frozen||abilityStaggered?0:vy);
       if(effects.damage>0)this.damageEnemy(enemy,effects.damage);
@@ -1129,7 +1144,8 @@ export class RunScene extends Phaser.Scene {
     const dx=this.player.x-boss.x,dy=this.player.y-boss.y,dist=Math.hypot(dx,dy)||1;
     const phase=this.bossDefinition.phases[this.bossState.phaseIndex]!;
      const challengeSpeed=getChallengeModifiers(this.challengeId).enemyMoveSpeedMultiplier;
-     if(dist>145)boss.setVelocity(dx/dist*this.bossDefinition.health*.006*(phase.movementMultiplier??1)*challengeSpeed,dy/dist*this.bossDefinition.health*.006*(phase.movementMultiplier??1)*challengeSpeed);else boss.setVelocity(0,0);
+     const endlessSpeed=this.gameMode==='endless'?getEndlessRuleModifiers(this.state.elapsedMs).enemyMoveSpeedMultiplier:1;
+     if(dist>145)boss.setVelocity(dx/dist*this.bossDefinition.health*.006*(phase.movementMultiplier??1)*challengeSpeed*endlessSpeed,dy/dist*this.bossDefinition.health*.006*(phase.movementMultiplier??1)*challengeSpeed*endlessSpeed);else boss.setVelocity(0,0);
      const attack=getBossAttack(this.bossState,phase,time);this.bossState=attack.state;
      if(attack.attack)this.telegraphAttack(boss,undefined,this.player.x,this.player.y,attack.attack.damage*(phase.bossDamageMultiplier??1),attack.attack.telegraph.warningMs,attack.attack.telegraph.shape,100);
   }
@@ -1194,7 +1210,7 @@ export class RunScene extends Phaser.Scene {
     if(!pool.length)return;
     const children=this.enemies.getChildren() as Phaser.Physics.Arcade.Sprite[];
     const activeEliteCount=children.filter(enemy=>enemy.active&&Boolean(enemy.getData('isElite'))).length;
-    const plan=stepWaveDirector(this.waveDirector,this.state.elapsedMs,this.enemies.countActive(true),activeEliteCount,42,pool.length);
+    const plan=stepWaveDirector(this.waveDirector,this.state.elapsedMs,this.enemies.countActive(true),activeEliteCount,42,pool.length,this.gameMode==='endless');
     if(plan.spawnCount===0)return;
     const previousIndex=this.waveDirector.spawnIndex;
     this.waveDirector=plan.state;
@@ -1224,9 +1240,10 @@ export class RunScene extends Phaser.Scene {
   }
 
   private createEnemy(x:number,y:number,def:EnemyDefinition,scale:number,isElite=false):Phaser.Physics.Arcade.Sprite {
-    const healthScale=scale*(isElite?2.4:1);
+    const endlessModifiers=this.gameMode==='endless'?getEndlessRuleModifiers(this.state.elapsedMs):getEndlessRuleModifiers(0);
+    const healthScale=scale*(isElite?2.4:1)*endlessModifiers.enemyHealthMultiplier;
     const maxHealth=Math.round(def.health*healthScale);
-    const experience=Math.round(def.experience*(isElite?3:1));
+    const experience=Math.round(def.experience*(isElite?3:1)*endlessModifiers.experienceMultiplier);
     const safe=resolveRegionMapPosition(this.mapLayout,x,y,def.radius+24);
     const enemy=this.enemies.create(safe.x,safe.y,'enemy-'+def.id) as Phaser.Physics.Arcade.Sprite;
     enemy.setDepth(2).setCircle(def.radius).setData('enemyType',def.id).setData('health',maxHealth).setData('maxHealth',maxHealth).setData('experience',experience);
@@ -1399,7 +1416,9 @@ export class RunScene extends Phaser.Scene {
     const baseBoss=BOSSES.find(b=>b.id===this.region.bossId);
      if(!baseBoss)return;
      const resolution=resolveBossVariant(baseBoss,this.bossEncounterIdsAtRegionEntry);
-     this.bossDefinition=resolution.boss;this.activeBossVariantId=resolution.variantId;
+     const scaledBoss=this.gameMode==='endless'?scaleEndlessBoss(resolution.boss,this.endlessState.bossCyclesCompleted):resolution.boss;
+      const endlessHealth=this.gameMode==='endless'?getEndlessRuleModifiers(this.state.elapsedMs).enemyHealthMultiplier:1;
+      this.bossDefinition=endlessHealth===1?scaledBoss:{...scaledBoss,health:Math.round(scaledBoss.health*endlessHealth)};this.activeBossVariantId=resolution.variantId;
      this.bossState=createBossEncounter(this.bossDefinition);
     const boss=this.enemies.create(this.player.x+330,this.player.y,'boss-'+this.bossDefinition.id) as Phaser.Physics.Arcade.Sprite;
     boss.setDepth(4).setCircle(32).setData('isBoss',true).setData('health',this.bossDefinition.health).setData('experience',80);
@@ -1637,7 +1656,7 @@ export class RunScene extends Phaser.Scene {
     this.recordRunEventEnemyDefeat(enemy);
     this.recordQuestGameplayEvent('enemy-kill');
     if(enemy.getData('isElite'))this.recordQuestGameplayEvent('elite-kill');
-    if(this.gameMode==='survival')this.runSoulEssence+=Math.floor(Math.max(0,experience)/2)+(enemy.getData('isElite')?35:0);
+    if(this.gameMode==='survival'||this.gameMode==='endless')this.runSoulEssence+=Math.floor(Math.max(0,experience)/2)+(enemy.getData('isElite')?35:0);
     if(enemy.getData('isElite')&&isPassiveSpecialActive(this.build,'hollow-crown'))this.applyCrownOfAshes(enemy);
     const eliteMarker=enemy.getData('eliteMarker') as Phaser.GameObjects.GameObject|undefined;eliteMarker?.destroy();
     this.dropExperience(enemy,experience);this.state=recordKill(this.state);enemy.destroy();
@@ -1708,12 +1727,24 @@ export class RunScene extends Phaser.Scene {
     this.recordQuestGameplayEvent('boss-defeat');
     this.dropExperience(boss,80);this.runSoulEssence+=this.bossDefinition?.reward.soulEssence??0;
     const vessel=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='boss-essence')?.specialUpgrade.mechanic;
-    if(this.gameMode==='survival'&&vessel?.kind==='boss-essence'&&isPassiveSpecialActive(this.build,'soul-vessel'))for(let i=0;i<vessel.fragmentCount;i++){const angle=(Math.PI*2*i)/vessel.fragmentCount;this.createRunEventObject(boss.x+Math.cos(angle)*48,boss.y+Math.sin(angle)*48,'essence-fragment',vessel.essencePerFragment);}
+    if((this.gameMode==='survival'||this.gameMode==='endless')&&vessel?.kind==='boss-essence'&&isPassiveSpecialActive(this.build,'soul-vessel'))for(let i=0;i<vessel.fragmentCount;i++){const angle=(Math.PI*2*i)/vessel.fragmentCount;this.createRunEventObject(boss.x+Math.cos(angle)*48,boss.y+Math.sin(angle)*48,'essence-fragment',vessel.essencePerFragment);}
     this.bossVictoryPending=true;this.createRunEventObject(boss.x,boss.y,'boss-chest');
     this.bossArenaObjects.clear(true,true);this.bossArenaState=undefined;
     boss.destroy();this.bossSprite=undefined;this.bossHud?.setText('BOSS YENİLDİ');this.bossPhaseText?.setText('Boss sandığına ulaş ve aç');
     this.eventHud?.setText('BOSS SANDIĞI  •  YAKLAŞARAK AÇ').setVisible(true);
     this.cameras.main.flash(500,175,135,72);
+  }
+
+  private startNextEndlessBossCycle():void {
+    this.endlessState=completeEndlessBossCycle(this.endlessState,this.state.elapsedMs);
+    this.bossSpawned=false;this.bossState=undefined;this.bossDefinition=undefined;this.bossSprite=undefined;
+    this.activeBossVariantId=null;this.bossElementState={};this.bossArenaState=undefined;
+    this.bossArenaObjects.clear(true,true);this.bossTraceObjects.clear(true,true);
+    this.bossHud?.setText('SONSUZ BOSS DÖNGÜSÜ  •  '+this.endlessState.bossCyclesCompleted).setVisible(true);
+    this.bossHealth?.setVisible(false);this.bossPhaseText?.setText('Sonraki boss için hazırlık').setVisible(true);
+    const minutes=Math.ceil((this.endlessState.nextBossAtMs-this.state.elapsedMs)/60_000);
+    this.eventHud?.setText('BOSS DÖNGÜSÜ '+this.endlessState.bossCyclesCompleted+' TAMAMLANDI  •  YENİ BOSS '+minutes+' DK SONRA').setVisible(true);
+    this.refreshHud();
   }
 
   private applyCrownOfAshes(source:Phaser.Physics.Arcade.Sprite):void {
@@ -1979,7 +2010,7 @@ export class RunScene extends Phaser.Scene {
       this.eventHud?.setText(evolvedCount>0?'SANDIK AÇILDI  •  '+evolvedCount+' SİLAH EVRİLDİ':'SANDIK AÇILDI  •  EVRİM KOŞULU YOK').setVisible(true);
       this.cameras.main.flash(420,210,170,90);
       this.bossChestFinishScheduledAtMs=this.time.now;
-      this.bossChestFinishTimer=this.time.delayedCall(500,()=>{this.bossChestFinishCallbackAtMs=this.time.now;this.finishRun(true);});
+      this.bossChestFinishTimer=this.time.delayedCall(500,()=>{this.bossChestFinishCallbackAtMs=this.time.now;if(this.gameMode==='endless')this.startNextEndlessBossCycle();else this.finishRun(true);});
       return;
     }
     if(type==='boss-chest')this.bossChestCollectOutcome='not-pending';
@@ -2058,6 +2089,7 @@ export class RunScene extends Phaser.Scene {
       this.passiveSpecialState=result.state;
       if(result.blocked){this.showPassiveSpecialFeedback('MÜHÜRLÜ PLAKA  •  HASAR ENGELLENDİ');return;}
     }
+    if(this.gameMode==='endless')amount*=getEndlessRuleModifiers(this.state.elapsedMs).incomingDamageMultiplier;
     if(this.time.now<this.abilityGuardUntil)amount*=this.abilityGuardDamageMultiplier;
     if(this.time.now<this.weaponSynergyGuardUntil)amount*=1-this.weaponSynergyGuardReduction;
     const armor=this.currentBuildStats().armor+this.character.stats.armor+this.permanentUpgradeEffects.armorBonus+this.relicStats.armorBonus;
@@ -2518,7 +2550,9 @@ export class RunScene extends Phaser.Scene {
   }
 
   private finishRun(won:boolean):void {
-    if(this.runFinished)return;this.runFinished=true;this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
+    if(this.runFinished)return;this.runFinished=true;
+    if(this.gameMode==='endless'&&!won)this.runSoulEssence+=getEndlessSurvivalReward(this.state.elapsedMs,this.endlessState.bossCyclesCompleted);
+    this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
     const saved=this.persistRunResult(won);this.lastRunSaved=saved;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.9).setScrollFactor(0).setDepth(200);
     const title=this.add.text(w/2,h*.29,won?(this.gameMode==='boss-hunt'?'BOSS HUNT TAMAMLANDI':this.gameMode==='challenge'?'MEYDAN OKUMA TAMAMLANDI':'KOŞU TAMAMLANDI'):'AVCI DÜŞTÜ',{fontFamily:'Georgia',fontSize:'36px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
@@ -2577,7 +2611,9 @@ export class RunScene extends Phaser.Scene {
     const seconds=Math.floor(this.state.elapsedMs/1000);
     this.clock.setText(String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0'));
     const abilityRemaining=Math.max(0,this.abilityReady-this.time.now);
-    this.hud.setText(this.character.name+'  •  '+(this.gameMode==='boss-hunt'?'BOSS HUNT':'SURVIVAL')+'  •  LV '+this.state.level+'\nXP '+Math.floor(this.state.experience)+' / '+this.state.experienceToNext+'  •  Düşman '+this.state.kills+'\n'+this.region.name+'  •  Silah '+this.build.weapons.length+'/6  •  Pasif '+this.build.passives.length+'/6\nE: '+this.character.activeAbility+'  •  '+(abilityRemaining>0?(abilityRemaining/1000).toFixed(1)+'s':'HAZIR'));
+    const modeLabel=this.gameMode==='boss-hunt'?'BOSS HUNT':this.gameMode==='challenge'?'MEYDAN OKUMA':this.gameMode==='endless'?'SONSUZ':'SURVIVAL';
+    const endlessRule=this.gameMode==='endless'?getEndlessRule(this.state.elapsedMs):null;
+    this.hud.setText(this.character.name+'  •  '+modeLabel+(endlessRule?'  •  '+endlessRule.name:'')+'  •  LV '+this.state.level+'\nXP '+Math.floor(this.state.experience)+' / '+this.state.experienceToNext+'  •  Düşman '+this.state.kills+'\n'+this.region.name+'  •  Silah '+this.build.weapons.length+'/6  •  Pasif '+this.build.passives.length+'/6\nE: '+this.character.activeAbility+'  •  '+(abilityRemaining>0?(abilityRemaining/1000).toFixed(1)+'s':'HAZIR'));
     this.health.setSize(160*Phaser.Math.Clamp(this.state.health/this.state.maxHealth,0,1),8);
     if(this.bossState){this.bossHud?.setVisible(true);this.bossHealth?.setVisible(true);this.bossHealth?.setSize(300*Phaser.Math.Clamp(this.bossState.health/this.bossState.maxHealth,0,1),5);}
   }

@@ -868,6 +868,17 @@ Sonsuz Mod:
 
 içerir.
 
+Sonsuz Mod, standart Survival koşusunun tüm görev, keşif, bölge etkinliği ve kalıcı ilerleme sistemlerini korur; 15. dakikada bitmez. İlk bölge boss'u 14. dakikada gelir. Boss sandığı açıldıktan beş dakika sonra aynı bölgenin hikâye varyantı korunarak daha güçlü boss döngüsü başlar. Her tamamlanan boss döngüsü sonraki boss'un canını %20, saldırı/temas hasarını %8 ve hareketini %4 artırır; bu artış en fazla 10 döngüde sınırlanır.
+
+14. dakikadan sonra normal dalgalar da sürer. Dalga aralığı 620 ms'den başlayıp her beş dakikada 35 ms azalır ve 360 ms altına inmez; spawn başına düşman sayısı zamanla 3–6 aralığına çıkar. Mevcut 42 aktif düşman sınırı korunur. Elitler, önceki elit yenilmeden yenisi doğmayacak şekilde yaklaşık iki dakikalık döngüyle devam eder.
+
+15. dakikadan itibaren her üç dakikada bir değişen bir lanet etkinleşir:
+* Avcının Ayı: düşman hareket hızı +%18.
+* Kan Gelgiti: oyuncunun aldığı hasar +%20.
+* Demir Perde: düşman ve boss canı +%25; düşmanlardan kazanılan XP +%25.
+
+Sonsuz koşu yalnızca oyuncu öldüğünde sona erer. Sonuçta her tamamlanan beş dakika için 25 Ruh Özü ve açılmış her boss sandığı için 75 ek Ruh Özü verilir. Normal boss ödülleri de korunur. Bu mod çevrimdışıdır ve ayrı bir kayıt şeması gerektirmez.
+
 Zorluk yalnızca düşmanların canını artırarak oluşturulmamalıdır.
 
 ⸻

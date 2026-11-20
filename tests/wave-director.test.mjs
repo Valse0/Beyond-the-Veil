@@ -96,3 +96,20 @@ test('invalid seeds and empty enemy pools fail safely',()=>{
   assert.equal(empty.spawnCount,0);
   assert.deepEqual(empty.state,state);
 });
+
+
+test('Endless wave bands continue spawning after the first boss threshold with rising pressure',()=>{
+  const state=createWaveDirector(41);
+  assert.equal(getWaveBand(840000),'boss');
+  assert.equal(getWaveBand(840000,true),'endless');
+  const first=stepWaveDirector(state,840000,0,0,42,5,true);
+  assert.equal(first.band,'endless');
+  assert.ok(first.spawnCount>=3);
+  const later=stepWaveDirector({...first.state,nextSpawnAtMs:0},1140000,0,0,42,5,true);
+  assert.equal(later.band,'endless');
+  assert.ok(later.spawnCount>=first.spawnCount);
+  assert.ok(later.intervalMs<first.intervalMs);
+  const standard=stepWaveDirector(state,840000,0,0,42,5,false);
+  assert.equal(standard.band,'boss');
+  assert.equal(standard.spawnCount,0);
+});

@@ -1,5 +1,5 @@
 export type UpgradeId = 'power' | 'haste' | 'vitality' | 'magnet';
-export type GameMode = 'survival' | 'boss-hunt' | 'challenge';
+export type GameMode = 'survival' | 'boss-hunt' | 'challenge' | 'endless';
 export type ChallengeId = 'limited-arsenal' | 'glass-oath' | 'hunters-nightmare';
 export interface ChallengeDefinition {
   id: ChallengeId;

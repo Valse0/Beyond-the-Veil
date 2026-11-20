@@ -202,12 +202,12 @@ test('region selection reads unlocked regions from the persisted profile', async
 });
 
 type BrowserRunSnapshot = {
-  gameMode:'survival'|'boss-hunt'|'challenge';challengeId:string|null;challengeModifiers:{maxWeaponSlots:number;maxHealthMultiplier:number;enemyMoveSpeedMultiplier:number;victorySoulEssenceBonus:number};weaponSlotsUsed:number;waveSpawnIndex:number;activeEnemyCount:number;
+  gameMode:'survival'|'boss-hunt'|'challenge'|'endless';challengeId:string|null;challengeModifiers:{maxWeaponSlots:number;maxHealthMultiplier:number;enemyMoveSpeedMultiplier:number;victorySoulEssenceBonus:number};weaponSlotsUsed:number;waveSpawnIndex:number;activeEnemyCount:number;endless:{bossCyclesCompleted:number;nextBossAtMs:number;ruleId:string|null;ruleName:string|null;ruleModifiers:{enemyHealthMultiplier:number;enemyMoveSpeedMultiplier:number;incomingDamageMultiplier:number;experienceMultiplier:number}};
   ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number};
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;
   regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Record<string,number>};evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
-  runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;
+  runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;bossMaxHealth:number|null;
   questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
   explorationLandmarks:{id:string;kind:string;name:string;description:string;motif:string;decorationVisible:boolean}[];
   health:number;maxHealth:number;damage:number;moveSpeed:number;permanentUpgradeEffects:{maxHealthBonus:number;damageMultiplier:number;moveSpeedMultiplier:number;armorBonus:number;xpGainMultiplier:number;extraRerolls:number};passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
@@ -221,7 +221,7 @@ type BrowserRunSnapshot = {
   runEvents:{selected:string[];active:{kind:string;progress:number;stage:number;status:string}|null;completed:string[];failed:string[]};
 };
 
-async function startBrowserTestRun(page: import('@playwright/test').Page,unlockedPathIds:string[]=[],gameMode:'survival'|'boss-hunt'|'challenge'='survival',challengeId:'limited-arsenal'|'glass-oath'|'hunters-nightmare'='limited-arsenal'): Promise<import('@playwright/test').Locator> {
+async function startBrowserTestRun(page: import('@playwright/test').Page,unlockedPathIds:string[]=[],gameMode:'survival'|'boss-hunt'|'challenge'|'endless'='survival',challengeId:'limited-arsenal'|'glass-oath'|'hunters-nightmare'='limited-arsenal'): Promise<import('@playwright/test').Locator> {
   await page.goto('/?bv-test=1');
   const canvas=page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
@@ -241,10 +241,13 @@ async function startBrowserTestRun(page: import('@playwright/test').Page,unlocke
   await page.keyboard.press('Enter');
   await page.waitForTimeout(120);
   if(gameMode==='boss-hunt'){
-    await page.mouse.click(750,588);
+    await page.mouse.click(544,588);
+    await page.mouse.click(1124,644);
+  }else if(gameMode==='endless'){
+    await page.mouse.click(928,588);
     await page.mouse.click(1124,644);
   }else if(gameMode==='challenge'){
-    await page.mouse.click(976,588);
+    await page.mouse.click(736,588);
     const challengeX:Record<string,number>={'limited-arsenal':450,'glass-oath':640,'hunters-nightmare':830};
     await page.mouse.click(challengeX[challengeId]!,640);
     await page.mouse.click(1124,644);
@@ -1607,6 +1610,74 @@ for (const challengeCase of [
     expect(pageErrors).toEqual([]);
   });
 }
+
+
+test('Endless mode keeps spawning, loops stronger regional bosses, rotates rules and pays survival milestones', async ({ page }) => {
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page,[],'endless');
+  const beforeSave=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  const started=await readBrowserRunSnapshot(page);
+  expect(started.gameMode).toBe('endless');
+  expect(started.bossSpawned).toBe(false);
+  expect(started.waveSpawnIndex).toBeGreaterThan(0);
+  expect(started.endless.bossCyclesCompleted).toBe(0);
+  expect(started.endless.nextBossAtMs).toBe(14*60*1000);
+
+  await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestAdvanceElapsed:(ms:number,skip?:boolean)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestAdvanceElapsed(14*60*1000,true);
+  });
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossSpawned).toBe(true);
+  const firstBoss=await readBrowserRunSnapshot(page);
+  expect(firstBoss.bossMaxHealth).toBeGreaterThan(0);
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).waveSpawnIndex).toBeGreaterThan(started.waveSpawnIndex);
+
+  await defeatBrowserTestBoss(page);
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestAvailable).toBe(true);
+  await moveToBrowserTestBossChest(page);
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossChestDiagnostics.collectOutcome,{timeout:5_000}).toBe('opened');
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).queuedLevels,{timeout:3_000}).toBeGreaterThan(0);
+  let pendingLevels=(await readBrowserRunSnapshot(page)).queuedLevels;
+  while(pendingLevels>0){
+    await page.locator('#game-container canvas').click({position:{x:520,y:382}});
+    await expect.poll(async()=> (await readBrowserRunSnapshot(page)).queuedLevels).toBeLessThan(pendingLevels);
+    pendingLevels=(await readBrowserRunSnapshot(page)).queuedLevels;
+  }
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).endless.bossCyclesCompleted,{timeout:5_000}).toBe(1);
+  const betweenBosses=await readBrowserRunSnapshot(page);
+  expect(betweenBosses.runFinished).toBe(false);
+  expect(betweenBosses.bossSpawned).toBe(false);
+  expect(betweenBosses.endless.nextBossAtMs).toBe(19*60*1000);
+
+  await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestClearEnemies:()=>void;browserTestAdvanceElapsed:(ms:number,skip?:boolean)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    const scene=game.scene.getScene('run');
+    scene.browserTestClearEnemies();
+    scene.browserTestAdvanceElapsed(5*60*1000,true);
+  });
+  await expect.poll(async()=> (await readBrowserRunSnapshot(page)).bossSpawned).toBe(true);
+  const secondBoss=await readBrowserRunSnapshot(page);
+  expect(secondBoss.endless.bossCyclesCompleted).toBe(1);
+  expect(secondBoss.endless.ruleId).toBe('blood-tide');
+  expect(secondBoss.endless.ruleModifiers.incomingDamageMultiplier).toBe(1.2);
+  expect(secondBoss.bossMaxHealth).toBeGreaterThan(firstBoss.bossMaxHealth!);
+
+  await page.evaluate(()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestFinishRun:()=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestFinishRun();
+  });
+  const finished=await readBrowserRunSnapshot(page);
+  expect(finished.runFinished).toBe(true);
+  expect(finished.lastRunSaved).toBe(true);
+  const afterSave=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(afterSave.progression.soulEssence).toBe(beforeSave.progression.soulEssence+finished.runSoulEssence);
+  expect(afterSave.progression.completedRuns).toBe(beforeSave.progression.completedRuns+1);
+  expect(pageErrors).toEqual([]);
+});
 
 test('Boss Hunt starts the selected regional boss immediately and persists only chest rewards', async ({ page }) => {
   const pageErrors:string[]=[];

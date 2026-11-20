@@ -1,4 +1,4 @@
-export type WaveBand = 'opening' | 'rising' | 'elite' | 'onslaught' | 'boss';
+export type WaveBand = 'opening' | 'rising' | 'elite' | 'onslaught' | 'boss' | 'endless';
 
 export interface WaveDirectorState {
   seed: number;
@@ -43,21 +43,22 @@ export function waveRandom(seed: number, index: number, salt = 0): number {
   return (value >>> 0) / 0x100000000;
 }
 
-export function getWaveBand(elapsedMs: number): WaveBand {
-  if (elapsedMs >= BOSS_START_MS) return 'boss';
+export function getWaveBand(elapsedMs: number, endlessMode = false): WaveBand {
+  if (elapsedMs >= BOSS_START_MS) return endlessMode ? 'endless' : 'boss';
   if (elapsedMs >= 11 * 60 * 1000) return 'onslaught';
   if (elapsedMs >= 7 * 60 * 1000) return 'elite';
   if (elapsedMs >= 3 * 60 * 1000) return 'rising';
   return 'opening';
 }
 
-function intervalForBand(band: WaveBand): number {
+function intervalForBand(band: WaveBand, elapsedMs: number): number {
   switch (band) {
     case 'opening': return 1500;
     case 'rising': return 1100;
     case 'elite': return 820;
     case 'onslaught': return 620;
     case 'boss': return Number.POSITIVE_INFINITY;
+    case 'endless': return Math.max(360, 620 - Math.floor(Math.max(0, elapsedMs - BOSS_START_MS) / 300_000) * 35);
   }
 }
 
@@ -71,11 +72,12 @@ export function stepWaveDirector(
   activeEnemyCount: number,
   activeEliteCount: number,
   maxActive = 42,
-  enemyPoolSize = 5
+  enemyPoolSize = 5,
+  endlessMode = false
 ): WaveSpawnPlan {
   const elapsed = Math.max(0, Number.isFinite(elapsedMs) ? elapsedMs : 0);
-  const band = getWaveBand(elapsed);
-  const intervalMs = intervalForBand(band);
+  const band = getWaveBand(elapsed, endlessMode);
+  const intervalMs = intervalForBand(band, elapsed);
   const emptyPlan = (nextState: WaveDirectorState = state): WaveSpawnPlan => ({
     state: nextState,
     band,
@@ -93,7 +95,8 @@ export function stepWaveDirector(
   const desiredCount = band === 'opening' ? 1
     : band === 'rising' ? 1 + (roll < 0.35 ? 1 : 0)
     : band === 'elite' ? 2 + (roll < 0.25 ? 1 : 0)
-    : 2 + (roll < 0.45 ? 1 : 0);
+    : band === 'onslaught' ? 2 + (roll < 0.45 ? 1 : 0)
+    : 3 + Math.min(2, Math.floor(Math.max(0, elapsed - BOSS_START_MS) / 300_000)) + (roll < 0.55 ? 1 : 0);
   const spawnCount = Math.min(slots, desiredCount);
   const eliteDue = elapsed >= state.nextEliteAtMs && activeEliteCount <= 0 && spawnCount > 0;
   const enemyIndices = Array.from({ length: spawnCount }, (_, offset) =>
