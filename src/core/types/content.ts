@@ -1,5 +1,6 @@
 export type ElementId='fire'|'ice'|'poison'|'dark'|'spirit'|'lightning'|'blood';
 export type RegionId='cursed-forest'|'forgotten-graveyard'|'deep-dungeon'|'rotten-swamp'|'cursed-castle';
+export type EnemyMutationId='poisonous'|'explosive'|'armored'|'fast'|'vampiric'|'cursed';
 export type EnemyBehavior='pursue'|'orbit'|'surge'|'rune-guardian'|'flank'|'poison-volley'|'nest-summon'|'shield-advance'|'soul-snipe'|'swarm'|'support-heal'|'leap'|'artillery'|'duelist'|'burrow'|'rune-sapper'|'ambush'|'blood-drain'|'volatile-bomber'|'hex-caster'|'web-control'|'phase-stalk'|'frost-hunt'|'mimic'|'soul-anchor'|'wraith';
 export type AssetRole='character'|'enemy'|'boss'|'weapon'|'passive'|'element'|'region'|'relic';
 export interface Telegraph { shape:'circle'|'line'|'cone'|'ring'|'cross'|'zone'; warningMs:number; cue:string }
@@ -7,7 +8,7 @@ export interface Attack { id:string; name:string; kind:string; damage:number; ra
 export type CharacterAbilityEffect='radial-knockback'|'guard-and-stagger'|'delayed-spirit-zone'|'blink-and-mark'|'health-sacrifice-lifesteal';
 export interface CharacterAbilityDefinition { id:string; cooldownMs:number; range:number; damageMultiplier:number; effect:CharacterAbilityEffect }
 export interface CharacterDefinition { id:string; name:string; role:string; description:string; health:number; moveSpeed:number; startingWeaponId:string; startingPassiveId:string; activeAbility:string; ability:CharacterAbilityDefinition; stats:{damageMultiplier:number;criticalChance:number;armor:number}; weaponSynergies:string[]; elementSynergies:ElementId[]; mastery:{level:number;rewardId:string;description:string}[]; cosmetics:string[]; story:string; assetId:string }
-export interface EnemyDefinition { id:string; name:string; regionId:RegionId; role:string; behavior:EnemyBehavior; health:number; speed:number; contactDamage:number; experience:number; radius:number; color:number; element:ElementId; resistances:Partial<Record<ElementId,number>>; attack:Attack; specialRule:string; mutationSlots:string[]; assetId:string }
+export interface EnemyDefinition { id:string; name:string; regionId:RegionId; role:string; behavior:EnemyBehavior; health:number; speed:number; contactDamage:number; experience:number; radius:number; color:number; element:ElementId; resistances:Partial<Record<ElementId,number>>; attack:Attack; specialRule:string; mutationSlots:readonly EnemyMutationId[]; assetId:string }
 export interface BossPhase { id:string; name:string; healthThreshold:number; arenaChange:string; attacks:Attack[]; addEnemyIds:string[]; phaseRule:string; bossDamageMultiplier?:number; movementMultiplier?:number }
 export interface BossEncounterVariantDefinition { id:string; bossId:string; name:string; description:string; phases:BossPhase[] }
 export interface BossDefinition { id:string; name:string; regionId:RegionId; title:string; health:number; contactDamage:number; arena:{shape:string;feature:string;hazard:string;boundaryRule:string}; phases:BossPhase[]; weakness:ElementId[]; resistance:Partial<Record<ElementId,number>>; reward:{soulEssence:number;relicId:string;unlockId:string}; story:string; musicId:string; assetId:string }

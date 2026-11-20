@@ -1,4 +1,4 @@
-import type {EnemyDefinition} from '../core/types/content.js';
+import type {EnemyDefinition,EnemyMutationId} from '../core/types/content.js';
 type Row=[string,string,string,string,number,number,number,number,string,string,number,string,string,string,string];
 const rows:Row[]=[
 ['rootbound-husk','Kök Tutsağı','cursed-forest','pursue',34,62,8,2,'poison','melee-swipe',8,'cone','Kökleri geriye çekilir','Yan adım at; yalnızca öne vurur.','Düz hatla takip eder.'],
@@ -27,7 +27,35 @@ const rows:Row[]=[
 ['soul-anchor','Ruh Çapası','cursed-castle','soul-anchor',118,20,12,10,'spirit','radial-pull',13,'ring','Zincirleri gerilir ve halka belirir','Halka kapanmadan çık; uzaktan yok edilebilir.','Yakındaki düşmanlara yüzde 12 hasar azaltımı verir.'],
 ['dusk-revenant','Alacakaranlık Hortlağı','cursed-castle','wraith',94,74,15,11,'blood','three-hit-combo',12,'cone','Kılıcı üç kez titreşir','İlk vuruştan sonra dash at; kombo yön değiştiremez.','Yarı can altında hızlanır ama kombodan sonra açılır.']
 ];
-export const ENEMIES:readonly EnemyDefinition[]=rows.map((r,i)=>({id:r[0],name:r[1],regionId:r[2] as EnemyDefinition['regionId'],behavior:r[3] as EnemyDefinition['behavior'],role:r[3],health:r[4],speed:r[5],contactDamage:r[6],experience:r[7],radius:[13,10,14,20,19][i%5],color:[0x8c5264,0x9b6b4d,0x78934f,0x6d7950,0xa58a58][i%5],element:r[8] as EnemyDefinition['element'],resistances:{[r[8]]:.15},attack:{id:r[0]+'-attack',name:r[9],kind:r[9],damage:r[10],range:180,cooldownMs:3000,telegraph:{shape:r[11] as EnemyDefinition['attack']['telegraph']['shape'],warningMs:700,cue:r[12]},counter:r[13]},specialRule:r[14],mutationSlots:['armored','cursed','fast'],assetId:'enemy.'+r[0]}));
+const MUTATION_SLOTS:Readonly<Record<string,readonly EnemyMutationId[]>>={
+  'rootbound-husk':["poisonous","armored","fast","cursed"],
+  'thorn-pouncer':["poisonous","explosive","fast","cursed"],
+  'spore-spitter':["poisonous","armored","vampiric","fast"],
+  'gravebloom-nest':["armored","fast","cursed","vampiric"],
+  'briarback-charger':["armored","fast","explosive","cursed"],
+  'tomb-warden':["armored","fast","cursed","poisonous"],
+  'wailing-wisp':["poisonous","fast","vampiric","cursed"],
+  'bone-skitter':["fast","poisonous","explosive","vampiric"],
+  'mourner-acolyte':["vampiric","cursed","armored","fast"],
+  'crypt-leaper':["fast","explosive","armored","cursed"],
+  'brass-sentinel':["armored","fast","cursed","poisonous"],
+  'ember-mortar':["explosive","fast","vampiric","cursed"],
+  'chain-duelist':["fast","armored","vampiric","cursed"],
+  'tunnel-burrower':["fast","explosive","cursed","poisonous"],
+  'rune-sapper':["explosive","cursed","fast","armored"],
+  'mire-lurker':["poisonous","vampiric","fast","cursed"],
+  'bog-leech':["poisonous","fast","armored","cursed"],
+  'gas-sac':["poisonous","armored","fast","cursed"],
+  'mire-witch':["poisonous","cursed","vampiric","fast"],
+  'web-weaver':["poisonous","armored","fast","vampiric"],
+  'veil-stalker':["cursed","fast","vampiric","explosive"],
+  'frost-hound':["fast","armored","cursed","poisonous"],
+  'mirror-mimic':["cursed","vampiric","fast","explosive"],
+  'soul-anchor':["armored","vampiric","cursed","fast"],
+  'dusk-revenant':["vampiric","cursed","fast","explosive"],
+};
+
+export const ENEMIES:readonly EnemyDefinition[]=rows.map((r,i)=>({id:r[0],name:r[1],regionId:r[2] as EnemyDefinition['regionId'],behavior:r[3] as EnemyDefinition['behavior'],role:r[3],health:r[4],speed:r[5],contactDamage:r[6],experience:r[7],radius:[13,10,14,20,19][i%5],color:[0x8c5264,0x9b6b4d,0x78934f,0x6d7950,0xa58a58][i%5],element:r[8] as EnemyDefinition['element'],resistances:{[r[8]]:.15},attack:{id:r[0]+'-attack',name:r[9],kind:r[9],damage:r[10],range:180,cooldownMs:3000,telegraph:{shape:r[11] as EnemyDefinition['attack']['telegraph']['shape'],warningMs:700,cue:r[12]},counter:r[13]},specialRule:r[14],mutationSlots:MUTATION_SLOTS[r[0]]??[],assetId:'enemy.'+r[0]}));
 export const STARTING_ENEMIES=ENEMIES.slice(0,3);
 
 export type {EnemyDefinition};

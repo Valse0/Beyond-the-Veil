@@ -378,3 +378,12 @@ No final UI art, balance sign-off, or physical-device validation is claimed by t
 - Browser smoke coverage uses live Phaser boss and event encounters and a guarded test-only snapshot bridge. The probes verify boss phase/health/mechanic information and event objective/progress/timer information; event timer assertions accept the authored event durations rather than assuming one shared duration.
 - CI #448 (run `44765415049`, commit `8052b1fc52e277c2ca091d7c2773dc4a464ca25c`, successful attempt 2) passed TypeScript, unit tests, production build, Chromium browser smoke tests and dependency security audit. The same run verifies the event timer and Soul Wisp fade probes after their test-stability fixes.
 - This is functional HUD coverage, not final visual sign-off. Responsive layout, safe-area/overlap review, final art/animation, and physical mobile/controller/TV validation remain outstanding.
+
+
+## Enemy Mutations v1 (2026-11-20)
+
+- Added six data-driven normal-enemy mutations: Poisonous, Explosive, Armored, Fast, Vampiric and Cursed. All 25 authored enemies now declare four eligible mutation slots; bosses, elites and summoned minions do not receive mutations.
+- Mutation rolls are deterministic from the run seed and regular-wave spawn index, use separate random salts, begin after 03:00 at 8%, rise linearly to 25% by 14:00, and remain capped at 25% in Endless.
+- Poisonous adds one player poison stack (maximum five) for six seconds; Explosive creates a 420 ms warning and a 92 px death blast; Armored takes 30% less damage; Fast moves 30% faster; Vampiric restores 20% of actual player health damage; Cursed increases subsequent incoming damage by 15% for four seconds.
+- Each mutated enemy receives a colored ring and Turkish mutation label. Mimics keep the marker hidden until their reveal, preserving the chest-disguise surprise.
+- The run clock and save schema are unchanged. No final art, dependencies, backend, paid services or external systems were added. Browser tests exercise each mutation through the live Phaser scene.

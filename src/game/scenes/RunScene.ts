@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { ElementId, RegionId, RegionPathDefinition, EnemyDefinition, BossDefinition, CharacterDefinition, WeaponDefinition, PassiveSpecialMechanic } from '../../core/types/content.js';
+import type { ElementId, RegionId, RegionPathDefinition, EnemyDefinition, EnemyMutationId, BossDefinition, CharacterDefinition, WeaponDefinition, PassiveSpecialMechanic } from '../../core/types/content.js';
 import type { ChallengeId, GameMode, RunState, UpgradeId } from '../../core/types/game.js';
 import { CHARACTERS, STARTING_CHARACTER } from '../../data/characters.js';
 import { ENEMIES } from '../../data/enemies.js';
@@ -21,6 +21,7 @@ import { resolveBossVariant } from '../../gameplay/bosses/boss-variant-runtime.j
 import { findNearestTarget } from '../../gameplay/combat/combat-rules.js';
 import { advanceRun, applyUpgrade, createRunState, gainExperience, recordKill } from '../../gameplay/run/run-model.js';
 import { stepEnemyAI, type EnemyActorState } from '../../gameplay/enemies/enemy-runtime.js';
+import { resolveEnemyMutation, getEnemyMutation, getEnemyMutationDamageMultiplier, getEnemyMutationMoveSpeedMultiplier, ENEMY_MUTATION_CURSE_DAMAGE_MULTIPLIER, ENEMY_MUTATION_CURSE_DURATION_MS, ENEMY_MUTATION_EXPLOSION_DAMAGE_MULTIPLIER, ENEMY_MUTATION_EXPLOSION_RADIUS, ENEMY_MUTATION_POISON_DURATION_MS, ENEMY_MUTATION_VAMPIRIC_HEAL_RATIO } from '../../gameplay/enemies/enemy-mutations.js';
 import { applyElementHit, tickElementStatuses, type ElementState } from '../../gameplay/elements/element-runtime.js';
 import { addPassive, addWeapon, choosePassiveSpecial, chooseWeaponBranch, deriveBuildStats, EMPTY_BUILD, evolveWeapon, upgradePassive, upgradeWeapon, weaponLevelStats, type BuildState } from '../../gameplay/weapons/build-runtime.js';
 import { getActiveWeaponSynergies, getWeaponSynergyChainBonus, getWeaponSynergyDamageMultiplier } from '../../gameplay/weapons/weapon-synergies.js';
@@ -147,6 +148,7 @@ export class RunScene extends Phaser.Scene {
   private bossTraceObjects!:Phaser.GameObjects.Group;
   private bossArenaState?:BossArenaState;
   private playerPoisonStacks=0;
+  private playerCursedUntil=0;
   private playerPoisonExpiresAt=0;
   private playerPoisonNextTickAt=0;
   private arenaInteractionReadyAt=0;
@@ -572,6 +574,76 @@ export class RunScene extends Phaser.Scene {
     this.damageEnemy(enemy,Number(enemy.getData('health'))*100);
   }
 
+
+  browserTestEnemyMutationProbe(mutationId:EnemyMutationId):Promise<{
+    mutationId:EnemyMutationId;label:string;markerVisible:boolean;armoredDamageRatio:number;moveSpeedRatio:number;
+    poisonStacks:number;vampiricHealing:number;curseActive:boolean;explosionDamage:number
+  }> {
+    this.assertBrowserTestMode();
+    this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};
+    for(const child of [...this.enemies.getChildren()]){
+      const enemy=child as Phaser.Physics.Arcade.Sprite;
+      (enemy.getData('eliteMarker') as Phaser.GameObjects.GameObject|undefined)?.destroy();
+      enemy.destroy();
+    }
+    const originalElapsed=this.state.elapsedMs;
+    this.state={...this.state,elapsedMs:8*60_000};
+    const definition=ENEMIES.find(item=>item.mutationSlots.includes(mutationId)&&item.behavior!=='mimic');
+    if(!definition)throw new Error('No eligible enemy for mutation: '+mutationId);
+    let spawnIndex=-1;
+    for(let index=0;index<20_000;index++){
+      if(resolveEnemyMutation(this.runSeed,index,this.state.elapsedMs,definition.mutationSlots)===mutationId){spawnIndex=index;break;}
+    }
+    if(spawnIndex<0)throw new Error('Could not find deterministic mutation roll for '+mutationId);
+    const enemy=this.createEnemy(this.player.x+240,this.player.y,definition,100,false,spawnIndex);
+    this.state={...this.state,elapsedMs:originalElapsed};
+    if(enemy.getData('mutationId')!==mutationId)throw new Error('Spawn did not receive requested mutation.');
+    const marker=enemy.getData('mutationMarker') as Phaser.GameObjects.Container|undefined;
+    const label=getEnemyMutation(mutationId)?.label??'';
+    const result={mutationId,label,markerVisible:Boolean(marker?.visible),armoredDamageRatio:0,moveSpeedRatio:0,poisonStacks:0,vampiricHealing:0,curseActive:false,explosionDamage:0};
+    if(mutationId==='armored'){
+      const before=Number(enemy.getData('health'));
+      for(let i=0;i<50;i++)this.damageEnemy(enemy,1);
+      result.armoredDamageRatio=(before-Number(enemy.getData('health')))/50;
+      enemy.destroy();
+      return Promise.resolve(result);
+    }
+    if(mutationId==='fast'){
+      const actor=this.enemyStates.get(enemy);if(!actor)throw new Error('Mutation probe actor state missing.');
+      const probeTime=this.time.now+16;
+      this.moveEnemies(probeTime);
+      const mutatedSpeed=(enemy.body as Phaser.Physics.Arcade.Body).velocity.length();
+      this.enemyStates.set(enemy,actor);
+      enemy.setData('mutationId',null);
+      this.moveEnemies(probeTime);
+      const baseSpeed=(enemy.body as Phaser.Physics.Arcade.Body).velocity.length();
+      result.moveSpeedRatio=baseSpeed>0?mutatedSpeed/baseSpeed:0;
+      enemy.destroy();
+      return Promise.resolve(result);
+    }
+    if(mutationId==='explosive'){
+      this.player.setPosition(enemy.x,enemy.y);(this.player.body as Phaser.Physics.Arcade.Body).reset(enemy.x,enemy.y);
+      this.state={...this.state,health:this.state.maxHealth};
+      const before=this.state.health;
+      this.damageEnemy(enemy,100_000);
+      return new Promise(resolve=>this.time.delayedCall(520,()=>{
+        result.explosionDamage=before-this.state.health;
+        resolve(result);
+      }));
+    }
+    this.nextDamage=0;
+    this.state={...this.state,health:this.state.maxHealth};
+    this.playerPoisonStacks=0;this.playerPoisonExpiresAt=0;this.playerPoisonNextTickAt=0;this.playerCursedUntil=0;
+    if(mutationId==='vampiric')enemy.setData('health',Number(enemy.getData('maxHealth'))*.5);
+    const enemyHealthBefore=Number(enemy.getData('health'));
+    this.contactDamage(enemy);
+    if(mutationId==='poisonous')result.poisonStacks=this.playerPoisonStacks;
+    if(mutationId==='vampiric')result.vampiricHealing=Number(enemy.getData('health'))-enemyHealthBefore;
+    if(mutationId==='cursed')result.curseActive=this.playerCursedUntil>this.time.now;
+    enemy.destroy();
+    return Promise.resolve(result);
+  }
+
   browserTestEnemySupportProbe():{hexSpeedMultiplier:number;webEnemySlowMultiplier:number;webPlayerSlowMultiplier:number} {
     this.assertBrowserTestMode();
     this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};
@@ -950,7 +1022,7 @@ export class RunScene extends Phaser.Scene {
     this.runSeed=typeof requestedSeed==='number'&&Number.isFinite(requestedSeed)?requestedSeed>>>0:((Date.now()^Math.floor(Math.random()*0xffffffff))>>>0);
     if(this.runSeed===0)this.runSeed=1;
     this.waveDirector=createWaveDirector(this.runSeed);this.endlessState=createEndlessRuntimeState();this.runEventState=createRunEventState(this.runSeed);this.eventSetupPending=false;this.pendingCursedStage=1;this.weaponReady={};this.bossDefinition=undefined;this.bossState=undefined;this.bossSprite=undefined;
-    this.bossElementState={};this.bossArenaState=undefined;this.playerPoisonStacks=0;this.playerPoisonExpiresAt=0;this.playerPoisonNextTickAt=0;this.arenaInteractionReadyAt=0;this.lastBossArenaVisualsAt=0;this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
+    this.bossElementState={};this.bossArenaState=undefined;this.playerPoisonStacks=0;this.playerCursedUntil=0;this.playerPoisonExpiresAt=0;this.playerPoisonNextTickAt=0;this.arenaInteractionReadyAt=0;this.lastBossArenaVisualsAt=0;this.enemyStates=new WeakMap();this.elementStates=new WeakMap();
     this.basePowerBonus=0;this.baseMagnetBonus=0;this.baseHasteMultiplier=1;this.playerSlowUntil=0;this.playerSlowMultiplier=1;this.enemyZones=[];this.passiveZones.forEach(zone=>zone.marker.destroy());this.passiveZones=[];this.passiveSpecialState=createPassiveSpecialRuntimeState();this.passiveSpecialFeedback?.destroy();this.passiveSpecialFeedback=undefined;this.weaponSynergyGuardUntil=0;this.weaponSynergyGuardReduction=.28;this.weaponSynergyTriggers=[];
     this.hazardCycle=createHazardCycle(this.time.now);this.activeHazardId='';this.hazardHasHit=false;this.hazardTargetForced=false;this.hazardPoisonStacks=0;this.hazardPoisonExpiresAt=0;this.hazardPoisonNextTickAt=0;this.hazardLastEffectId='';this.hazardLastDamage=0;this.bossSpawned=false;this.bossVictoryPending=false;this.bossChestOverlapCount=0;this.bossChestLastOverlapAtMs=null;this.bossChestCollectCount=0;this.bossChestLastCollectAtMs=null;this.bossChestLastCollectObjectActive=null;this.bossChestLastCollectPending=null;this.bossChestCollectOutcome='none';this.bossChestOpenedAtMs=null;this.bossChestFinishScheduledAtMs=null;this.bossChestFinishCallbackAtMs=null;this.bossChestFinishTimer=undefined;this.runFinished=false;this.runSoulEssence=0;this.runRelicIds=[];this.runDiscoveredLoreIds=[];this.runDiscoveredPathIds=[];this.activeStoryPaths=[];this.lastTraversedStoryPathId=null;this.activeStoryWorldState=null;this.storyWorldObjectCount=0;this.bossChestOpened=false;this.completedTreasureHunt=false;this.runCraftingMaterials={};this.lastRunSaved=null;
     const resolvedMap=resolveRegionMap(this.region.id);this.mapLayout=resolvedMap.layout;this.mapBoundaryCount=resolvedMap.boundary.length;this.mapConnected=resolvedMap.connected;
@@ -1175,6 +1247,7 @@ export class RunScene extends Phaser.Scene {
       // Ability probe dummies stay fixed so delayed area effects are tested against a stable hit area.
       if(enemy.getData('abilityProbeTarget')===true){enemy.setVelocity(0,0);continue;}
       if(enemy.getData('isBoss')){this.moveBoss(enemy,time);continue;}
+      const mutationMarker=enemy.getData('mutationMarker') as Phaser.GameObjects.Container|undefined;mutationMarker?.setPosition(enemy.x,enemy.y);
       const baseDef=this.enemyDefinition(enemy);if(!baseDef)continue;
       const def=this.scaledEnemyDefinitions.get(baseDef.id)??baseDef;
       const old=this.enemyStates.get(enemy)??{x:enemy.x,y:enemy.y,health:Number(enemy.getData('health')),nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false};
@@ -1182,8 +1255,9 @@ export class RunScene extends Phaser.Scene {
       const intent=stepEnemyAI(def,state,{x:this.player.x,y:this.player.y},time,16);
       this.enemyStates.set(enemy,intent.state);
       if(intent.special)this.applyEnemySpecial(enemy,def,intent.special);
-      if(def.behavior==='mimic'&&!intent.state.burrowed&&!enemy.getData('mimicRevealed')){enemy.setData('mimicRevealed',true);this.enemyStates.set(enemy,{...intent.state,burrowed:false,exposedUntil:Number.MAX_SAFE_INTEGER});enemy.clearTint();enemy.setAlpha(1);this.cameras.main.shake(70,.001);}
-      if(def.behavior==='volatile-bomber'){
+      if(def.behavior==='mimic'&&!intent.state.burrowed&&!enemy.getData('mimicRevealed')){enemy.setData('mimicRevealed',true);this.enemyStates.set(enemy,{...intent.state,burrowed:false,exposedUntil:Number.MAX_SAFE_INTEGER});enemy.clearTint();enemy.setAlpha(1);(enemy.getData('mutationMarker') as Phaser.GameObjects.Container|undefined)?.setVisible(true);this.cameras.main.shake(70,.001);}
+      if(enemy.getData('mutationId')==='explosive')this.triggerEnemyMutationExplosion(enemy,def);
+    if(def.behavior==='volatile-bomber'){
         const primed=Phaser.Math.Distance.Between(enemy.x,enemy.y,this.player.x,this.player.y)<175;
         if(Boolean(enemy.getData('primed'))!==primed){enemy.setData('primed',primed);enemy.setTint(primed?0xf2b34d:0xffffff);}
       }
@@ -1216,7 +1290,8 @@ export class RunScene extends Phaser.Scene {
       const enemySlow=Number(enemy.getData('enemySlowUntil')??0)>time?Number(enemy.getData('enemySlowMultiplier')??1):1;
       const moveBuff=Number(enemy.getData('moveSpeedBuffUntil')??0)>time?Number(enemy.getData('moveSpeedBuff')??1):1;
       const endlessSpeed=this.gameMode==='endless'?getEndlessRuleModifiers(this.state.elapsedMs).enemyMoveSpeedMultiplier:1;
-      vx*=enemySlow*moveBuff*challengeSpeed*endlessSpeed;vy*=enemySlow*moveBuff*challengeSpeed*endlessSpeed;
+      const mutationSpeed=getEnemyMutationMoveSpeedMultiplier(enemy.getData('mutationId'));
+      vx*=enemySlow*moveBuff*challengeSpeed*endlessSpeed*mutationSpeed;vy*=enemySlow*moveBuff*challengeSpeed*endlessSpeed*mutationSpeed;
       const abilityStaggered=Number(enemy.getData('abilityStaggeredUntil')??0)>time;
       enemy.setVelocity(effects.stunned||effects.frozen||abilityStaggered?0:vx,effects.stunned||effects.frozen||abilityStaggered?0:vy);
       if(effects.damage>0)this.damageEnemy(enemy,effects.damage);
@@ -1275,7 +1350,8 @@ export class RunScene extends Phaser.Scene {
       else{marker.strokeCircle(x,y,radius);marker.fillCircle(x,y,radius);}
       if(this.isInsideTelegraph(shape,source,x,y,radius)){
         const weaken=Number(source.getData('weakenedUntil')??0)>this.time.now?Number(source.getData('weakenedMultiplier')??1):1;
-        this.receiveCombatDamage(damage*weaken);
+        const actualDamage=this.receiveCombatDamage(damage*weaken);
+        if(def&&!source.getData('isElite'))this.applyEnemyMutationHit(source,actualDamage);
         if(source.getData('isBoss')&&this.bossDefinition?.id==='mire-oracle'&&!this.runFinished){
           this.playerPoisonStacks=Math.min(5,this.playerPoisonStacks+1);this.playerPoisonExpiresAt=this.time.now+8_000;
           if(this.playerPoisonNextTickAt<=this.time.now)this.playerPoisonNextTickAt=this.time.now+1_000;
@@ -1325,7 +1401,7 @@ export class RunScene extends Phaser.Scene {
       const y=Phaser.Math.Clamp(this.player.y+Math.sin(angle)*distance,35,WORLD_H-35);
       const definition=pool[plan.enemyIndices[i]??0]!;
       const spawn=resolveRegionMapPosition(this.mapLayout,x,y,definition.radius+24);
-      this.createEnemy(spawn.x,spawn.y,definition,scale,plan.eliteDue&&i===0);
+      this.createEnemy(spawn.x,spawn.y,definition,scale,plan.eliteDue&&i===0,sequence);
     }
   }
 
@@ -1341,7 +1417,7 @@ export class RunScene extends Phaser.Scene {
     this.createEnemy(spawn.x,spawn.y,def,1);
   }
 
-  private createEnemy(x:number,y:number,def:EnemyDefinition,scale:number,isElite=false):Phaser.Physics.Arcade.Sprite {
+  private createEnemy(x:number,y:number,def:EnemyDefinition,scale:number,isElite=false,spawnIndex?:number):Phaser.Physics.Arcade.Sprite {
     const endlessModifiers=this.gameMode==='endless'?getEndlessRuleModifiers(this.state.elapsedMs):getEndlessRuleModifiers(0);
     const newGamePlusModifiers=getNewGamePlusModifiers(this.newGamePlusLevel);
     const healthScale=scale*(isElite?2.4:1)*endlessModifiers.enemyHealthMultiplier*newGamePlusModifiers.enemyHealthMultiplier;
@@ -1355,8 +1431,48 @@ export class RunScene extends Phaser.Scene {
       enemy.setTint(0xd9ad5c).setData('isElite',true) .setData('eliteId',this.region.elite.id).setData('eliteName',this.region.elite.name).setData('eliteBehavior',this.region.elite.behavior).setData('eliteReward',this.region.elite.reward).setData('eliteMarker',marker).setData('eliteAttackReady',this.time.now+2400).setData('eliteEnraged',false);
     }
     if(def.behavior==='mimic'&&!isElite){enemy.setAlpha(.2).setTint(0xd5bd8b).setData('mimicRevealed',false);}
+    if(!isElite&&spawnIndex!==undefined){const mutationId=resolveEnemyMutation(this.runSeed,spawnIndex,this.state.elapsedMs,def.mutationSlots);if(mutationId)this.applyEnemyMutation(enemy,def,mutationId);}
     this.enemyStates.set(enemy,{x:safe.x,y:safe.y,health:maxHealth,nextAttackAt:0,stateUntil:0,facingX:1,facingY:0,exposedUntil:0,burrowed:false,nextSpecialAt:this.time.now+1800,attackCount:0});
     return enemy;
+  }
+
+
+  private applyEnemyMutation(enemy:Phaser.Physics.Arcade.Sprite,def:EnemyDefinition,mutationId:EnemyMutationId):void {
+    const mutation=getEnemyMutation(mutationId);if(!mutation)return;
+    enemy.setData('mutationId',mutationId);
+    const marker=this.add.container(enemy.x,enemy.y).setDepth(4);
+    const ring=this.add.circle(0,0,def.radius+8,mutation.color,0).setStrokeStyle(2,mutation.color,.95);
+    const label=this.add.text(0,-def.radius-17,mutation.label,{fontFamily:'Georgia',fontSize:'10px',fontStyle:'bold',color:mutation.textColor,stroke:'#17131b',strokeThickness:3}).setOrigin(.5);
+    marker.add([ring,label]);
+    if(def.behavior==='mimic'&&enemy.getData('mimicRevealed')===false)marker.setVisible(false);
+    enemy.setData('mutationMarker',marker);
+    enemy.once(Phaser.GameObjects.Events.DESTROY,()=>marker.destroy());
+  }
+
+  private triggerEnemyMutationExplosion(enemy:Phaser.Physics.Arcade.Sprite,def:EnemyDefinition):void {
+    const x=enemy.x,y=enemy.y,radius=ENEMY_MUTATION_EXPLOSION_RADIUS;
+    const damage=Math.max(8,def.attack.damage*ENEMY_MUTATION_EXPLOSION_DAMAGE_MULTIPLIER);
+    const warning=this.add.circle(x,y,radius,0xe7a34b,.12).setStrokeStyle(3,0xe7a34b,.95).setDepth(7);
+    this.tweens.add({targets:warning,scale:1.08,alpha:.32,duration:420});
+    this.time.delayedCall(420,()=>{
+      warning.destroy();
+      if(!this.runFinished&&Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)<=radius+12)this.receiveCombatDamage(damage);
+    });
+  }
+
+  private applyEnemyMutationHit(enemy:Phaser.Physics.Arcade.Sprite,actualDamage:number):void {
+    if(actualDamage<=0||!enemy.active)return;
+    const mutationId=enemy.getData('mutationId') as EnemyMutationId|undefined;
+    if(mutationId==='poisonous'){
+      this.playerPoisonStacks=Math.min(5,this.playerPoisonStacks+1);
+      this.playerPoisonExpiresAt=this.time.now+ENEMY_MUTATION_POISON_DURATION_MS;
+      if(this.playerPoisonNextTickAt<=this.time.now)this.playerPoisonNextTickAt=this.time.now+1_000;
+    }else if(mutationId==='vampiric'){
+      const health=Number(enemy.getData('health')),maximum=Number(enemy.getData('maxHealth'));
+      enemy.setData('health',Math.min(maximum,health+actualDamage*ENEMY_MUTATION_VAMPIRIC_HEAL_RATIO));
+    }else if(mutationId==='cursed'){
+      this.playerCursedUntil=this.time.now+ENEMY_MUTATION_CURSE_DURATION_MS;
+    }
   }
 
   private bossArenaHint():string {
@@ -1747,6 +1863,7 @@ export class RunScene extends Phaser.Scene {
     if(element==='fire'&&isPassiveSpecialActive(this.build,'ashen-heart')){const fire=PASSIVES.find(item=>item.id==='ashen-heart')!.specialUpgrade.mechanic;if(fire.kind==='fire-explosion'){const ready=tryPassiveCooldown(this.passiveSpecialState,'ember-core',this.time.now,fire.cooldownMs);this.passiveSpecialState=ready.state;if(ready.triggered)for(const nearby of this.activeTargets()){if(nearby!==enemy&&Phaser.Math.Distance.Between(enemy.x,enemy.y,nearby.x,nearby.y)<=fire.radius)this.damageEnemy(nearby,damage*fire.damageMultiplier);}}}
     const ice=PASSIVES.find(item=>item.id==='frostbound-sigil')!.specialUpgrade.mechanic;
     if(ice.kind==='ice-shatter'&&isPassiveSpecialActive(this.build,'frostbound-sigil')&&baseDamage>=ice.minimumHitDamage&&isFrozenTarget(existing.ice?.expiresAt,this.time.now)&&Number(enemy.getData('iceShatteredUntil')??0)<(existing.ice?.expiresAt??0)){damage+=baseDamage*ice.damageMultiplier;enemy.setData('iceShatteredUntil',existing.ice!.expiresAt);}
+    damage*=getEnemyMutationDamageMultiplier(enemy.getData('mutationId'));
     const previousHealth=Number(enemy.getData('health'));const hp=previousHealth-damage;enemy.setData('health',hp).setTint(element?elementTint[element]:0xffffff);
     this.time.delayedCall(70,()=>{if(enemy.active){if(enemy.getData('isElite'))enemy.setTint(enemy.getData('eliteEnraged')?0xf2a85c:0xd9ad5c);else enemy.clearTint();}});
     if(hp>0)return Math.min(previousHealth,damage);
@@ -2189,16 +2306,18 @@ export class RunScene extends Phaser.Scene {
     const baseDef=this.enemyDefinition(enemy);const def=baseDef?this.scaledEnemyDefinitions.get(baseDef.id)??baseDef:undefined;const actor=this.enemyStates.get(enemy);if(actor?.burrowed||Number(enemy.getData('untargetableUntil')??0)>this.time.now)return;
     const base=enemy.getData('isBoss')?(this.bossDefinition?.contactDamage??24):(def?.contactDamage??9)*(enemy.getData('isElite')?1.4:1);
     const damage=base*getWeakenedDamageMultiplier(Number(enemy.getData('weakenedUntil')??0),this.time.now,Number(enemy.getData('weakenedMultiplier')??1));
-    this.nextDamage=this.time.now+650;this.receiveCombatDamage(damage);
+    this.nextDamage=this.time.now+650;const actualDamage=this.receiveCombatDamage(damage);this.applyEnemyMutationHit(enemy,actualDamage);
   }
 
-  private receiveCombatDamage(amount:number):void {
+  private receiveCombatDamage(amount:number):number {
+    const healthBefore=this.state.health;
     const sealed=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='sealed-plate')?.specialUpgrade.mechanic;
     if(sealed?.kind==='sealed-plate'){
       const result=resolveSealedPlate(this.passiveSpecialState,this.state.elapsedMs,isPassiveSpecialActive(this.build,'graveplate'),sealed.intervalMs);
       this.passiveSpecialState=result.state;
-      if(result.blocked){this.showPassiveSpecialFeedback('MÜHÜRLÜ PLAKA  •  HASAR ENGELLENDİ');return;}
+      if(result.blocked){this.showPassiveSpecialFeedback('MÜHÜRLÜ PLAKA  •  HASAR ENGELLENDİ');return 0;}
     }
+    if(this.time.now<this.playerCursedUntil)amount*=ENEMY_MUTATION_CURSE_DAMAGE_MULTIPLIER;
     if(this.gameMode==='endless')amount*=getEndlessRuleModifiers(this.state.elapsedMs).incomingDamageMultiplier;
     if(this.time.now<this.abilityGuardUntil)amount*=this.abilityGuardDamageMultiplier;
     if(this.time.now<this.weaponSynergyGuardUntil)amount*=1-this.weaponSynergyGuardReduction;
@@ -2209,6 +2328,7 @@ export class RunScene extends Phaser.Scene {
     if(protectedHit.triggered)this.passiveSpecialState={...this.passiveSpecialState,used:[...this.passiveSpecialState.used,'last-ward']};
     this.state={...this.state,health:protectedHit.health};this.cameras.main.shake(90,.002);this.refreshHud();
     if(this.state.health<=0)this.finishRun(false);
+    return Math.max(0,healthBefore-this.state.health);
   }
 
   private healPlayer(amount:number):void {this.state={...this.state,health:Math.min(this.state.maxHealth,this.state.health+Math.max(0,amount))};}

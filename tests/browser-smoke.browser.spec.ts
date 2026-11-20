@@ -2051,3 +2051,34 @@ test('New Game+ unlocks after an ending, confirms the reset, and scales live ene
   expect(probe.boss.movementMultiplier).toBeCloseTo(1.03);
   expect(pageErrors).toEqual([]);
 });
+
+
+test('six seeded enemy mutations execute their live Phaser combat effects and readable markers',async({page})=>{
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  const results=await page.evaluate(async()=>{
+    const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestEnemyMutationProbe:(id:string)=>Promise<{
+      mutationId:string;label:string;markerVisible:boolean;armoredDamageRatio:number;moveSpeedRatio:number;
+      poisonStacks:number;vampiricHealing:number;curseActive:boolean;explosionDamage:number
+    }>}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    const scene=game.scene.getScene('run');
+    const ids=['poisonous','explosive','armored','fast','vampiric','cursed'];
+    const snapshots=[];
+    for(const id of ids)snapshots.push(await scene.browserTestEnemyMutationProbe(id));
+    return snapshots;
+  });
+  expect(results.map(item=>item.mutationId)).toEqual(['poisonous','explosive','armored','fast','vampiric','cursed']);
+  expect(results.every(item=>item.markerVisible&&item.label.length>0)).toBe(true);
+  expect(results.find(item=>item.mutationId==='poisonous')?.poisonStacks).toBe(1);
+  expect(results.find(item=>item.mutationId==='explosive')?.explosionDamage).toBeGreaterThan(0);
+  const armor=results.find(item=>item.mutationId==='armored')!.armoredDamageRatio;
+  expect(armor).toBeGreaterThan(.6);
+  expect(armor).toBeLessThan(.85);
+  expect(results.find(item=>item.mutationId==='fast')?.moveSpeedRatio).toBeCloseTo(1.3,1);
+  expect(results.find(item=>item.mutationId==='vampiric')?.vampiricHealing).toBeGreaterThan(0);
+  expect(results.find(item=>item.mutationId==='cursed')?.curseActive).toBe(true);
+  expect(pageErrors).toEqual([]);
+});
+
