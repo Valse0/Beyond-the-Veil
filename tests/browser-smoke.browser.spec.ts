@@ -1821,6 +1821,12 @@ test('beyond-veil branch displays its distinct epilogue and New Game+ return pat
   await expect.poll(async () => (await readBrowserRunSnapshot(page)).bossChestAvailable).toBe(true);
   await moveToBrowserTestBossChest(page);
   await expect.poll(async () => (await readBrowserRunSnapshot(page)).bossChestDiagnostics.collectOutcome, { timeout: 5_000 }).toBe('opened');
+  let queued = (await readBrowserRunSnapshot(page)).queuedLevels;
+  while (queued > 0) {
+    await page.locator('#game-container canvas').click({ position: { x: 520, y: 382 } });
+    await expect.poll(async () => (await readBrowserRunSnapshot(page)).queuedLevels).toBeLessThan(queued);
+    queued = (await readBrowserRunSnapshot(page)).queuedLevels;
+  }
   await expect.poll(async () => (await readBrowserRunSnapshot(page)).lastRunSaved, { timeout: 8_000 }).toBe(true);
 
   const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
