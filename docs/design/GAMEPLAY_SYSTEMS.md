@@ -368,3 +368,13 @@ No final UI art, balance sign-off, or physical-device validation is claimed by t
 - The journal is read-only: it derives its content from the existing schema-v11 local profile and does not mutate progression, start quests or apply outcomes. No save migration, dependency, backend or final art was added.
 - Keyboard arrows and gamepad D-pad/left-stick navigate regions; Escape/B closes the journal. Pointer/touch selects region cards and the close control.
 - Browser verification covers saved active objective progress, a completed branch and its NPC/atmosphere/boss/path/lore outcomes, ending history, keyboard region navigation, Main Menu return, and opening/closing over a paused run without resuming gameplay. CI #443 (run `44752050822`, commit `d787c8ca0cc3987ce104e5e935b1e63fbb373a36`): TypeScript PASS; unit tests PASS; production build PASS; Chromium Playwright PASS; npm audit PASS.
+
+
+## Boss and Event HUD v1
+
+- The in-run boss panel displays the active boss name, current phase number and authored phase name, current health and percentage, and a live health bar. It also presents the boss arena's mechanic counter-hint so the player can understand the active arena interaction.
+- The run-event panel displays the active event title, objective, progress bar and remaining timer. Completion and failure states are represented with explicit status labels.
+- HUD refresh is driven by the existing RunScene boss and event state; the feature does not introduce a second gameplay clock or alter boss/event rules, rewards, combat, or progression.
+- Browser smoke coverage uses live Phaser boss and event encounters and a guarded test-only snapshot bridge. The probes verify boss phase/health/mechanic information and event objective/progress/timer information; event timer assertions accept the authored event durations rather than assuming one shared duration.
+- CI #448 (run `44765415049`, commit `8052b1fc52e277c2ca091d7c2773dc4a464ca25c`, successful attempt 2) passed TypeScript, unit tests, production build, Chromium browser smoke tests and dependency security audit. The same run verifies the event timer and Soul Wisp fade probes after their test-stability fixes.
+- This is functional HUD coverage, not final visual sign-off. Responsive layout, safe-area/overlap review, final art/animation, and physical mobile/controller/TV validation remain outstanding.
