@@ -153,7 +153,6 @@ export class RegionSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
     const modeY = this.touchLayout ? 485 : 588;
     const modeOffset = this.touchLayout ? 390 : 288;
-    const modeStep = this.touchLayout ? 260 : 192;
     this.makeModeButton(width / 2 - modeOffset, modeY, 'SURVIVAL', 'survival');
     this.makeModeButton(width / 2 - (this.touchLayout ? 130 : 96), modeY, 'BOSS HUNT', 'boss-hunt');
     this.makeModeButton(width / 2 + (this.touchLayout ? 130 : 96), modeY, 'MEYDAN OKUMA', 'challenge');
