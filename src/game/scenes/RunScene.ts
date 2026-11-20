@@ -37,7 +37,8 @@ import { createWaveDirector, stepWaveDirector, waveRandom, type WaveDirectorStat
 import { advanceRunEvent, createRunEventState, getRunEventName, getRunEventObjective, getRunEventReward, recordRunEventAction, startDueRunEvent, type RunEventAction, type RunEventKind, type RunEventState } from '../../gameplay/events/run-events.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import type { SaveData } from '../../systems/save/save-types.js';
-import { recordQuestEvent, startAvailableQuests } from '../../gameplay/quests/quest-runtime.js';
+import { areQuestObjectivesComplete, chooseQuestBranch, recordQuestEvent, startAvailableQuests } from '../../gameplay/quests/quest-runtime.js';
+import { QUESTS, QUEST_BY_ID } from '../../data/quests.js';
 import { completeEnding } from '../../gameplay/endings/ending-runtime.js';
 import { EMPTY_GAMEPAD_FRAME, resolveGamepadInput, type GamepadFrame, type GamepadActions } from '../input/gamepad-controls.js';
 import { createLevelUpControlState, drawLevelUpChoices as drawChoicesFromPool, spendLevelUpBanish, spendLevelUpReroll, spendLevelUpSkip, type LevelUpControlState } from '../../gameplay/level-up/level-up-controls.js';
@@ -204,6 +205,10 @@ export class RunScene extends Phaser.Scene {
   private storyWorldObjectCount=0;
   private lastTraversedStoryPathId:string|null=null;
   private questSaveData?:SaveData;
+  private questHud?:Phaser.GameObjects.Text;
+  private questHudPanel?:Phaser.GameObjects.Rectangle;
+  private pendingQuestChoiceId:string|null=null;
+  private questChoiceErrorText?:Phaser.GameObjects.Text;
   private runDiscoveredWeaponIds:string[]=[];
   private unlockedWeaponVariantIds:string[]=[];
   private runCraftingMaterials:Record<string,number>={};
@@ -333,6 +338,7 @@ export class RunScene extends Phaser.Scene {
     paused:boolean;bossSpawned:boolean;bossVariantId:string|null;bossChestAvailable:boolean;bossVictoryPending:boolean;evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
     runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;bossMaxHealth:number|null;health:number;maxHealth:number;damage:number;moveSpeed:number;
     questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
+    questChoice:{questId:string;choiceIds:string[]}|null;questTrackerText:string;
     discoveredLoreIds:string[];discoveredPathIds:string[];explorationLandmarks:{id:string;kind:string;name:string;description:string;motif:string;decorationVisible:boolean}[];availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
     storyWorldState:{npcId:string|null;npcName:string|null;npcFateId:string|null;npcFateLabel:string|null;atmosphereId:string|null;atmosphereName:string|null;renderedObjectCount:number};
     passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
@@ -357,6 +363,7 @@ export class RunScene extends Phaser.Scene {
       runSoulEssence:this.runSoulEssence,runRelicIds:[...this.runRelicIds],equippedRelicIds:[...this.equippedRelicIds],runCraftingMaterials:{...this.runCraftingMaterials},kills:this.state.kills,runFinished:this.runFinished,lastRunSaved:this.lastRunSaved,
       bossHealth:this.bossState?.health??null,bossMaxHealth:this.bossState?.maxHealth??null,endless:{bossCyclesCompleted:this.endlessState.bossCyclesCompleted,nextBossAtMs:this.endlessState.nextBossAtMs,ruleId:getEndlessRule(this.state.elapsedMs)?.id??null,ruleName:getEndlessRule(this.state.elapsedMs)?.name??null,ruleModifiers:getEndlessRuleModifiers(this.state.elapsedMs)},health:this.state.health,maxHealth:this.state.maxHealth,damage:this.state.damage,moveSpeed:this.state.moveSpeed,
       questProgress:Object.fromEntries(Object.entries(this.questSaveData?.story.quests??{}).map(([id,progress])=>[id,{status:progress.status,objectiveProgress:{...progress.objectiveProgress}}])),
+      questChoice:this.pendingQuestChoiceId?{questId:this.pendingQuestChoiceId,choiceIds:QUEST_BY_ID.get(this.pendingQuestChoiceId)?.choices.map(choice=>choice.id)??[]}:null,questTrackerText:this.questHud?.text??'',
       discoveredLoreIds:[...this.runDiscoveredLoreIds],discoveredPathIds:[...this.runDiscoveredPathIds],explorationLandmarks:this.eventObjects.getChildren().filter(object=>object.getData('eventObjectType')==='exploration-lore'||object.getData('eventObjectType')==='exploration-secret').map(object=>({id:String(object.getData('explorationPointId')),kind:String(object.getData('eventObjectType')),name:String(object.getData('explorationName')),description:String(object.getData('explorationDescription')),motif:String(object.getData('explorationMotif')),decorationVisible:Boolean((object.getData('eventObjectDecoration') as Phaser.GameObjects.GameObject|undefined)?.active)})),availableStoryPathIds:this.activeStoryPaths.map(path=>path.id),lastTraversedStoryPathId:this.lastTraversedStoryPathId,
       storyWorldState:{npcId:this.activeStoryWorldState?.npc?.definition.id??null,npcName:this.activeStoryWorldState?.npc?.definition.name??null,npcFateId:this.activeStoryWorldState?.npc?.fateId??null,npcFateLabel:this.activeStoryWorldState?.npc?.fate.label??null,atmosphereId:this.activeStoryWorldState?.atmosphere?.id??null,atmosphereName:this.activeStoryWorldState?.atmosphere?.name??null,renderedObjectCount:this.storyWorldObjectCount},
       bossChestDiagnostics:(()=>{
@@ -784,6 +791,16 @@ export class RunScene extends Phaser.Scene {
     this.damageEnemy(enemy,Number(enemy.getData('health'))*100);
   }
 
+  browserTestCompleteQuestObjectives(questId:string):void {
+    this.assertBrowserTestMode();
+    const quest=QUEST_BY_ID.get(questId);
+    if(!quest||quest.regionId!==this.region.id||!this.questSaveData)throw new Error('The requested active-region quest is unavailable: '+questId);
+    for(const objective of quest.objectives){
+      this.questSaveData=recordQuestEvent(this.questSaveData,this.region.id,{type:objective.event,filter:objective.eventFilter,amount:objective.target});
+    }
+    this.refreshHud();this.showPendingQuestChoice();
+  }
+
   browserTestDefeatBoss():void {
     this.assertBrowserTestMode();
     this.spawnBoss();
@@ -881,6 +898,7 @@ export class RunScene extends Phaser.Scene {
     this.newGamePlusLevel=loadedSave&&'data' in loadedSave?loadedSave.data.progression.newGamePlusLevel:0;
     this.scaledEnemyDefinitions=new Map(ENEMIES.map(enemy=>[enemy.id,scaleNewGamePlusEnemy(enemy,this.newGamePlusLevel)]));
     this.questSaveData=getGameModeRules(this.gameMode).storyQuestsEnabled&&loadedSave&&'data' in loadedSave?startAvailableQuests(loadedSave.data,this.region.id):undefined;
+    this.pendingQuestChoiceId=null;this.questChoiceErrorText=undefined;
      this.bossEncounterIdsAtRegionEntry=loadedSave&&'data' in loadedSave?[...loadedSave.data.story.bossEncounterIds]:[];
      this.activeBossVariantId=null;
     this.permanentUpgradeEffects=derivePermanentUpgradeEffects(loadedSave&&'data' in loadedSave?loadedSave.data.progression.permanentUpgrades:undefined);
@@ -983,6 +1001,8 @@ export class RunScene extends Phaser.Scene {
     this.bossHealth=this.add.rectangle(w/2-150,82,300,5,0xb94b5b).setOrigin(0,.5).setScrollFactor(0).setDepth(111).setVisible(false);
     this.bossPhaseText=this.add.text(w/2,96,'',{fontSize:'11px',color:'#c8b69d'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
     this.eventHud=this.add.text(w/2,122,'',{fontSize:'13px',color:'#d9c69d',backgroundColor:'#211b20',padding:{x:8,y:4},align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(112).setVisible(false);
+    this.questHudPanel=this.add.rectangle(198,160,352,82,0x171319,.86).setStrokeStyle(1,0x756653,.7).setScrollFactor(0).setDepth(98).setVisible(false);
+    this.questHud=this.add.text(34,123,'',{fontFamily:'Arial',fontSize:'12px',color:'#e7dccb',lineSpacing:4,wordWrap:{width:326}}).setScrollFactor(0).setDepth(99).setVisible(false);
     this.environmentHud=this.add.text(w/2+118,22,'',{fontFamily:'Arial',fontSize:'12px',color:'#c9d2d6',align:'left'}).setOrigin(0,.5).setScrollFactor(0).setDepth(100);
     this.environmentOverlay=this.add.rectangle(w/2,this.scale.height/2,w,this.scale.height,0xffffff,0).setScrollFactor(0).setDepth(90).setOrigin(.5);
     this.environmentPhaseOverlay=this.add.rectangle(w/2,this.scale.height/2,w,this.scale.height,0xffffff,0).setScrollFactor(0).setDepth(89).setOrigin(.5);
@@ -2086,6 +2106,7 @@ export class RunScene extends Phaser.Scene {
   private recordQuestGameplayEvent(type:'enemy-kill'|'elite-kill'|'boss-defeat'|'run-event-complete',filter?:string):void {
     if(!this.questSaveData)return;
     this.questSaveData=recordQuestEvent(this.questSaveData,this.region.id,{type,filter});
+    this.refreshQuestHud();this.showPendingQuestChoice();
   }
 
   private failRunEvent(kind:RunEventKind):void {
@@ -2570,6 +2591,46 @@ export class RunScene extends Phaser.Scene {
     if(this.queuedLevels>0)this.showLevelUp();else this.resumeRunWorld();
   }
 
+  private showPendingQuestChoice():void {
+    if(!this.questSaveData||this.paused||this.runFinished||this.pendingQuestChoiceId)return;
+    const quest=QUESTS.find(item=>item.regionId===this.region.id&&this.questSaveData?.story.quests[item.id]?.status==='active'&&areQuestObjectivesComplete(item.id,this.questSaveData?.story.quests[item.id]));
+    if(!quest)return;
+    this.pendingQuestChoiceId=quest.id;this.pauseRunWorld();this.clearOverlay();
+    const w=this.scale.width,h=this.scale.height;
+    this.overlay.push(this.add.rectangle(w/2,h/2,w,h,0x08070b,.9).setScrollFactor(0).setDepth(200));
+    this.overlay.push(this.add.text(w/2,h*.23,'HİKÂYE KARARI',{fontFamily:'Georgia',fontSize:'32px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    this.overlay.push(this.add.text(w/2,h*.32,quest.title,{fontFamily:'Georgia',fontSize:'22px',color:'#f0d9ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    this.overlay.push(this.add.text(w/2,h*.405,quest.description,{fontSize:'15px',color:'#c9bda9',align:'center',wordWrap:{width:Math.min(720,w*.72)}}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    const cardWidth=Math.min(420,w*.42),cardHeight=Math.min(190,h*.29),cardY=h*.63;
+    quest.choices.forEach((choice,index)=>{
+      const x=w/2+(index===0?-1:1)*(cardWidth/2+24);
+      const card=this.add.rectangle(x,cardY,cardWidth,cardHeight,0x28212a,.98).setStrokeStyle(2,0x9b8059).setScrollFactor(0).setDepth(201).setInteractive({useHandCursor:true});
+      const label=this.add.text(x,cardY-35,choice.label,{fontFamily:'Georgia',fontSize:'19px',color:'#f0d9ad',align:'center',wordWrap:{width:cardWidth-34}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      const description=this.add.text(x,cardY+28,choice.description,{fontSize:'14px',color:'#c9bda9',align:'center',wordWrap:{width:cardWidth-38}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      this.overlay.push(card,label,description);this.registerOverlayOption(card,()=>this.commitQuestBranch(quest.id,choice.id));
+    });
+    this.questChoiceErrorText=this.add.text(w/2,h*.83,'',{fontSize:'13px',color:'#e29a8d',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(203).setVisible(false);
+    this.overlay.push(this.questChoiceErrorText);this.overlayBackIndex=null;
+  }
+
+  private commitQuestBranch(questId:string,choiceId:string):void {
+    if(!this.questSaveData||this.pendingQuestChoiceId!==questId)return;
+    const branched=chooseQuestBranch(this.questSaveData,questId,choiceId);
+    if(!branched)return;
+    const next=startAvailableQuests(branched,this.region.id);
+    const manager=this.registry.get('saveManager') as SaveManager|undefined;
+    try{
+      const loaded=manager?.load();
+      if(!manager||!loaded||!('data' in loaded))throw new Error('A valid local profile is not available.');
+      manager.save({...loaded.data,story:next.story});
+    }catch{
+      this.questChoiceErrorText?.setText('KAYIT BAŞARISIZ — seçim korunmadı. Yeniden dene.').setVisible(true);
+      return;
+    }
+    this.questSaveData=next;this.pendingQuestChoiceId=null;this.questChoiceErrorText=undefined;
+    this.clearOverlay();this.refreshHud();this.resumeRunWorld();
+  }
+
   private openPause():void {
     if(this.paused)return;this.pauseRunWorld();this.clearOverlay();const w=this.scale.width,h=this.scale.height;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.84).setScrollFactor(0).setDepth(200);
@@ -2638,6 +2699,20 @@ export class RunScene extends Phaser.Scene {
     this.environmentHud?.setText(getEnvironmentLabel(next)).setColor(next.timeOfDay==='night'?'#c8b8df':'#c9d2d6');
   }
 
+  private refreshQuestHud():void {
+    const quest=QUESTS.find(item=>item.regionId===this.region.id&&this.questSaveData?.story.quests[item.id]?.status==='active');
+    if(!quest){this.questHud?.setVisible(false);this.questHudPanel?.setVisible(false);return;}
+    const progress=this.questSaveData?.story.quests[quest.id];
+    if(!progress){this.questHud?.setVisible(false);this.questHudPanel?.setVisible(false);return;}
+    const ready=areQuestObjectivesComplete(quest.id,progress);
+    const objectives=quest.objectives.map(objective=>{
+      const count=Math.min(objective.target,progress.objectiveProgress[objective.id]??0);
+      return (count>=objective.target?'✓ ':'• ')+objective.description+'  '+count+'/'+objective.target;
+    });
+    this.questHud?.setText('GÖREV  •  '+quest.title+'\n'+objectives.join('\n')+(ready?'\nKARAR BEKLİYOR':'' )).setVisible(true);
+    this.questHudPanel?.setVisible(true);
+  }
+
   private refreshHud():void {
     if(!this.hud||!this.clock||!this.health)return;
     const seconds=Math.floor(this.state.elapsedMs/1000);
@@ -2647,6 +2722,7 @@ export class RunScene extends Phaser.Scene {
     const endlessRule=this.gameMode==='endless'?getEndlessRule(this.state.elapsedMs):null;
     this.hud.setText(this.character.name+'  •  '+modeLabel+(endlessRule?'  •  '+endlessRule.name:'')+'  •  LV '+this.state.level+'\nXP '+Math.floor(this.state.experience)+' / '+this.state.experienceToNext+'  •  Düşman '+this.state.kills+'\n'+this.region.name+'  •  Silah '+this.build.weapons.length+'/6  •  Pasif '+this.build.passives.length+'/6\nE: '+this.character.activeAbility+'  •  '+(abilityRemaining>0?(abilityRemaining/1000).toFixed(1)+'s':'HAZIR'));
     this.health.setSize(160*Phaser.Math.Clamp(this.state.health/this.state.maxHealth,0,1),8);
+    this.refreshQuestHud();
     if(this.bossState){this.bossHud?.setVisible(true);this.bossHealth?.setVisible(true);this.bossHealth?.setSize(300*Phaser.Math.Clamp(this.bossState.health/this.bossState.maxHealth,0,1),5);}
   }
 }

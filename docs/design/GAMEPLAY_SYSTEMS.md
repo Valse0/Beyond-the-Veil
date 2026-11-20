@@ -348,3 +348,13 @@ No final UI art, balance sign-off, or physical-device validation is claimed by t
 - Per New Game+ level: normal enemies gain +10% health, +5% attack/contact damage and +2% movement speed; bosses gain +15% health, +7% attack/contact damage and +3% movement speed. Level 5 is the cap; further cycles remain at that difficulty.
 - Enemy and boss scaling is applied to the definitions used by live Phaser combat; boss movement derives from base boss health so health scaling does not accidentally increase movement a second time.
 - Save schema v11 migrates schema v10 by preserving the previously completed ending ID in the persistent ending history. Older migrations initialize New Game+ progression safely.
+
+
+## Quest Choice Interaction v1
+
+- The active regional quest is shown in a compact in-run tracker with objective progress and target counts. The tracker hides when no quest is active in the current region.
+- When every objective of an active quest reaches its authored target, the run pauses and presents its two authored story choices as large selectable cards. The choice cannot be dismissed without selecting an outcome.
+- Choice cards support pointer/touch, keyboard arrows plus Enter/Space, and the existing D-pad/left-stick plus confirm overlay navigation. The first option receives initial focus; Escape/back is intentionally unavailable for a permanent story decision.
+- The selected outcome is applied through the existing quest runtime, including NPC fate, regional atmosphere, path IDs, boss encounter IDs, reward IDs, alternate quest unlocks, ending selection and authored Ruh Özü/lore rewards. The updated story state is written immediately through the local SaveManager before gameplay resumes; failed writes leave the decision open for retry.
+- Newly unlocked story quests for the current region are started after the parent choice. Existing save schema and quest IDs remain unchanged. No dependency, backend, final art or long-form dialogue/cutscene was added.
+- Browser coverage verifies the tracker, objective lock, paused choice presentation, keyboard selection, outcome fields, Ruh Özü award and reload persistence. CI verification pending.

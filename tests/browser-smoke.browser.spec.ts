@@ -209,6 +209,7 @@ type BrowserRunSnapshot = {
   regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Record<string,number>};evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
   runSoulEssence:number;runRelicIds:string[];equippedRelicIds:string[];runCraftingMaterials:Record<string,number>;kills:number;runFinished:boolean;lastRunSaved:boolean|null;bossHealth:number|null;bossMaxHealth:number|null;
   questProgress:Record<string,{status:'active'|'completed';objectiveProgress:Record<string,number>}>;
+  questChoice:{questId:string;choiceIds:string[]}|null;questTrackerText:string;
   explorationLandmarks:{id:string;kind:string;name:string;description:string;motif:string;decorationVisible:boolean}[];
   health:number;maxHealth:number;damage:number;moveSpeed:number;permanentUpgradeEffects:{maxHealthBonus:number;damageMultiplier:number;moveSpeedMultiplier:number;armorBonus:number;xpGainMultiplier:number;extraRerolls:number};passives:{passiveId:string;level:number;special:boolean}[];activePassiveSpecialIds:string[];activeWeaponSynergyIds:string[];weaponSynergyTriggers:string[];
   availableStoryPathIds:string[];lastTraversedStoryPathId:string|null;
@@ -1733,6 +1734,46 @@ test('Boss Hunt starts the selected regional boss immediately and persists only 
   const reloaded=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(reloaded.progression.soulEssence).toBe(afterSave.progression.soulEssence);
   expect(reloaded.story).toEqual(beforeSave.story);
+  expect(pageErrors).toEqual([]);
+});
+
+test('completed story objectives open a pausing branch choice and persist the selected outcome',async({page})=>{
+  const pageErrors:string[]=[];page.on('pageerror',error=>pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+  const initial=await readBrowserRunSnapshot(page);
+  expect(initial.questProgress['forest-root-oath']?.status).toBe('active');
+  expect(initial.questChoice).toBeNull();
+  expect(initial.questTrackerText).toContain('Köklerin Yemini');
+  const beforeSave=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+
+  await page.evaluate(()=>{
+    const game=(window as Window&{__BEYOND_VEIL_GAME__?:{scene:{getScene:(key:string)=>{browserTestCompleteQuestObjectives:(id:string)=>void}}}}).__BEYOND_VEIL_GAME__;
+    if(!game)throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestCompleteQuestObjectives('forest-root-oath');
+  });
+  const pending=await readBrowserRunSnapshot(page);
+  expect(pending.paused).toBe(true);
+  expect(pending.ability.sceneTimePaused).toBe(true);
+  expect(pending.questChoice).toEqual({questId:'forest-root-oath',choiceIds:['spare-warden','claim-heartwood']});
+
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await expect.poll(async()=>(await readBrowserRunSnapshot(page)).questChoice).toBeNull();
+  const afterSave=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(afterSave.story.quests['forest-root-oath']).toMatchObject({status:'completed',chosenChoiceId:'claim-heartwood',outcomeId:'forest-claim'});
+  expect(afterSave.story.npcFates['briar-warden']).toBe('vanished');
+  expect(afterSave.story.regionAtmospheres['cursed-forest']).toBe('withered');
+  expect(afterSave.story.unlockedPathIds).toContain('forest-heartwood-vault');
+  expect(afterSave.story.bossEncounterIds).toContain('thorn-matriarch-corrupted');
+  expect(afterSave.story.unlockedRewardIds).toContain('heartwood-sigil');
+  expect(afterSave.progression.soulEssence).toBe(beforeSave.progression.soulEssence+65);
+  expect((await readBrowserRunSnapshot(page)).paused).toBe(false);
+
+  await page.reload();
+  await expect(page.locator('#game-container canvas')).toBeVisible();
+  const reloaded=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(reloaded.story.quests['forest-root-oath']).toMatchObject({status:'completed',chosenChoiceId:'claim-heartwood',outcomeId:'forest-claim'});
+  expect(reloaded.story.unlockedPathIds).toContain('forest-heartwood-vault');
   expect(pageErrors).toEqual([]);
 });
 
