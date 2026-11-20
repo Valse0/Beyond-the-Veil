@@ -591,7 +591,7 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
     return { essence: save.progression.soulEssence, upgrades: save.progression.permanentUpgrades };
   })).toEqual({ essence: before.progression.soulEssence, upgrades: before.progression.permanentUpgrades });
 
-  await page.mouse.click(1110, 660);
+  await page.mouse.click(1160, 660);
   await page.waitForTimeout(80);
   const pointerDialog = await canvas.screenshot();
   expect(pointerDialog.equals(hubAfterCancel)).toBe(false);
@@ -768,10 +768,6 @@ test('Hunter Hub equipment profiles create, edit, activate, persist and delete p
     if (!game) throw new Error('Development browser test bridge is not available.');
     return game.scene.getScene('hunter-hub').browserTestSnapshot();
   });
-  const press = async (key: string) => {
-    await page.keyboard.press(key);
-    await page.waitForTimeout(75);
-  };
   const openProfiles = async () => {
     await page.goto('/?bv-test=1');
     await expect(canvas).toBeVisible();
@@ -780,39 +776,21 @@ test('Hunter Hub equipment profiles create, edit, activate, persist and delete p
       const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
       return Boolean(game?.scene.isActive('hunter-hub'));
     });
-    const readHubSelection = async () => page.evaluate(() => {
-      const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number } } } } }).__BEYOND_VEIL_GAME__;
-      if (!game) throw new Error('Development browser test bridge is not available.');
-      return game.scene.getScene('hunter-hub').browserTestSnapshot().selectedIndex;
-    });
-    await page.mouse.move(20, 20);
-    await page.mouse.click(20, 20);
-    await page.waitForTimeout(80);
-    const startIndex = await readHubSelection();
-    const downCount = (7 - startIndex + 9) % 9;
-    for (let index = 0; index < downCount; index += 1) {
-      await press('ArrowDown');
-      await expect.poll(readHubSelection).toBe((startIndex + index + 1) % 9);
-    }
-    await press('Enter');
+    await page.mouse.click(970, 114);
     await expect.poll(async () => (await snapshot()).screen).toBe('equipment-profiles');
   };
 
   await openProfiles();
-  await press('Enter'); // Create the first profile.
+  await page.mouse.click(184, 644); // Create the first profile.
   await expect.poll(async () => (await snapshot()).screen).toBe('equipment-editor');
   const nameInput = page.locator('input[aria-label="Dizilim adı"]');
   await expect(nameInput).toBeVisible();
   await nameInput.fill('Alev');
   await nameInput.evaluate((element: HTMLInputElement) => element.blur());
-  await press('ArrowDown'); // Starting weapon.
-  await press('ArrowRight'); // Gravecleaver.
-  await press('ArrowDown'); // Starting passive.
-  await press('ArrowRight'); // Storm Conductor.
-  await press('ArrowDown'); // Relic slot 1.
-  await press('ArrowRight'); // The owned Forest Heart.
-  for (let index = 0; index < 3; index += 1) await press('ArrowDown'); // Save.
-  await press('Enter');
+  await page.mouse.click(1000, 222); // Gravecleaver.
+  await page.mouse.click(1000, 284); // Storm Conductor.
+  await page.mouse.click(1000, 346); // The owned Forest Heart.
+  await page.mouse.click(528, 600); // Save.
   await expect.poll(async () => (await snapshot()).equipmentProfileIds.length).toBe(1);
 
   let saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
@@ -823,22 +801,19 @@ test('Hunter Hub equipment profiles create, edit, activate, persist and delete p
   expect(profile.relicIds).toEqual(['forest-heart']);
 
   // Edit the same profile and verify that its identity remains stable.
-  for (let index = 0; index < 3; index += 1) await press('ArrowDown'); // Edit action.
-  await press('Enter');
+  await page.mouse.click(640, 191); // Select the profile.
+  await page.mouse.click(640, 644); // Edit action.
   await expect.poll(async () => (await snapshot()).screen).toBe('equipment-editor');
-  await press('ArrowDown');
-  await press('ArrowRight'); // Oath Pike.
-  for (let index = 0; index < 5; index += 1) await press('ArrowDown'); // Save.
-  await press('Enter');
+  await page.mouse.click(1000, 222); // Oath Pike.
+  await page.mouse.click(528, 600); // Save.
   await expect.poll(async () => page.evaluate(() => {
     const save = JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!);
     return save.progression.equipmentProfiles['cursed-hunter'][0].startingWeaponId;
   })).toBe('oath-pike');
 
   // Activate, reload, and confirm the per-hunter active profile survives.
-  await press('ArrowDown');
-  await press('ArrowDown');
-  await press('Enter');
+  await page.mouse.click(640, 191); // Select the profile.
+  await page.mouse.click(412, 644); // Activate.
   await expect.poll(async () => page.evaluate(() => {
     const save = JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!);
     return save.progression.activeEquipmentProfileIds['cursed-hunter'];
@@ -851,11 +826,10 @@ test('Hunter Hub equipment profiles create, edit, activate, persist and delete p
   expect(afterReload.activeEquipmentProfileId).toBe(profile.id);
 
   // Delete requires a separate confirmation and clears the active pointer safely.
-  for (let index = 0; index < 4; index += 1) await press('ArrowDown');
-  await press('Enter');
+  await page.mouse.click(640, 191); // Select the profile.
+  await page.mouse.click(868, 644); // Delete.
   await expect.poll(async () => (await snapshot()).screen).toBe('equipment-delete-confirm');
-  await press('ArrowRight');
-  await press('Enter');
+  await page.mouse.click(752, 460); // Confirm deletion.
   await expect.poll(async () => page.evaluate(() => {
     const save = JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!);
     return {
