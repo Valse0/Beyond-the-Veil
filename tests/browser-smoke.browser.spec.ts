@@ -2613,12 +2613,12 @@ test('smart TV remote keys navigate menu, journal, hunter and region screens', a
     if (!game) throw new Error('Game bridge unavailable.');
     return game.scene.getScene('character-select').browserTestSnapshot().selectedIndex;
   });
-  await sendRemoteKey('ArrowRight');
+  await page.keyboard.press('ArrowRight');
   await expect.poll(() => page.evaluate(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number } } } } }).__BEYOND_VEIL_GAME__;
     return game?.scene.getScene('character-select').browserTestSnapshot().selectedIndex;
   })).toBe((hunterBefore + 1) % 5);
-  await sendRemoteKey('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
   await sendRemoteKey('ColorF1Green');
   await expect.poll(() => isActive('region-select')).toBe(true);
   const regionBefore = await page.evaluate(() => {
@@ -2626,12 +2626,12 @@ test('smart TV remote keys navigate menu, journal, hunter and region screens', a
     if (!game) throw new Error('Game bridge unavailable.');
     return game.scene.getScene('region-select').browserTestSnapshot().selectedIndex;
   });
-  await sendRemoteKey('ArrowRight');
+  await page.keyboard.press('ArrowRight');
   await expect.poll(() => page.evaluate(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number } } } } }).__BEYOND_VEIL_GAME__;
     return game?.scene.getScene('region-select').browserTestSnapshot().selectedIndex;
   })).toBe((regionBefore + 1) % 5);
-  await sendRemoteKey('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
   await sendRemoteKey('ColorF0Red');
   await expect.poll(() => isActive('character-select')).toBe(true);
   await sendRemoteKey('ColorF0Red');
