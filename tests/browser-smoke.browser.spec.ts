@@ -565,8 +565,8 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
   });
 
   const before = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  await page.mouse.move(20, 20);
-  await page.mouse.click(20, 20);
+  // Move off hovered UI without blurring the game canvas; keyboard navigation stays active.
+  await page.mouse.move(640, 360);
   await page.waitForTimeout(80);
   const readHubSelection = async () => page.evaluate(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number } } } } }).__BEYOND_VEIL_GAME__;
@@ -591,7 +591,15 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
     return { essence: save.progression.soulEssence, upgrades: save.progression.permanentUpgrades };
   })).toEqual({ essence: before.progression.soulEssence, upgrades: before.progression.permanentUpgrades });
 
-  await page.mouse.click(1160, 660);
+  const respecButtonPoint = await canvas.evaluate(element => {
+    const bounds = element.getBoundingClientRect();
+    const gameCanvas = element as HTMLCanvasElement;
+    return {
+      x: bounds.left + bounds.width * (1160 / gameCanvas.width),
+      y: bounds.top + bounds.height * (660 / gameCanvas.height)
+    };
+  });
+  await page.mouse.click(respecButtonPoint.x, respecButtonPoint.y);
   await expect.poll(async () => page.evaluate(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { respecDialogOpen: boolean } } } } }).__BEYOND_VEIL_GAME__;
     if (!game) throw new Error('Development browser test bridge is not available.');
@@ -656,8 +664,8 @@ test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaffor
       if (!game) throw new Error('Development browser test bridge is not available.');
       return game.scene.getScene('hunter-hub').browserTestSnapshot().selectedIndex;
     });
-    await page.mouse.move(20, 20);
-    await page.mouse.click(20, 20);
+    // Move off hovered UI without blurring the game canvas; keyboard navigation stays active.
+    await page.mouse.move(640, 360);
     await page.waitForTimeout(80);
     const startIndex = await readHubSelection();
     const downCount = (6 - startIndex + 9) % 9;
