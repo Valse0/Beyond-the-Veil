@@ -207,6 +207,7 @@ export class RunScene extends Phaser.Scene {
   private questSaveData?:SaveData;
   private questHud?:Phaser.GameObjects.Text;
   private questJournalOpen=false;
+  private journalCloseInputGuard=false;
   private questHudPanel?:Phaser.GameObjects.Rectangle;
   private pendingQuestChoiceId:string|null=null;
   private questChoiceErrorText?:Phaser.GameObjects.Text;
@@ -882,6 +883,7 @@ export class RunScene extends Phaser.Scene {
 
   init(data:{characterId?:string;regionId?:RegionId;gameMode?:unknown;challengeId?:unknown}):void {
     this.questJournalOpen=false;
+    this.journalCloseInputGuard=false;
     this.character=CHARACTERS.find(c=>c.id===data?.characterId)??STARTING_CHARACTER;
     this.region=REGIONS.find(r=>r.id===data?.regionId)??REGIONS[0]!;
     const requestedMode=resolveGameMode(data?.gameMode);
@@ -1028,6 +1030,12 @@ export class RunScene extends Phaser.Scene {
   update(time:number,delta:number):void {
     if(this.questJournalOpen)return;
     const frame=this.readGamepadFrame();
+    if(this.journalCloseInputGuard){
+      this.previousGamepadFrame=frame;
+      if(this.keys.ESC.isDown||frame.east)return;
+      this.journalCloseInputGuard=false;
+      return;
+    }
     const gamepad=resolveGamepadInput(frame,this.previousGamepadFrame);
     this.previousGamepadFrame=frame;
     this.gamepadMoveX=gamepad.moveX;this.gamepadMoveY=gamepad.moveY;
@@ -2648,7 +2656,7 @@ export class RunScene extends Phaser.Scene {
   private openQuestJournal():void {
     if(!this.paused||this.runFinished||this.questJournalOpen)return;
     this.questJournalOpen=true;
-    this.events.once('quest-journal-closed',()=>{this.previousGamepadFrame=this.readGamepadFrame();this.questJournalOpen=false;});
+    this.events.once('quest-journal-closed',()=>{this.previousGamepadFrame=this.readGamepadFrame();this.journalCloseInputGuard=true;this.questJournalOpen=false;});
     this.scene.launch('quest-journal',{returnScene:'run'});
   }
 
