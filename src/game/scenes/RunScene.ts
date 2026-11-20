@@ -54,6 +54,8 @@ const RUN_MS = 900000;
 const BOSS_START_MS = 840000;
 const WORLD_W = 2400;
 const WORLD_H = 1800;
+
+const multiTouchEnabledGames = new WeakSet<Phaser.Game>();
 const BASE_CHOICES: { id: UpgradeId; title: string; detail: string }[] = [
   { id: 'power', title: 'Keskin Ruh', detail: 'Temel hasar +6' },
   { id: 'haste', title: 'Hızlı Akış', detail: 'Temel saldırı aralığı azalır' },
@@ -1209,7 +1211,10 @@ export class RunScene extends Phaser.Scene {
 
   private createTouchControls():void {
     const h=this.scale.height,w=this.scale.width;
-    this.input.addPointer(2);
+    if(!multiTouchEnabledGames.has(this.sys.game)){
+      this.input.addPointer(2);
+      multiTouchEnabledGames.add(this.sys.game);
+    }
     const initiallyVisible=Boolean(this.sys.game.device.input.touch);
     const showOnTouch=(object:Phaser.GameObjects.Arc|Phaser.GameObjects.Text):void=>{
       object.setAlpha(initiallyVisible?1:0);
