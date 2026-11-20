@@ -638,9 +638,14 @@ test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaffor
       const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
       return Boolean(game?.scene.isActive('hunter-hub'));
     });
-    for (let index = 0; index < 6; index += 1) {
+    const readHubSelection = async () => page.evaluate(() => {
+      const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number } } } } }).__BEYOND_VEIL_GAME__;
+      if (!game) throw new Error('Development browser test bridge is not available.');
+      return game.scene.getScene('hunter-hub').browserTestSnapshot().selectedIndex;
+    });
+    for (let index = 1; index <= 6; index += 1) {
       await page.keyboard.press('ArrowDown');
-      await page.waitForTimeout(70);
+      await expect.poll(readHubSelection).toBe(index);
     }
     await page.keyboard.press('Enter');
     await page.waitForTimeout(100);
@@ -759,7 +764,15 @@ test('Hunter Hub equipment profiles create, edit, activate, persist and delete p
       const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
       return Boolean(game?.scene.isActive('hunter-hub'));
     });
-    for (let index = 0; index < 7; index += 1) await press('ArrowDown');
+    const readHubSelection = async () => page.evaluate(() => {
+      const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number } } } } }).__BEYOND_VEIL_GAME__;
+      if (!game) throw new Error('Development browser test bridge is not available.');
+      return game.scene.getScene('hunter-hub').browserTestSnapshot().selectedIndex;
+    });
+    for (let index = 1; index <= 7; index += 1) {
+      await press('ArrowDown');
+      await expect.poll(readHubSelection).toBe(index);
+    }
     await press('Enter');
     await expect.poll(async () => (await snapshot()).screen).toBe('equipment-profiles');
   };
