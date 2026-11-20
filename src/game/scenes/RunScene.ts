@@ -835,8 +835,8 @@ export class RunScene extends Phaser.Scene {
     this.bossPhaseText=this.add.text(w/2,96,'',{fontSize:'11px',color:'#c8b69d'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
     this.eventHud=this.add.text(w/2,122,'',{fontSize:'13px',color:'#d9c69d',backgroundColor:'#211b20',padding:{x:8,y:4},align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(112).setVisible(false);
     this.environmentHud=this.add.text(w/2+118,22,'',{fontFamily:'Arial',fontSize:'12px',color:'#c9d2d6',align:'left'}).setOrigin(0,.5).setScrollFactor(0).setDepth(100);
-    this.environmentOverlay=this.add.rectangle(w/2,h/2,w,h,0xffffff,0).setScrollFactor(0).setDepth(90).setOrigin(.5);
-    this.environmentPhaseOverlay=this.add.rectangle(w/2,h/2,w,h,0xffffff,0).setScrollFactor(0).setDepth(89).setOrigin(.5);
+    this.environmentOverlay=this.add.rectangle(w/2,this.scale.height/2,w,this.scale.height,0xffffff,0).setScrollFactor(0).setDepth(90).setOrigin(.5);
+    this.environmentPhaseOverlay=this.add.rectangle(w/2,this.scale.height/2,w,this.scale.height,0xffffff,0).setScrollFactor(0).setDepth(89).setOrigin(.5);
     this.updateEnvironment(true);
     this.refreshHud();
   }
