@@ -2282,7 +2282,7 @@ test('quest journal reads saved branches, regional state and ending history from
   expect(graveyard.selected.quests.find(quest => quest.id === 'grave-names-unforgotten')).toMatchObject({
     status: 'completed',
     chosenChoiceLabel: 'Ruhları serbest bırak',
-    outcomeSummary: 'Ruhlar özgür kalır.'
+    outcomeSummary: 'Ruhlar özgür kalır; mezarlık huzura kavuşur ve Kemik Kralın hesaplaşma yolu belirlenir.'
   });
   expect(graveyard.selected.npcFateLabel).toBe('RUHLARLA BİRLİKTE ARINDI');
   expect(graveyard.selected.atmosphereName).toBe('Huzurlu Mezarlık');
