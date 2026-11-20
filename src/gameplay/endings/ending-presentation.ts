@@ -29,6 +29,6 @@ const ENDING_PRESENTATIONS: Record<EndingId, EndingPresentation> = {
 };
 
 export function getEndingPresentation(endingId: string | null | undefined): EndingPresentation | null {
-  if (!endingId || !(endingId in ENDING_PRESENTATIONS)) return null;
+  if (!endingId || !Object.prototype.hasOwnProperty.call(ENDING_PRESENTATIONS, endingId)) return null;
   return ENDING_PRESENTATIONS[endingId as EndingId];
 }
