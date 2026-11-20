@@ -1754,6 +1754,15 @@ test('final story ending is completed only by the matching live final-boss victo
     queued = (await readBrowserRunSnapshot(page)).queuedLevels;
   }
   await expect.poll(async () => (await readBrowserRunSnapshot(page)).lastRunSaved, { timeout: 8_000 }).toBe(true);
+  const endingTexts = await page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { children: { list: { text?: unknown }[] } } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Game bridge unavailable.');
+    return game.scene.getScene('run').children.list.map(child => typeof child.text === 'string' ? child.text : '').filter(Boolean);
+  });
+  expect(endingTexts).toContain('PERDE ONARILDI');
+  expect(endingTexts).toContain('SON KARARIN  •  PERDEYİ ONAR');
+  expect(endingTexts.some(text => text.includes('Perde yeniden örüldü'))).toBe(true);
+  expect(endingTexts).toContain('ANA MENÜ  •  NG+');
   const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(saved.story.endingId).toBe('ending-mended-veil');
   expect(saved.story.completedEndingId).toBe('ending-mended-veil');
@@ -1774,6 +1783,57 @@ test('final story ending is completed only by the matching live final-boss victo
   await expect(page.locator('#game-container canvas')).toBeVisible();
   const reloaded = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(reloaded.story.completedEndingId).toBe('ending-mended-veil');
+  expect(pageErrors).toEqual([]);
+});
+
+test('beyond-veil branch displays its distinct epilogue and New Game+ return path', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await startBrowserTestRun(page);
+
+  await page.evaluate(() => {
+    const host = (window as Window & { __BEYOND_VEIL_GAME__?: { registry: { get: (key: string) => unknown }; scene: { getScene: (key: string) => unknown } } }).__BEYOND_VEIL_GAME__;
+    if (!host) throw new Error('Game bridge unavailable.');
+    const manager = host.registry.get('saveManager') as { load: () => { data: any }; save: (value: any) => void };
+    const save = manager.load().data;
+    save.story.endingId = 'ending-beyond-veil';
+    save.story.quests['castle-veil-heir'] = {
+      status: 'completed',
+      objectiveProgress: { 'decode-regent-seals': 3, 'face-veil-echoes': 3 },
+      chosenChoiceId: 'tear-the-veil',
+      outcomeId: 'veil-torn'
+    };
+    save.story.appliedOutcomeIds.push('veil-torn');
+    save.story.unlockedPathIds.push('castle-beyond-gate');
+    save.story.bossEncounterIds.push('unwritten-regent-unbound');
+    manager.save(save);
+    const scene = host.scene.getScene('run') as { questSaveData?: unknown };
+    scene.questSaveData = save;
+  });
+
+  await page.evaluate(() => {
+    const host = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSpawnBossForRegion: (region: string, encounters?: string[]) => void; browserTestDamageBoss: (amount: number) => void } } } }).__BEYOND_VEIL_GAME__;
+    if (!host) throw new Error('Game bridge unavailable.');
+    const scene = host.scene.getScene('run');
+    scene.browserTestSpawnBossForRegion('cursed-castle', ['unwritten-regent-unbound']);
+    scene.browserTestDamageBoss(100000);
+  });
+  await expect.poll(async () => (await readBrowserRunSnapshot(page)).bossChestAvailable).toBe(true);
+  await moveToBrowserTestBossChest(page);
+  await expect.poll(async () => (await readBrowserRunSnapshot(page)).bossChestDiagnostics.collectOutcome, { timeout: 5_000 }).toBe('opened');
+  await expect.poll(async () => (await readBrowserRunSnapshot(page)).lastRunSaved, { timeout: 8_000 }).toBe(true);
+
+  const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
+  expect(saved.story.completedEndingId).toBe('ending-beyond-veil');
+  const endingTexts = await page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { children: { list: { text?: unknown }[] } } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Game bridge unavailable.');
+    return game.scene.getScene('run').children.list.map(child => typeof child.text === 'string' ? child.text : '').filter(Boolean);
+  });
+  expect(endingTexts).toContain('PERDENİN ÖTESİ');
+  expect(endingTexts).toContain('SON KARARIN  •  PERDEYİ YIRT');
+  expect(endingTexts.some(text => text.includes('Perde yırtıldı'))).toBe(true);
+  expect(endingTexts).toContain('ANA MENÜ  •  NG+');
   expect(pageErrors).toEqual([]);
 });
 
