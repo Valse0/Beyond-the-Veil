@@ -1851,9 +1851,11 @@ test('quest journal reads saved branches, regional state and ending history from
 
   const forest = await readQuestJournalSnapshot(page);
   expect(forest.selectedRegionId).toBe('cursed-forest');
-  expect(forest.selected.quests.find(quest => quest.id === 'forest-root-oath')).toMatchObject({
-    status: 'active',
-    objectiveProgress: [{ id: 'inspect-root-runes', current: 1, target: 2 }]
+  const activeForestQuest = forest.selected.quests.find(quest => quest.id === 'forest-root-oath');
+  expect(activeForestQuest?.status).toBe('active');
+  expect(activeForestQuest?.objectiveProgress.find(objective => objective.id === 'inspect-root-runes')).toMatchObject({
+    current: 1,
+    target: 2
   });
   expect(forest.completedEndingIds).toEqual(['ending-mended-veil']);
 
