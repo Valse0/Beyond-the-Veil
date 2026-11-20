@@ -411,3 +411,19 @@ The Hunter Hub includes an Equipment Profiles manager for each unlocked hunter. 
 Players can create, edit, activate and delete profiles; deletion requires confirmation. The active profile is stored separately for each hunter and is applied when a run starts. If the hunter has no active profile, the existing default loadout path is unchanged. Profiles use the existing local save schema; no migration, dependency, backend or online service is added.
 
 Browser coverage verifies profile creation, editing, activation, deletion, persistence after reload and application of the active profile to the live run-start path. CI [#44802787920](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44802787920) passed TypeScript, 265/265 unit tests, production build, Chromium Playwright 52/52 and npm audit with zero vulnerabilities. Physical controller/device testing, responsive-layout review and final visual polish remain separate QA tasks.
+
+
+## Ending Presentation v1
+
+After the Unwritten Regent is defeated in the Cursed Castle, the run opens a branch-specific epilogue only when this run newly completes the selected ending and the save succeeds. The two authored outcomes are presented distinctly:
+
+- `ending-mended-veil`: **PERDE ONARILDI** — the worlds are separated again, the boundary is restored, and the hunter's oath continues beyond the ending.
+- `ending-beyond-veil`: **PERDENİN ÖTESİ** — the veil is torn, the unknown world enters reality, and the hunt continues beyond the old boundary.
+
+Both screens show the chosen branch, a short epilogue, the run's level/kills/Ruh Özü summary, and two controller/keyboard/pointer actions: replay the current run setup or return to the main menu. The main menu's existing New Game+ entry remains the only path that begins the new cycle, including its explicit confirmation and preservation/reset rules. An already completed ending is not replayed by later ordinary runs; New Game+ clears the current-cycle completion while retaining ending history.
+
+The presentation content is data-driven in `src/gameplay/endings/ending-presentation.ts`; Phaser draws it from `RunScene`. It does not change ending completion rules, rewards, save schema, migration, or game-mode behavior. Unknown ending IDs return no presentation, and a failed save falls back to the ordinary run-result screen.
+
+Unit tests cover both authored variants and unknown IDs. Live Phaser browser tests defeat the final boss through each saved branch and verify the distinct epilogue plus the New Game+ return path. CI [#44809428891](https://github.com/Valse0/Beyond-the-Veil/actions/runs/44809428891) passed TypeScript, 268/268 unit tests, production build, Chromium Playwright 53/53 and npm audit with zero vulnerabilities.
+
+This is functional text presentation only. Final illustrations, cinematic transitions, voice/audio, and responsive visual sign-off remain deferred to the dedicated presentation/art phase; physical mobile, controller and TV checks are also outstanding.
