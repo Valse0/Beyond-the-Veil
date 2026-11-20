@@ -591,15 +591,9 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
     return { essence: save.progression.soulEssence, upgrades: save.progression.permanentUpgrades };
   })).toEqual({ essence: before.progression.soulEssence, upgrades: before.progression.permanentUpgrades });
 
-  const respecButtonPoint = await canvas.evaluate(element => {
-    const bounds = element.getBoundingClientRect();
-    const gameCanvas = element as HTMLCanvasElement;
-    return {
-      x: bounds.left + bounds.width * (1160 / gameCanvas.width),
-      y: bounds.top + bounds.height * (660 / gameCanvas.height)
-    };
-  });
-  await page.mouse.click(respecButtonPoint.x, respecButtonPoint.y);
+  // The respec action remains selected after closing the dialog; use the
+  // same keyboard path as the first open instead of clicking the text edge.
+  await page.keyboard.press('Enter');
   await expect.poll(async () => page.evaluate(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { respecDialogOpen: boolean } } } } }).__BEYOND_VEIL_GAME__;
     if (!game) throw new Error('Development browser test bridge is not available.');
