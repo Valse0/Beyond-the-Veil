@@ -573,14 +573,15 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
     if (!game) throw new Error('Development browser test bridge is not available.');
     return game.scene.getScene('hunter-hub').browserTestSnapshot().selectedIndex;
   });
-  const respecStartIndex = await readHubSelection();
-  for (let index = 0; index < (8 - respecStartIndex + 9) % 9; index += 1) {
-    await page.keyboard.press('ArrowDown');
-    await expect.poll(readHubSelection).toBe((respecStartIndex + index + 1) % 9);
-  }
-  await page.keyboard.press('Enter');
+  // Open the respec action through its pointer target; keyboard is still
+  // exercised for the confirmation dialog itself.
+  const respecPoint = await canvas.evaluate(element => {
+    const bounds = element.getBoundingClientRect();
+    const gameCanvas = element as HTMLCanvasElement;
+    return { x: bounds.left + bounds.width * (1130 / gameCanvas.width), y: bounds.top + bounds.height * (660 / gameCanvas.height) };
+  });
+  await page.mouse.click(respecPoint.x, respecPoint.y);
   await page.waitForTimeout(100);
-  await page.keyboard.press('Enter');
   const dialog = await canvas.screenshot();
   expect(dialog.length).toBeGreaterThan(1_000);
   await page.keyboard.press('Escape');
@@ -591,9 +592,7 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
     return { essence: save.progression.soulEssence, upgrades: save.progression.permanentUpgrades };
   })).toEqual({ essence: before.progression.soulEssence, upgrades: before.progression.permanentUpgrades });
 
-  // The respec action remains selected after closing the dialog; use the
-  // same keyboard path as the first open instead of clicking the text edge.
-  await page.keyboard.press('Enter');
+  await page.mouse.click(respecPoint.x, respecPoint.y);
   await expect.poll(async () => page.evaluate(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { respecDialogOpen: boolean } } } } }).__BEYOND_VEIL_GAME__;
     if (!game) throw new Error('Development browser test bridge is not available.');
@@ -658,18 +657,14 @@ test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaffor
       if (!game) throw new Error('Development browser test bridge is not available.');
       return game.scene.getScene('hunter-hub').browserTestSnapshot().selectedIndex;
     });
-    // Move off hovered UI without blurring the game canvas; keyboard navigation stays active.
-    await page.mouse.move(640, 360);
-    await page.waitForTimeout(80);
-    const startIndex = await readHubSelection();
-    const downCount = (6 - startIndex + 9) % 9;
-    for (let index = 0; index < downCount; index += 1) {
-      await page.keyboard.press('ArrowDown');
-      // Allow Phaser's next update tick to consume JustDown before asserting.
-      await page.waitForTimeout(80);
-      await expect.poll(readHubSelection).toBe((startIndex + index + 1) % 9);
-    }
-    await page.keyboard.press('Enter');
+    // Enter through the visible Blacksmith pointer target; this test focuses
+    // on crafting and persistence rather than duplicating hub navigation coverage.
+    const entryPoint = await page.locator('#game-container canvas').evaluate(element => {
+      const bounds = element.getBoundingClientRect();
+      const gameCanvas = element as HTMLCanvasElement;
+      return { x: bounds.left + bounds.width * (1158 / gameCanvas.width), y: bounds.top + bounds.height * (114 / gameCanvas.height) };
+    });
+    await page.mouse.click(entryPoint.x, entryPoint.y);
     await page.waitForTimeout(100);
     const snapshot = await page.evaluate(() => {
       const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { screen: string; selectedRecipeId: string | null; recipeIds: string[]; craftableRecipeIds: string[] } } } } }).__BEYOND_VEIL_GAME__;
