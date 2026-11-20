@@ -2168,8 +2168,8 @@ test('completed story objectives open a pausing branch choice and persist the se
   expect(pending.questChoice).toEqual({questId:'forest-root-oath',choiceIds:['spare-warden','claim-heartwood']});
   expect(pending.questChoiceTexts).toContain('LANETLİ ORMAN  •  ANA GÖREV');
   expect(pending.questChoiceTexts).toContain('Köklerin Yemini');
-  expect(pending.questChoiceTexts).toContain('Bekçi yaşar; orman sakinleşir ve Diken Ana\'nın uyanmış biçimiyle karşılaşırsın.');
-  expect(pending.questChoiceTexts).toContain('Bekçi kaybolur; orman solar ve Diken Ana\'nın yozlaşmış yolu açılır.');
+  expect(pending.questChoiceTexts).toContain('Bekçi yaşar; orman sakinleşir ve Diken Ana uyanmış biçimiyle karşına çıkar.');
+  expect(pending.questChoiceTexts).toContain('Bekçi kaybolur; orman solar ve Diken Ana yozlaşmış biçimiyle karşına çıkar.');
 
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter');
