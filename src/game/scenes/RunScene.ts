@@ -247,7 +247,8 @@ export class RunScene extends Phaser.Scene {
     const definition=ENEMIES.find(item=>item.regionId===this.region.id);
     if(!definition)throw new Error('The active region has no ability probe target.');
     const targets=[this.createEnemy(this.player.x+64,this.player.y,definition,10),this.createEnemy(this.player.x+90,this.player.y+42,definition,10),this.createEnemy(this.player.x+112,this.player.y-38,definition,10)];
-    for(const target of targets)target.setData('abilityProbeTarget',true).setVelocity(0,0);
+    // Keep probe targets alive through delayed abilities; starting weapons must not pre-empt the effect under test.
+    for(const target of targets)target.setData('abilityProbeTarget',true).setData('health',100_000).setData('maxHealth',100_000).setVelocity(0,0);
     const beforeHealth=this.character.id==='blood-priestess'?this.state.maxHealth*.7:this.state.health;
     this.state={...this.state,health:beforeHealth};
     const beforePlayerX=this.player.x,targetHealthBefore=Number(targets[0]!.getData('health'));

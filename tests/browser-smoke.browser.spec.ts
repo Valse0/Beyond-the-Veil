@@ -1502,8 +1502,7 @@ test('five hunter active abilities have distinct live Phaser combat effects',asy
     if(hunter.id==='cursed-hunter')expect(probe.targetVelocity).toBeGreaterThan(100);
     if(hunter.id==='black-knight')expect(probe.guardActive).toBe(true);
     if(hunter.id==='spirit-mage'){
-      await page.waitForTimeout(800);
-      expect((await readBrowserRunSnapshot(page)).ability.lastDamage).toBeGreaterThan(0);
+      await expect.poll(async()=>(await readBrowserRunSnapshot(page)).ability.lastDamage,{timeout:3_000}).toBeGreaterThan(0);
     }
     if(hunter.id==='shadow-assassin'){
       expect(Math.abs(probe.afterPlayerX-probe.beforePlayerX)).toBeGreaterThan(20);
