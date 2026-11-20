@@ -203,7 +203,7 @@ test('region selection reads unlocked regions from the persisted profile', async
 
 type BrowserRunSnapshot = {
   newGamePlusLevel:number;newGamePlusModifiers:{enemyHealthMultiplier:number;enemyDamageMultiplier:number;enemyMoveSpeedMultiplier:number;bossHealthMultiplier:number;bossDamageMultiplier:number;bossMoveSpeedMultiplier:number};gameMode:'survival'|'boss-hunt'|'challenge'|'endless';challengeId:string|null;challengeModifiers:{maxWeaponSlots:number;maxHealthMultiplier:number;enemyMoveSpeedMultiplier:number;victorySoulEssenceBonus:number};weaponSlotsUsed:number;waveSpawnIndex:number;activeEnemyCount:number;endless:{bossCyclesCompleted:number;nextBossAtMs:number;ruleId:string|null;ruleName:string|null;ruleModifiers:{enemyHealthMultiplier:number;enemyMoveSpeedMultiplier:number;incomingDamageMultiplier:number;experienceMultiplier:number}};
-  ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number};
+  ability:{effect:string;cooldownRemainingMs:number;guardActive:boolean;lastDamage:number;lastHealing:number;markedTargetCount:number;sceneTimePaused:boolean};
   level:number;experience:number;experienceToNext:number;queuedLevels:number;elapsedMs:number;playerX:number;playerY:number;
   paused:boolean;bossSpawned:boolean;bossChestAvailable:boolean;bossVictoryPending:boolean;
   regionMap:{regionId:string;roomIds:string[];wallCount:number;connected:boolean;playerWalkable:boolean};environment:{timeOfDay:string;weather:string;timeLabel:string;weatherLabel:string;enemyMoveSpeedMultiplier:number;elementDamageMultipliers:Record<string,number>};evolvedWeaponIds:string[];choices:{id:string;title:string;kind:string;contentId?:string;branchId?:string}[];
