@@ -565,7 +565,7 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
   });
 
   const before = await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  for (let index = 0; index < 6; index += 1) {
+  for (let index = 0; index < 7; index += 1) {
     await page.keyboard.press('ArrowDown');
     await page.waitForTimeout(40);
   }
@@ -601,7 +601,7 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
 
 
 
-test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaﬀordable crafts and persists after reload', async ({ page }) => {
+test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaffordable crafts and persists after reload', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
   await page.addInitScript(() => {

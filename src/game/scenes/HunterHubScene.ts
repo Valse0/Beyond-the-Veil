@@ -17,6 +17,7 @@ export class HunterHubScene extends Phaser.Scene {
   private blacksmithEntryButton?: Phaser.GameObjects.Text;
   private blacksmithRecipeButtons: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private blacksmithRecipeLabels: Map<string, Phaser.GameObjects.Text> = new Map();
+  private craftableRecipeIds = new Set<string>();
   private blacksmithStatusText?: Phaser.GameObjects.Text;
   private blacksmithSelection = 0;
   private respecButton?: Phaser.GameObjects.Text;
@@ -133,6 +134,7 @@ export class HunterHubScene extends Phaser.Scene {
     this.buttonTexts.clear();
     this.blacksmithRecipeButtons.clear();
     this.blacksmithRecipeLabels.clear();
+    this.craftableRecipeIds.clear();
     this.essenceText = undefined;
     this.blacksmithEntryButton = undefined;
     this.respecButton = undefined;
@@ -308,6 +310,7 @@ export class HunterHubScene extends Phaser.Scene {
       this.blacksmithRecipeButtons.set(recipe.id, buttonBg);
       this.blacksmithRecipeLabels.set(recipe.id, buttonText);
       if (canCraft) {
+        this.craftableRecipeIds.add(recipe.id);
         buttonBg.setInteractive({ useHandCursor: true });
         buttonBg.on('pointerover', () => { this.blacksmithSelection = index; this.highlightBlacksmithSelection(); });
         buttonBg.on('pointerout', () => this.highlightBlacksmithSelection());
@@ -345,6 +348,7 @@ export class HunterHubScene extends Phaser.Scene {
   private craftSelectedRecipe(): void {
     const recipe = CRAFTING_RECIPES[this.blacksmithSelection];
     if (!recipe) return;
+    if (!this.craftableRecipeIds.has(recipe.id)) return;
     const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
     if (saveManager?.craftRecipe(recipe.id)) {
       const weapon = WEAPONS.find(item => item.id === recipe.weaponId);
