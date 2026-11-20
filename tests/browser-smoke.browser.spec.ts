@@ -1500,7 +1500,7 @@ test('dynamic day and regional weather cycles stay deterministic across all five
         game.scene.getScene('run').browserTestAdvanceElapsed(delta,true);
       },target-current.elapsedMs);
       const snapshot=await readBrowserRunSnapshot(page);
-      expect(snapshot.environment.weather).toBe(item.weather[i]);
+      expect(snapshot.environment.weather).toBe(item.weather[i%item.weather.length]);
       expect(snapshot.environment.timeOfDay).toBe(['dawn','day','sunset','night'][i]);
       expect(snapshot.environment.weatherLabel.length).toBeGreaterThan(0);
     }
