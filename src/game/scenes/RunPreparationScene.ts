@@ -27,6 +27,7 @@ export class RunPreparationScene extends Phaser.Scene {
   private challengeId: ChallengeId | null = null;
   private profiles: EquipmentProfile[] = [];
   private options: ProfileOption[] = [null];
+  private globallyEquippedRelicIds: string[] = [];
   private selectedIndex = 0;
   private frames: Phaser.GameObjects.Graphics[] = [];
   private previousPad = { left: false, right: false, confirm: false, back: false, next: false, previous: false };
@@ -51,6 +52,7 @@ export class RunPreparationScene extends Phaser.Scene {
       : this.gameMode === 'challenge' ? CHALLENGES[0]!.id : null;
     this.profiles = [];
     this.options = [null];
+    this.globallyEquippedRelicIds = [];
     this.selectedIndex = 0;
     this.frames = [];
     this.previousPad = { left: false, right: false, confirm: false, back: false, next: false, previous: false };
@@ -65,6 +67,7 @@ export class RunPreparationScene extends Phaser.Scene {
       if (!save.progression.unlockedCharacterIds.includes(this.characterId)) this.characterId = CHARACTERS[0]!.id;
       if (!save.progression.unlockedRegionIds.includes(this.regionId)) this.regionId = REGIONS[0]!.id;
       this.profiles = [...(save.progression.equipmentProfiles[this.characterId] ?? [])];
+      this.globallyEquippedRelicIds = [...save.progression.equippedRelicIds];
       this.options = [null, ...this.profiles];
       const activeId = save.progression.activeEquipmentProfileIds[this.characterId];
       const activeIndex = this.options.findIndex(option => option?.id === activeId);
@@ -157,7 +160,8 @@ export class RunPreparationScene extends Phaser.Scene {
       this.frames.push(frame);
       const weapon = option ? WEAPONS.find(item => item.id === option.startingWeaponId) : WEAPONS.find(item => item.id === character.startingWeaponId);
       const passive = option ? PASSIVES.find(item => item.id === option.startingPassiveId) : PASSIVES.find(item => item.id === character.startingPassiveId);
-      const relics = option ? option.relicIds.map(id => RELICS.find(item => item.id === id)).filter((item): item is (typeof RELICS)[number] => Boolean(item)) : [];
+      const relicIds = option ? option.relicIds : this.globallyEquippedRelicIds;
+      const relics = relicIds.map(id => RELICS.find(item => item.id === id)).filter((item): item is (typeof RELICS)[number] => Boolean(item));
       const title = option ? option.name : 'Avcının varsayılanı';
       const weaponName = weapon?.name ?? 'Bilinmeyen silah';
       const passiveName = passive?.name ?? 'Bilinmeyen pasif';
@@ -250,7 +254,7 @@ export class RunPreparationScene extends Phaser.Scene {
       selectedProfileId: option?.id ?? null,
       selectedWeaponId: option?.startingWeaponId ?? character.startingWeaponId,
       selectedPassiveId: option?.startingPassiveId ?? character.startingPassiveId,
-      selectedRelicIds: option ? [...option.relicIds] : [],
+      selectedRelicIds: option ? [...option.relicIds] : [...this.globallyEquippedRelicIds],
       profileCount: this.profiles.length
     };
   }
