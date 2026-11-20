@@ -16,6 +16,7 @@ type PreparationData = {
   regionId?: string;
   gameMode?: unknown;
   challengeId?: unknown;
+  selectedProfileId?: string | null;
 };
 
 type ProfileOption = EquipmentProfile | null;
@@ -32,6 +33,8 @@ export class RunPreparationScene extends Phaser.Scene {
   private frames: Phaser.GameObjects.Graphics[] = [];
   private previousPad = { left: false, right: false, confirm: false, back: false, next: false, previous: false };
   private statusText?: Phaser.GameObjects.Text;
+  private touchLayout = false;
+  private requestedProfileId: string | null | undefined;
 
   constructor() {
     super('run-preparation');
@@ -57,6 +60,8 @@ export class RunPreparationScene extends Phaser.Scene {
     this.frames = [];
     this.previousPad = { left: false, right: false, confirm: false, back: false, next: false, previous: false };
     this.statusText = undefined;
+    this.touchLayout = false;
+    this.requestedProfileId = data?.selectedProfileId;
   }
 
   create(): void {
@@ -69,13 +74,19 @@ export class RunPreparationScene extends Phaser.Scene {
       this.profiles = [...(save.progression.equipmentProfiles[this.characterId] ?? [])];
       this.globallyEquippedRelicIds = [...save.progression.equippedRelicIds];
       this.options = [null, ...this.profiles];
-      const activeId = save.progression.activeEquipmentProfileIds[this.characterId];
-      const activeIndex = this.options.findIndex(option => option?.id === activeId);
-      this.selectedIndex = activeIndex >= 0 ? activeIndex : 0;
+      if (this.requestedProfileId !== undefined) {
+        const requestedIndex = this.requestedProfileId === null ? 0 : this.options.findIndex(option => option?.id === this.requestedProfileId);
+        this.selectedIndex = requestedIndex >= 0 ? requestedIndex : 0;
+      } else {
+        const activeId = save.progression.activeEquipmentProfileIds[this.characterId];
+        const activeIndex = this.options.findIndex(option => option?.id === activeId);
+        this.selectedIndex = activeIndex >= 0 ? activeIndex : 0;
+      }
     }
 
     const width = this.scale.width;
     const height = this.scale.height;
+    this.touchLayout = this.sys.game.device.input.touch;
     const character = CHARACTERS.find(item => item.id === this.characterId) ?? CHARACTERS[0]!;
     const region = REGIONS.find(item => item.id === this.regionId) ?? REGIONS[0]!;
     const modeLabel = this.gameMode === 'boss-hunt' ? 'BOSS HUNT'
@@ -90,10 +101,10 @@ export class RunPreparationScene extends Phaser.Scene {
     backdrop.strokeCircle(width * 0.52, height * 0.38, 320);
 
     this.add.text(58, 32, 'KOŞU HAZIRLIĞI', {
-      fontFamily: 'Georgia, serif', fontSize: '34px', color: '#e9dfcb', fontStyle: 'bold'
+      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '40px' : '34px', color: '#e9dfcb', fontStyle: 'bold'
     });
     this.add.text(62, 78, 'Avcını, bölgeni ve başlangıç dizilimini son kez kontrol et.', {
-      fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#b8aaa0'
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '18px' : '14px', color: '#b8aaa0'
     });
 
     const summary = this.add.graphics();
@@ -102,36 +113,36 @@ export class RunPreparationScene extends Phaser.Scene {
     summary.lineStyle(1, 0x76634b, 0.8);
     summary.strokeRoundedRect(58, 132, 340, 470, 14);
     this.add.text(82, 154, 'KOŞU BİLGİSİ', {
-      fontFamily: 'Georgia, serif', fontSize: '18px', color: '#d9c9aa', fontStyle: 'bold'
+      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '21px' : '18px', color: '#d9c9aa', fontStyle: 'bold'
     });
     this.add.text(82, 202, character.name, {
-      fontFamily: 'Georgia, serif', fontSize: '25px', color: '#f0e6d6', fontStyle: 'bold',
+      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '30px' : '25px', color: '#f0e6d6', fontStyle: 'bold',
       wordWrap: { width: 290 }
     });
     this.add.text(82, 240, character.role + '\n' + character.description, {
-      fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#aaa2a0',
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '16px' : '13px', color: '#aaa2a0',
       wordWrap: { width: 286 }, lineSpacing: 5
     });
     this.add.text(82, 326, 'BÖLGE', {
-      fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#b99a61', fontStyle: 'bold'
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '11px', color: '#b99a61', fontStyle: 'bold'
     });
     this.add.text(82, 348, region.name, {
-      fontFamily: 'Georgia, serif', fontSize: '20px', color: '#f0e6d6',
+      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '24px' : '20px', color: '#f0e6d6',
       wordWrap: { width: 286 }
     });
     this.add.text(82, 392, region.subtitle + '\n' + region.atmosphere, {
-      fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#aaa2a0',
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '12px', color: '#aaa2a0',
       wordWrap: { width: 286 }, lineSpacing: 4
     });
     this.add.text(82, 492, 'MOD', {
       fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#b99a61', fontStyle: 'bold'
     });
     this.add.text(82, 514, modeLabel + (this.challengeId ? '  •  ' + (CHALLENGES.find(item => item.id === this.challengeId)?.name ?? '') : ''), {
-      fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#e7d8bc',
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '17px' : '14px', color: '#e7d8bc',
       wordWrap: { width: 286 }
     });
     this.add.text(82, 562, 'Yetenek: ' + character.activeAbility, {
-      fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#c7ad7b',
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '12px', color: '#c7ad7b',
       wordWrap: { width: 286 }
     });
 
@@ -143,19 +154,20 @@ export class RunPreparationScene extends Phaser.Scene {
     this.add.text(446, 154, 'BAŞLANGIÇ DİZİLİMİ', {
       fontFamily: 'Georgia, serif', fontSize: '18px', color: '#d9c9aa', fontStyle: 'bold'
     });
-    this.add.text(width - 86, 158, '◀  ▶ SEÇ', {
-      fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#89818a'
+    this.add.text(width - 86, 158, this.touchLayout ? 'ÖNCEKİ / SONRAKİ' : '◀  ▶ SEÇ', {
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '14px' : '10px', color: '#89818a'
     }).setOrigin(1, 0);
 
-    const cardWidth = (width - 530) / 2;
-    const cardHeight = 112;
+    const cardWidth = this.touchLayout ? width - 530 : (width - 530) / 2;
+    const cardHeight = this.touchLayout ? 250 : 112;
     const startX = 446;
-    const startY = 194;
+    const startY = this.touchLayout ? 238 : 194;
     this.options.forEach((option, index) => {
+      if (this.touchLayout && index !== this.selectedIndex) return;
       const column = index % 2;
       const row = Math.floor(index / 2);
-      const x = startX + column * (cardWidth + 18);
-      const y = startY + row * 124;
+      const x = this.touchLayout ? startX : startX + column * (cardWidth + 18);
+      const y = this.touchLayout ? startY : startY + row * 124;
       const frame = this.add.graphics();
       this.frames.push(frame);
       const weapon = option ? WEAPONS.find(item => item.id === option.startingWeaponId) : WEAPONS.find(item => item.id === character.startingWeaponId);
@@ -167,15 +179,15 @@ export class RunPreparationScene extends Phaser.Scene {
       const passiveName = passive?.name ?? 'Bilinmeyen pasif';
       const relicLine = relics.length ? relics.map(item => item.name).join(' • ') : 'Ek kalıntı yok';
       this.add.text(x + 16, y + 12, title, {
-        fontFamily: 'Georgia, serif', fontSize: '16px', color: '#f0e6d6', fontStyle: 'bold',
+        fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '26px' : '16px', color: '#f0e6d6', fontStyle: 'bold',
         wordWrap: { width: cardWidth - 32 }
       });
       this.add.text(x + 16, y + 39, 'SİLAH  ' + weaponName + '    •    PASİF  ' + passiveName, {
-        fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#c7ad7b',
+        fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '18px' : '10px', color: '#c7ad7b',
         wordWrap: { width: cardWidth - 32 }
       });
       this.add.text(x + 16, y + 66, 'KALINTILAR  ' + relicLine, {
-        fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#aaa2a0',
+        fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '18px' : '10px', color: '#aaa2a0',
         wordWrap: { width: cardWidth - 32 }
       });
       const hit = this.add.zone(x + cardWidth / 2, y + cardHeight / 2, cardWidth, cardHeight)
@@ -183,17 +195,22 @@ export class RunPreparationScene extends Phaser.Scene {
       hit.on('pointerup', () => this.selectProfile(index));
     });
 
-    this.statusText = this.add.text(448, 574, this.options.length > 1
+    if (this.touchLayout) {
+      this.makeTouchArrow(422, 350, '‹', () => this.moveSelection(-1));
+      this.makeTouchArrow(width - 78, 350, '›', () => this.moveSelection(1));
+    }
+
+    this.statusText = this.add.text(448, this.touchLayout ? 530 : 574, this.options.length > 1
       ? 'Seçili profil bu koşuda kullanılır; kayıtlı aktif profilin değiştirilmez.'
       : 'Henüz kayıtlı profilin yok. Avcının varsayılan dizilimi kullanılacak.', {
-      fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#89818a',
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '16px' : '11px', color: '#89818a',
       wordWrap: { width: width - 540 }
     });
 
-    this.makeButton(58, height - 76, '‹  BÖLGEYE GERİ DÖN', () => this.goBack(), 220);
-    this.makeButton(width - 270, height - 76, 'KOŞUYU BAŞLAT  ›', () => this.startRun(), 212);
-    this.add.text(width / 2, height - 42, '← / → veya D-PAD: DİZİLİM     A / ENTER: BAŞLAT     B / ESC: GERİ', {
-      fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#77727a'
+    this.makeButton(58, height - 88, '‹  BÖLGEYE GERİ DÖN', () => this.goBack(), this.touchLayout ? 250 : 220, this.touchLayout ? 18 : 14, this.touchLayout ? 58 : 44);
+    this.makeButton(width - (this.touchLayout ? 292 : 270), height - 88, 'KOŞUYU BAŞLAT  ›', () => this.startRun(), this.touchLayout ? 230 : 212, this.touchLayout ? 18 : 14, this.touchLayout ? 58 : 44);
+    this.add.text(width / 2, height - 24, '← / → veya D-PAD: DİZİLİM     A / ENTER: BAŞLAT     B / ESC: GERİ', {
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '10px', color: '#77727a'
     }).setOrigin(0.5);
 
     this.input.keyboard?.on('keydown-LEFT', () => this.moveSelection(-1));
@@ -242,6 +259,7 @@ export class RunPreparationScene extends Phaser.Scene {
     selectedPassiveId: string;
     selectedRelicIds: string[];
     profileCount: number;
+    layoutMode: 'touch' | 'desktop';
   } {
     this.assertBrowserTestMode();
     const character = CHARACTERS.find(item => item.id === this.characterId) ?? CHARACTERS[0]!;
@@ -255,7 +273,8 @@ export class RunPreparationScene extends Phaser.Scene {
       selectedWeaponId: option?.startingWeaponId ?? character.startingWeaponId,
       selectedPassiveId: option?.startingPassiveId ?? character.startingPassiveId,
       selectedRelicIds: option ? [...option.relicIds] : [...this.globallyEquippedRelicIds],
-      profileCount: this.profiles.length
+      profileCount: this.profiles.length,
+      layoutMode: this.touchLayout ? 'touch' : 'desktop'
     };
   }
 
@@ -264,7 +283,13 @@ export class RunPreparationScene extends Phaser.Scene {
   }
 
   private selectProfile(index: number): void {
-    this.selectedIndex = Phaser.Math.Clamp(index, 0, this.options.length - 1);
+    const nextIndex = Phaser.Math.Clamp(index, 0, this.options.length - 1);
+    if (this.touchLayout) {
+      const option = this.options[nextIndex] ?? null;
+      this.scene.restart({ characterId: this.characterId, regionId: this.regionId, gameMode: this.gameMode, challengeId: this.challengeId ?? undefined, selectedProfileId: option?.id ?? null });
+      return;
+    }
+    this.selectedIndex = nextIndex;
     this.refreshSelection();
   }
 
@@ -274,16 +299,16 @@ export class RunPreparationScene extends Phaser.Scene {
 
   private refreshSelection(): void {
     const width = this.scale.width;
-    const cardWidth = (width - 530) / 2;
-    const cardHeight = 112;
+    const cardWidth = this.touchLayout ? width - 530 : (width - 530) / 2;
+    const cardHeight = this.touchLayout ? 250 : 112;
     const startX = 446;
-    const startY = 194;
+    const startY = this.touchLayout ? 238 : 194;
     this.frames.forEach((frame, index) => {
       const column = index % 2;
       const row = Math.floor(index / 2);
-      const x = startX + column * (cardWidth + 18);
-      const y = startY + row * 124;
-      const selected = index === this.selectedIndex;
+      const x = this.touchLayout ? startX : startX + column * (cardWidth + 18);
+      const y = this.touchLayout ? startY : startY + row * 124;
+      const selected = this.touchLayout || index === this.selectedIndex;
       frame.clear();
       frame.fillStyle(selected ? 0x30251f : 0x17161b, selected ? 0.98 : 0.78);
       frame.fillRoundedRect(x, y, cardWidth, cardHeight, 10);
@@ -302,12 +327,22 @@ export class RunPreparationScene extends Phaser.Scene {
     }
   }
 
-  private makeButton(x: number, y: number, label: string, action: () => void, width: number): void {
+  private makeTouchArrow(x: number, y: number, label: string, action: () => void): void {
     const button = this.add.text(x, y, label, {
-      fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#f2e8d4',
+      fontFamily: 'Georgia, serif', fontSize: '56px', color: '#f2e8d4', backgroundColor: '#5b3d32',
+      padding: { x: 18, y: 6 }
+    }).setOrigin(0.5).setFixedSize(76, 88).setInteractive({ useHandCursor: true });
+    button.on('pointerover', () => button.setStyle({ backgroundColor: '#79513c', color: '#ffffff' }));
+    button.on('pointerout', () => button.setStyle({ backgroundColor: '#5b3d32', color: '#f2e8d4' }));
+    button.on('pointerup', action);
+  }
+
+  private makeButton(x: number, y: number, label: string, action: () => void, width: number, fontSize = 14, height = 44): void {
+    const button = this.add.text(x, y, label, {
+      fontFamily: 'Arial, sans-serif', fontSize: `${fontSize}px`, color: '#f2e8d4',
       backgroundColor: '#5b3d32', padding: { x: 17, y: 12 }
     }).setInteractive({ useHandCursor: true });
-    button.setFixedSize(width, 44);
+    button.setFixedSize(width, height);
     button.on('pointerover', () => button.setStyle({ backgroundColor: '#79513c', color: '#ffffff' }));
     button.on('pointerout', () => button.setStyle({ backgroundColor: '#5b3d32', color: '#f2e8d4' }));
     button.on('pointerup', action);
