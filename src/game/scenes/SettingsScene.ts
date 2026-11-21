@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { drawUiBackdrop, drawUiPanel } from '../ui/dark-fantasy-theme.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { DEFAULT_GAME_SETTINGS, normalizeGameSettings, updateGameSettings, type GameSettings } from '../../gameplay/settings/settings-runtime.js';
 import { resolveRemoteAction } from '../input/platform-input.js';
@@ -29,10 +30,9 @@ export class SettingsScene extends Phaser.Scene {
     if (loaded && 'data' in loaded) this.settings = normalizeGameSettings(loaded.data.settings);
     const w = this.scale.width, h = this.scale.height;
     const compact = Boolean(this.sys.game.device.input.touch) || w < 960 || h < 520;
-    this.cameras.main.setBackgroundColor('#0b0b10');
-    this.add.rectangle(w / 2, h / 2, w, h, 0x08070b, 0.94);
-    this.add.rectangle(w / 2, h / 2, Math.min(900, w * 0.92), Math.min(630, h * 0.9), 0x1a151d, 0.99)
-      .setStrokeStyle(2, 0x987b52, 0.9);
+    drawUiBackdrop(this, 'panel');
+    this.add.rectangle(w / 2, h / 2, w, h, 0x08070b, 0.58).setDepth(-30);
+    drawUiPanel(this, (w - Math.min(900, w * 0.92)) / 2, (h - Math.min(630, h * 0.9)) / 2, Math.min(900, w * 0.92), Math.min(630, h * 0.9), 0x987b52, -20, 0.98);
     this.add.text(w / 2, h * 0.12, 'AYARLAR VE ERİŞİLEBİLİRLİK', {
       fontFamily: 'Georgia', fontSize: compact ? '25px' : '32px', color: '#e8d6ad', fontStyle: 'bold'
     }).setOrigin(0.5);

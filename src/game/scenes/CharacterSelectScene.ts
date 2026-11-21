@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import { CHARACTERS } from '../../data/characters.js';
 import { resolveRemoteAction } from '../input/platform-input.js';
 
@@ -24,11 +25,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.touchLayout = this.sys.game.device.input.touch;
     this.cameras.main.setBackgroundColor('#0b0b10');
 
-    const backdrop = this.add.graphics();
-    backdrop.fillStyle(0x17131c, 1);
-    backdrop.fillCircle(width * 0.5, height * 0.36, 330);
-    backdrop.lineStyle(1, 0xb99a61, 0.22);
-    backdrop.strokeCircle(width * 0.5, height * 0.36, 290);
+    drawUiBackdrop(this, 'selection');
 
     this.add.text(64, 48, 'AVCINI SEÇ', {
       fontFamily: 'Georgia, serif', fontSize: '38px', color: '#e9dfcb', fontStyle: 'bold'
@@ -47,6 +44,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     CHARACTERS.forEach((character, index) => {
       if (this.touchLayout && index !== this.selectedIndex) return;
       const x = this.touchLayout ? (width - cardWidth) / 2 : margin + index * (cardWidth + gap);
+      drawUiPanel(this, x, cardY, cardWidth, cardHeight, accents[index] ?? 0xc6a56b, -20, 0.88);
       const frame = this.add.graphics();
       this.frames.push(frame);
 

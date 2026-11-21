@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import type { RegionId } from '../../core/types/content.js';
 import type { ChallengeId, GameMode } from '../../core/types/game.js';
 import { CHALLENGES } from '../../data/challenges.js';
@@ -56,11 +57,7 @@ export class RegionSelectScene extends Phaser.Scene {
     const character = CHARACTERS.find(item => item.id === this.characterId) ?? CHARACTERS[0]!;
     this.cameras.main.setBackgroundColor('#0b0b10');
 
-    const backdrop = this.add.graphics();
-    backdrop.fillStyle(0x17131c, 1);
-    backdrop.fillCircle(width * 0.5, height * 0.35, 340);
-    backdrop.lineStyle(1, 0xb99a61, 0.2);
-    backdrop.strokeCircle(width * 0.5, height * 0.35, 300);
+    drawUiBackdrop(this, 'selection');
 
     this.add.text(64, 38, 'BÖLGE VE ZORLUK', {
       fontFamily: 'Georgia, serif', fontSize: '36px', color: '#e9dfcb', fontStyle: 'bold'
@@ -78,6 +75,7 @@ export class RegionSelectScene extends Phaser.Scene {
     REGIONS.forEach((region, index) => {
       if (this.touchLayout && index !== this.selectedIndex) return;
       const x = this.touchLayout ? (width - cardWidth) / 2 : margin + index * (cardWidth + gap);
+      drawUiPanel(this, x, cardY, cardWidth, cardHeight, Number.parseInt((region.palette[1] ?? '#b99a61').replace('#', ''), 16), -20, 0.88);
       const frame = this.add.graphics();
       this.frames.push(frame);
       const paletteColor = Number.parseInt((region.palette[1] ?? '#51484a').replace('#', ''), 16);

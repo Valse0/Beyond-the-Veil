@@ -1,5 +1,18 @@
 import { expect, test } from '@playwright/test';
 
+test('dark fantasy menu backdrop loads from the original SVG asset', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.goto('/?bv-test=1');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { textures: { exists: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.textures.exists('veil-ui-backdrop'));
+  });
+  expect(pageErrors).toEqual([]);
+});
+
 type QuestJournalBrowserSnapshot = {
   selectedRegionId: string;
   regions: { id: string; unlocked: boolean; completedCount: number; questCount: number }[];

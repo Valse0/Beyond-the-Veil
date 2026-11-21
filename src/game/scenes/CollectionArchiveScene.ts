@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { drawUiBackdrop } from '../ui/dark-fantasy-theme.js';
 import { buildCollectionArchiveSnapshot, type CollectionArchiveCategory, type CollectionArchiveSnapshot } from '../../gameplay/collections/collection-archive-runtime.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { resolveRemoteAction } from '../input/platform-input.js';
@@ -123,12 +124,7 @@ export class CollectionArchiveScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
     const category = this.currentCategory();
-    this.cameras.main.setBackgroundColor('#0b0b10');
-    const art = this.add.graphics();
-    art.fillStyle(0x17131c, 0.96);
-    art.fillCircle(width * 0.78, height * 0.48, 390);
-    art.lineStyle(1, 0xb99a61, 0.18);
-    art.strokeCircle(width * 0.78, height * 0.48, 350);
+    drawUiBackdrop(this, 'archive');
 
     this.add.text(48, 30, 'KOLEKSİYON ARŞİVİ', {
       fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '30px' : '34px', color: '#e9dfcb', fontStyle: 'bold'

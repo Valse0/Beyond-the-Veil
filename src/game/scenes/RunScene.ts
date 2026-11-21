@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { drawUiPanel } from '../ui/dark-fantasy-theme.js';
 import type { ElementId, RegionId, RegionPathDefinition, EnemyDefinition, EnemyMutationId, BossDefinition, CharacterDefinition, WeaponDefinition, PassiveSpecialMechanic } from '../../core/types/content.js';
 import type { ChallengeId, GameMode, RunState, UpgradeId } from '../../core/types/game.js';
 import { CHARACTERS, STARTING_CHARACTER } from '../../data/characters.js';
@@ -1205,10 +1206,12 @@ export class RunScene extends Phaser.Scene {
     const w=this.scale.width,center=w/2;
     const bossWidth=Math.min(400,w-32),bossBarWidth=bossWidth-56,bossLeft=center-bossBarWidth/2;
     const eventWidth=Math.min(460,w-32),eventBarWidth=eventWidth-44,eventLeft=center-eventBarWidth/2;
+    drawUiPanel(this, 12, 8, w - 24, 54, 0x8c7657, 96, 0.68);
     this.hud=this.add.text(22,18,'',{fontFamily:'Arial',fontSize:'15px',color:'#eee5d6',lineSpacing:6}).setScrollFactor(0).setDepth(100);
     this.clock=this.add.text(center,18,'00:00',{fontFamily:'Georgia',fontSize:'23px',color:'#d4b777'}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
-    this.add.rectangle(w-130,32,180,12,0x352d32).setScrollFactor(0).setDepth(100);
-    this.health=this.add.rectangle(w-220,32,160,8,0xb95d62).setOrigin(0,.5).setScrollFactor(0).setDepth(101);
+    this.add.rectangle(w-130,32,184,14,0x211d24,0.98).setStrokeStyle(1,0x8c7657,0.82).setScrollFactor(0).setDepth(100);
+    this.add.rectangle(w-130,32,172,6,0x45343a).setScrollFactor(0).setDepth(100);
+    this.health=this.add.rectangle(w-216,32,160,7,0xc76a70).setOrigin(0,.5).setScrollFactor(0).setDepth(101);
     const pause=this.add.text(w-34,68,'Ⅱ',{fontSize:'25px',color:'#d6c8b3'}).setOrigin(.5).setScrollFactor(0).setDepth(120).setInteractive();
     pause.on('pointerup',()=>this.openPause());
 

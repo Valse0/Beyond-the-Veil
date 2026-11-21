@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#090d18"/><stop offset=".48" stop-color="#182331"/><stop offset="1" stop-color="#080b12"/></linearGradient>
+ <radialGradient id="moon"><stop stop-color="#f0d9a6" stop-opacity=".95"/><stop offset=".62" stop-color="#c5ad83" stop-opacity=".82"/><stop offset="1" stop-color="#9a8b78" stop-opacity="0"/></radialGradient>
+ <linearGradient id="stone" x2="0" y2="1"><stop stop-color="#3a4145"/><stop offset="1" stop-color="#111820"/></linearGradient>
+ <linearGradient id="shade" x2="1" y2="0"><stop stop-color="#05070d" stop-opacity=".95"/><stop offset=".58" stop-color="#05070d" stop-opacity=".12"/><stop offset="1" stop-color="#05070d" stop-opacity=".18"/></linearGradient>
+ <filter id="glow"><feGaussianBlur stdDeviation="12"/></filter>
+</defs>
+<rect width="1280" height="720" fill="url(#sky)"/>
+<circle cx="1000" cy="178" r="145" fill="#d8c59e" opacity=".12" filter="url(#glow)"/><circle cx="1000" cy="178" r="100" fill="url(#moon)"/>
+<path d="M0 300L90 224 145 274 235 188 320 268 415 214 510 302 610 230 700 282 810 192 895 270 980 205 1080 270 1170 210 1280 288V720H0Z" fill="#111b28"/>
+<path d="M0 360L110 285 200 336 310 260 410 350 530 278 630 360 760 270 850 352 970 286 1080 360 1180 280 1280 350V720H0Z" fill="#17232d"/>
+<g fill="#202a33" stroke="#56606a" stroke-width="5">
+<path d="M780 420V292H820V250H850V210H878V250H902V292H930V420Z"/><path d="M940 420V280H970V236H996V192H1026V236H1054V280H1085V420Z"/><path d="M1090 420V312H1122V266H1146V225H1170V266H1198V312H1220V420Z"/>
+</g>
+<path d="M800 300H830V420H800ZM870 255H900V420H870ZM960 290H985V420H960ZM1010 245H1040V420H1010ZM1110 320H1140V420H1110Z" fill="#101821"/>
+<path d="M840 312V356M884 270V330M995 252V320M1025 210V300M1154 244V314" stroke="#9c8969" stroke-width="4" opacity=".62"/>
+<path d="M0 420Q180 360 340 430T660 420T980 430T1280 398V720H0Z" fill="#101923"/>
+<path d="M0 480Q190 412 360 478T700 464T1020 470T1280 440V720H0Z" fill="#30444b" opacity=".24"/>
+<path d="M0 520L110 455 170 485 240 430 300 490 360 452 430 500 500 440 570 510 650 450 730 500 820 438 900 500 1000 430 1080 488 1170 440 1280 480V720H0Z" fill="#111923"/>
+<path d="M560 720L640 600 700 540 765 498 820 462 880 440 920 450 860 500 815 548 770 600 735 720Z" fill="url(#stone)"/>
+<path d="M0 720V420L55 390 80 420 120 378 145 416 185 384 215 438 255 402 295 448 335 420 365 468 410 445 455 500 500 480 550 545 580 720Z" fill="#080d14"/>
+<path d="M0 720V560L42 520 68 545 88 492 120 540 145 490 175 548 205 515 235 575 260 548 290 600 320 575 355 640 380 720Z" fill="#0a1118"/>
+<path d="M255 720V500Q255 450 310 450Q365 450 365 500V720Z" fill="#17232a" stroke="#27343a" stroke-width="7"/><path d="M278 720V515Q278 475 310 475Q342 475 342 515V720Z" fill="#0c121a"/>
+<path d="M360 720V545Q360 500 408 500Q456 500 456 545V720Z" fill="#17232a" stroke="#27343a" stroke-width="7"/><path d="M383 720V556Q383 522 408 522Q433 522 433 556V720Z" fill="#0b121a"/>
+<path d="M270 470L310 430 350 470M372 520L408 484 444 520" fill="none" stroke="#9a8058" stroke-width="5" opacity=".6"/>
+<path d="M1040 720V420L1080 382 1120 420V720ZM1080 420V350L1100 320 1120 350V420ZM1120 720V480L1160 442 1200 480V720Z" fill="#0a1017" stroke="#29343a" stroke-width="5"/>
+<g fill="#5b9c91"><circle cx="310" cy="510" r="7"/><circle cx="408" cy="548" r="6"/><circle cx="1099" cy="378" r="6"/></g>
+<g fill="#72b7a6" opacity=".22"><circle cx="310" cy="510" r="18"/><circle cx="408" cy="548" r="16"/></g>
+<path d="M730 720L785 645 832 598 880 566 926 545" stroke="#7d7668" stroke-width="3" opacity=".32" fill="none"/>
+<g fill="#070b12"><path d="M170 0L184 0 170 155 155 215 142 250 132 248 150 180Z"/><path d="M190 0L202 0 208 135 230 208 220 214 192 150Z"/><path d="M0 140Q80 80 155 118Q110 130 86 172Q48 182 0 210Z"/><path d="M0 205Q80 154 132 170Q86 184 55 240L0 260Z"/></g>
+<path d="M0 690Q180 650 350 682T680 680T1000 680T1280 650V720H0Z" fill="#070a10"/>
+<g fill="#c6a56b" opacity=".75"><rect x="300" y="498" width="5" height="12"/><rect x="402" y="536" width="5" height="12"/><rect x="1096" y="367" width="5" height="12"/></g>
+<rect width="1280" height="720" fill="url(#shade)"/>
+</svg>

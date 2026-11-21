@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import { beginNewGamePlus, canStartNewGamePlus } from '../../gameplay/run/new-game-plus-runtime.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { resolveRemoteAction } from '../input/platform-input.js';
@@ -25,6 +26,8 @@ export class MainMenuScene extends Phaser.Scene {
 
   constructor() { super('main-menu'); }
 
+  preload(): void { preloadUiArt(this); }
+
   create(): void {
     const w = this.scale.width;
     const h = this.scale.height;
@@ -37,11 +40,10 @@ export class MainMenuScene extends Phaser.Scene {
       this.newGamePlusLevel = loaded.data.progression.newGamePlusLevel;
     }
 
-    const art = this.add.graphics();
-    art.fillStyle(0x17131c, 1); art.fillCircle(w * 0.72, h * 0.48, 260);
-    art.fillStyle(0x30202a, 0.55); art.fillCircle(w * 0.72, h * 0.48, 170);
-    art.lineStyle(2, 0xb89a61, 0.32); art.strokeCircle(w * 0.72, h * 0.48, 230);
-    art.lineBetween(w * 0.58, h * 0.8, w * 0.86, h * 0.18);
+    drawUiBackdrop(this, 'menu');
+    drawUiPanel(this, 48, 44, 535, 242, 0xc6a56b, -900, 0.94);
+    drawUiPanel(this, 62, h - 218, 820, 166, 0x987b52, -900, 0.9);
+    drawUiPanel(this, w - 420, 30, 370, 58, 0x987b52, -900, 0.82);
 
     this.add.text(74, 82, 'BEYOND', {
       fontFamily: 'Georgia, serif', fontSize: '58px', color: '#e9dfcb',
@@ -106,10 +108,6 @@ export class MainMenuScene extends Phaser.Scene {
     this.add.text(84, h - 82, 'WASD / OKLAR: HAREKET     SPACE: DASH     E: RUH DARBESİ     ESC: DURAKLAT', {
       fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#77727a'
     });
-    this.add.text(w - 76, h - 48, 'ERKEN OYNANABİLİR TEMEL  •  GEÇİCİ GÖRSELLER', {
-      fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#625d66'
-    }).setOrigin(1, 0.5);
-
     this.add.text(84, h - 125, 'OKLAR: SEÇ     ENTER / SPACE / A: ONAYLA     J: HİKÂYE     C: KOLEKSİYON', {
       fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#a9977d'
     });

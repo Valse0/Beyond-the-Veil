@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { drawUiBackdrop } from '../ui/dark-fantasy-theme.js';
 import { CHARACTERS } from '../../data/characters.js';
 import { PASSIVES } from '../../data/passives.js';
 import { WEAPONS } from '../../data/weapons.js';
@@ -160,12 +161,7 @@ export class CharacterDetailScene extends Phaser.Scene {
     const panelXs = [margin, margin + panelWidth + gap, margin + (panelWidth + gap) * 2];
 
     this.children.removeAll(true);
-    this.cameras.main.setBackgroundColor('#0b0b10');
-    const backdrop = this.add.graphics();
-    backdrop.fillStyle(0x17131c, 1);
-    backdrop.fillCircle(width * 0.78, height * 0.32, 300);
-    backdrop.lineStyle(1, 0xb99a61, 0.18);
-    backdrop.strokeCircle(width * 0.78, height * 0.32, 260);
+    drawUiBackdrop(this, 'dossier');
 
     this.add.text(64, 34, 'AVCI DOSYASI', {
       fontFamily: 'Georgia, serif', fontSize: touch ? '28px' : '34px', color: '#e9dfcb', fontStyle: 'bold'

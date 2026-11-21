@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { drawUiBackdrop } from '../ui/dark-fantasy-theme.js';
 import type { RegionId } from '../../core/types/content.js';
 import { BOSS_VARIANTS } from '../../data/boss-variants.js';
 import { QUESTS } from '../../data/quests.js';
@@ -234,13 +235,7 @@ export class QuestJournalScene extends Phaser.Scene {
     const height = this.scale.height;
     const snapshot = this.buildJournalSnapshot();
     const region = REGIONS[this.selectedRegionIndex]!;
-    this.cameras.main.setBackgroundColor('#0b0b10');
-
-    const backdrop = this.add.graphics();
-    backdrop.fillStyle(0x17131c, 0.92);
-    backdrop.fillCircle(width * 0.72, height * 0.48, 380);
-    backdrop.lineStyle(1, 0xb99a61, 0.18);
-    backdrop.strokeCircle(width * 0.72, height * 0.48, 350);
+    drawUiBackdrop(this, 'archive');
     this.add.text(48, 34, 'HİKÂYE DEFTERİ', {
       fontFamily: 'Georgia, serif', fontSize: '34px', color: '#e9dfcb', fontStyle: 'bold'
     });

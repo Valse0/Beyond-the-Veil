@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import type { ChallengeId, GameMode } from '../../core/types/game.js';
 import type { RegionId } from '../../core/types/content.js';
 import { CHARACTERS } from '../../data/characters.js';
@@ -94,11 +95,7 @@ export class RunPreparationScene extends Phaser.Scene {
       : this.gameMode === 'endless' ? 'SONSUZ' : 'SURVIVAL';
     this.cameras.main.setBackgroundColor('#0b0b10');
 
-    const backdrop = this.add.graphics();
-    backdrop.fillStyle(0x17131c, 1);
-    backdrop.fillCircle(width * 0.52, height * 0.38, 360);
-    backdrop.lineStyle(1, 0xb99a61, 0.2);
-    backdrop.strokeCircle(width * 0.52, height * 0.38, 320);
+    drawUiBackdrop(this, 'preparation');
 
     this.add.text(58, 32, 'KOŞU HAZIRLIĞI', {
       fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '40px' : '34px', color: '#e9dfcb', fontStyle: 'bold'
@@ -107,11 +104,7 @@ export class RunPreparationScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '18px' : '14px', color: '#b8aaa0'
     });
 
-    const summary = this.add.graphics();
-    summary.fillStyle(0x17161b, 0.96);
-    summary.fillRoundedRect(58, 132, 340, 470, 14);
-    summary.lineStyle(1, 0x76634b, 0.8);
-    summary.strokeRoundedRect(58, 132, 340, 470, 14);
+    drawUiPanel(this, 58, 132, 340, 470, 0x9a8058, 0, 0.97);
     this.add.text(82, 154, 'KOŞU BİLGİSİ', {
       fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '21px' : '18px', color: '#d9c9aa', fontStyle: 'bold'
     });

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { drawUiBackdrop } from '../ui/dark-fantasy-theme.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { PERMANENT_UPGRADES, getPermanentUpgradeCost } from '../../gameplay/progression/permanent-upgrades.js';
 import { CRAFTING_MATERIALS, CRAFTING_RECIPES } from '../../data/crafting.js';
@@ -217,13 +218,8 @@ export class HunterHubScene extends Phaser.Scene {
     };
   }
 
-  private drawBackdrop(width: number, height: number): void {
-    this.cameras.main.setBackgroundColor('#0b0b10');
-    const backdrop = this.add.graphics();
-    backdrop.fillStyle(0x17131c, 1);
-    backdrop.fillCircle(width * 0.5, height * 0.4, 380);
-    backdrop.lineStyle(1, 0xb99a61, 0.25);
-    backdrop.strokeCircle(width * 0.5, height * 0.4, 340);
+  private drawBackdrop(_width: number, _height: number): void {
+    drawUiBackdrop(this, 'hub');
   }
 
   private renderHub(selectedIndex = 0): void {
