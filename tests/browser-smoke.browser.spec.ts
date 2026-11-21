@@ -3005,6 +3005,10 @@ test('collection archive reflects saved discoveries and hides undiscovered entri
     window.localStorage.setItem('beyond-the-veil.save', JSON.stringify(save));
   });
   await page.reload();
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('main-menu'));
+  });
   await page.keyboard.press('c');
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
@@ -3038,6 +3042,10 @@ test('collection archive uses touch focus layout and supports touch category and
   };
   await page.goto('/?bv-test=1');
   await expect(canvas).toBeVisible();
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('main-menu'));
+  });
   await page.keyboard.press('c');
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
