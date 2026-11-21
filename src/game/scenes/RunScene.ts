@@ -3029,7 +3029,15 @@ export class RunScene extends Phaser.Scene {
 
   private openSettings():void {
     if(!this.paused||this.runFinished)return;
+    this.scene.pause('run');
     this.scene.launch('settings',{returnScene:'run'});
+  }
+
+  refreshSettingsFromSave():void {
+    const manager=this.registry.get('saveManager') as SaveManager|undefined;
+    const loaded=manager?.load();
+    this.gameSettings=readGameSettings(loaded&&'data' in loaded?loaded.data:undefined);
+    this.applyTouchControlSettings();
   }
 
   private openQuestJournal():void {
