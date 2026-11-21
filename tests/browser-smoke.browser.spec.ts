@@ -1,5 +1,19 @@
 import { expect, test } from '@playwright/test';
 
+async function clickGamePoint(page: import('@playwright/test').Page, x: number, y: number): Promise<void> {
+  const canvas = page.locator('#game-container canvas');
+  const bounds = await canvas.boundingBox();
+  if (!bounds) throw new Error('Game canvas is not visible.');
+  const dimensions = await canvas.evaluate(element => ({
+    width: (element as HTMLCanvasElement).width,
+    height: (element as HTMLCanvasElement).height
+  }));
+  await page.mouse.click(
+    bounds.x + (x / dimensions.width) * bounds.width,
+    bounds.y + (y / dimensions.height) * bounds.height
+  );
+}
+
 test('dark fantasy menu backdrop loads from the original SVG asset', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -94,7 +108,7 @@ test('character detail presents real mastery, loadout, synergies and cosmetic sa
   });
   await page.reload();
   await expect(canvas).toBeVisible();
-  await page.mouse.click(160, 555);
+  await clickGamePoint(page, 160, 555);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('character-select'));
@@ -220,7 +234,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
   expect(dimensions).toEqual({ width: 1280, height: 720 });
 
   const menuFrame = await canvas.screenshot();
-  await page.mouse.click(160, 555);
+  await clickGamePoint(page, 160, 555);
   // Keep the pointer off interactive controls so screenshot comparisons are deterministic.
   await page.mouse.move(1240, 40);
   await expect.poll(async () => !(await canvas.screenshot()).equals(menuFrame), {
@@ -363,7 +377,7 @@ test('main menu keeps pointer access to Hunter Hub', async ({ page }) => {
   await page.goto('/?bv-test=1');
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
-  await page.mouse.click(460, 555);
+  await clickGamePoint(page, 460, 555);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('hunter-hub'));
@@ -387,14 +401,14 @@ test('region selection reads unlocked regions from the persisted profile', async
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
 
-  await page.mouse.click(160, 555);
+  await clickGamePoint(page, 160, 555);
   await page.keyboard.press('Enter');
   await page.waitForTimeout(120);
   const regionScreen = await canvas.screenshot();
 
   // The second region is unlocked by the persisted profile and can launch a run.
   await page.mouse.click(407, 320);
-  await page.mouse.click(1124, 644);
+  await clickGamePoint(page, 1124, 644);
   await page.waitForTimeout(180);
   expect((await canvas.screenshot()).equals(regionScreen)).toBe(false);
 });
@@ -695,7 +709,7 @@ test('Hunter Hub keyboard navigation can purchase a permanent upgrade and return
   await page.goto('/?bv-test=1');
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
-  await page.mouse.click(430, 535);
+  await clickGamePoint(page, 430, 535);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('hunter-hub'));
@@ -737,7 +751,7 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
   await page.goto('/?bv-test=1');
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
-  await page.mouse.click(430, 535);
+  await clickGamePoint(page, 430, 535);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('hunter-hub'));
@@ -826,7 +840,7 @@ test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaffor
   });
 
   const openBlacksmith = async () => {
-    await page.mouse.click(430, 535);
+    await clickGamePoint(page, 430, 535);
     await page.waitForFunction(() => {
       const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
       return Boolean(game?.scene.isActive('hunter-hub'));
@@ -950,7 +964,7 @@ test('run preparation selects a saved equipment profile and applies its real loa
   await page.goto('/?bv-test=1');
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
-  await page.mouse.click(160, 555);
+  await clickGamePoint(page, 160, 555);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('character-select'));
@@ -1038,7 +1052,7 @@ test('Hunter Hub equipment profiles create, edit, activate, persist and delete p
   const openProfiles = async () => {
     await page.goto('/?bv-test=1');
     await expect(canvas).toBeVisible();
-    await page.mouse.click(430, 535);
+    await clickGamePoint(page, 430, 535);
     await page.waitForFunction(() => {
       const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
       return Boolean(game?.scene.isActive('hunter-hub'));
@@ -2535,7 +2549,7 @@ test('quest journal reads saved branches, regional state and ending history from
   });
   await page.reload();
   await expect(canvas).toBeVisible();
-  await page.mouse.click(1110, 60);
+  await clickGamePoint(page, 1110, 60);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean; isPaused: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('quest-journal') && game.scene.isPaused('main-menu'));
