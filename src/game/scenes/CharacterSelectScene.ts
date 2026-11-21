@@ -5,7 +5,7 @@ import { resolveRemoteAction } from '../input/platform-input.js';
 export class CharacterSelectScene extends Phaser.Scene {
   private selectedIndex = 0;
   private frames: Phaser.GameObjects.Graphics[] = [];
-  private previousPad = { left: false, right: false, confirm: false, back: false };
+  private previousPad = { left: false, right: false, confirm: false, back: false, details: false };
   private touchLayout = false;
 
   constructor() { super('character-select'); }
@@ -15,7 +15,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.selectedIndex = index >= 0 ? index : 0;
     this.frames = [];
     this.touchLayout = false;
-    this.previousPad = { left: false, right: false, confirm: false, back: false };
+    this.previousPad = { left: false, right: false, confirm: false, back: false, details: false };
   }
 
   create(): void {
@@ -92,14 +92,14 @@ export class CharacterSelectScene extends Phaser.Scene {
       this.makeTouchArrow(width - 142, 354, '›', () => this.moveSelection(1));
     }
     this.makeButton(64, height - 102, this.touchLayout ? '‹  GERİ' : '‹  GERİ', () => this.scene.start('main-menu'), false, this.touchLayout ? 190 : 150, this.touchLayout ? 19 : 15, this.touchLayout ? 82 : 46);
-    this.makeButton(width - (this.touchLayout ? 292 : 250), height - 88, 'BÖLGEYE DEVAM ET  ›', () => this.continue(), false, this.touchLayout ? 228 : 186, this.touchLayout ? 18 : 15, this.touchLayout ? 82 : 46);
+    this.makeButton(width / 2 - (this.touchLayout ? 90 : 80), height - (this.touchLayout ? 102 : 88), 'AYRINTILAR', () => this.openDetails(), false, this.touchLayout ? 180 : 160, this.touchLayout ? 16 : 14, this.touchLayout ? 82 : 46);\n    this.makeButton(width - (this.touchLayout ? 292 : 250), height - 88, 'BÖLGEYE DEVAM ET  ›', () => this.continue(), false, this.touchLayout ? 228 : 186, this.touchLayout ? 18 : 15, this.touchLayout ? 82 : 46);
     this.add.text(width / 2, height - 8, '← / → veya D-PAD: SEÇ     A / ENTER: DEVAM     B / ESC: GERİ', {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '11px', color: '#77727a'
     }).setOrigin(0.5);
 
     this.input.keyboard?.on('keydown-LEFT', () => this.moveSelection(-1));
     this.input.keyboard?.on('keydown-RIGHT', () => this.moveSelection(1));
-    this.input.keyboard?.on('keydown-ENTER', () => this.continue());
+    this.input.keyboard?.on('keydown-ENTER', () => this.continue());\n    this.input.keyboard?.on('keydown-I', () => this.openDetails());
     this.input.keyboard?.on('keydown-ESC', () => this.scene.start('main-menu'));
     this.input.keyboard?.on('keydown-BACKSPACE', () => this.scene.start('main-menu'));
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
@@ -188,7 +188,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     }
   }
 
-  private continue(): void {
+  private openDetails(): void {\n    const character = CHARACTERS[this.selectedIndex] ?? CHARACTERS[0]!;\n    this.scene.start('character-detail', { characterId: character.id });\n  }\n\n  private continue(): void {
     const character = CHARACTERS[this.selectedIndex] ?? CHARACTERS[0]!;
     this.scene.start('region-select', { characterId: character.id });
   }
