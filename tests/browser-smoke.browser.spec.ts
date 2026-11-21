@@ -47,6 +47,9 @@ type CharacterDetailBrowserSnapshot = {
   nextMilestonePoints: number | null;
   masteryRewards: { level: number; rewardId: string; description: string; unlocked: boolean }[];
   cosmetics: { id: string; unlocked: boolean }[];
+  layoutMode: 'touch-sections' | 'desktop-columns';
+  activeSection: number;
+  presentationFontSize: number;
 };
 
 async function readCharacterDetailSnapshot(page: import('@playwright/test').Page): Promise<CharacterDetailBrowserSnapshot> {

@@ -171,7 +171,7 @@ export class CharacterDetailScene extends Phaser.Scene {
       fontFamily: 'Georgia, serif', fontSize: touch ? '28px' : '34px', color: '#e9dfcb', fontStyle: 'bold'
     });
     this.add.text(width - 64, 46, character.unlocked ? 'AÇIK AVCI' : 'KİLİTLİ AVCI', {
-      fontFamily: 'Arial, sans-serif', fontSize: small + 'px', color: character.unlocked ? '#b9c9a2' : '#d18b82'
+      fontFamily: 'Arial, sans-serif', fontSize: (touch ? 18 : small) + 'px', color: character.unlocked ? '#b9c9a2' : '#d18b82'
     }).setOrigin(1, 0);
 
     if (touch) {
