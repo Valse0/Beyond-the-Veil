@@ -49,6 +49,7 @@ import { createLevelUpControlState, drawLevelUpChoices as drawChoicesFromPool, s
 import { derivePermanentUpgradeEffects, type PermanentUpgradeEffects } from '../../gameplay/progression/permanent-upgrades.js';
 import { getActiveEquipmentProfile } from '../../gameplay/progression/equipment-profiles.js';
 import { deriveRelicStats, getRelicDamageMultiplier, type RelicStats } from '../../gameplay/relics/relic-runtime.js';
+import { readGameSettings, type GameSettings } from '../../gameplay/settings/settings-runtime.js';
 
 const RUN_MS = 900000;
 const BOSS_START_MS = 840000;
@@ -260,6 +261,7 @@ export class RunScene extends Phaser.Scene {
   private browserSynergyTestTargets:Phaser.Physics.Arcade.Sprite[]=[];
   private browserSynergyInitialHealth:number[]=[];
   private browserSynergyPlayerHealthBefore=0;
+  private gameSettings:GameSettings=readGameSettings(undefined);
 
   constructor(){super('run');}
 
@@ -1081,6 +1083,7 @@ export class RunScene extends Phaser.Scene {
     const saveManager=this.registry.get('saveManager') as SaveManager|undefined;
     const loadedSave=saveManager?.load();
     this.newGamePlusLevel=loadedSave&&'data' in loadedSave?loadedSave.data.progression.newGamePlusLevel:0;
+    this.gameSettings=readGameSettings(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
     this.scaledEnemyDefinitions=new Map(ENEMIES.map(enemy=>[enemy.id,scaleNewGamePlusEnemy(enemy,this.newGamePlusLevel)]));
     this.questSaveData=getGameModeRules(this.gameMode).storyQuestsEnabled&&loadedSave&&'data' in loadedSave?startAvailableQuests(loadedSave.data,this.region.id):undefined;
     this.pendingQuestChoiceId=null;this.questChoiceErrorText=undefined;
@@ -1167,7 +1170,7 @@ export class RunScene extends Phaser.Scene {
       this.spawnStoryWorldState(loadedSave&&'data' in loadedSave?loadedSave.data:undefined);
     }
     this.environmentState=resolveEnvironment(this.region.id,this.state.elapsedMs);
-    this.createHud();this.createTouchControls();this.refreshBuildStats();
+    this.createHud();this.createTouchControls();this.applyTouchControlSettings();this.refreshBuildStats();
     if(getGameModeRules(this.gameMode).regularWavesEnabled){
       this.spawnEnemy();
       this.waveDirector={...this.waveDirector,spawnIndex:1,nextSpawnAtMs:1500};
@@ -1341,7 +1344,7 @@ export class RunScene extends Phaser.Scene {
     const dir=velocity.length()?velocity.normalize():new Phaser.Math.Vector2(1,0);
     const ghostStep=PASSIVES.find(item=>item.specialUpgrade.mechanic.kind==='ghost-step')?.specialUpgrade.mechanic;
     this.dashUntil=this.time.now+190+(isPassiveSpecialActive(this.build,'hunters-greaves')&&ghostStep?.kind==='ghost-step'?ghostStep.immunityMs:0);this.dashReady=this.time.now+1150;
-    this.player.setVelocity(dir.x*this.state.moveSpeed*2.8,dir.y*this.state.moveSpeed*2.8);this.cameras.main.shake(75,.0018);
+    this.player.setVelocity(dir.x*this.state.moveSpeed*2.8,dir.y*this.state.moveSpeed*2.8);this.shakeCamera(75,.0018);
   }
 
   private useAbility():void {
@@ -1362,7 +1365,7 @@ export class RunScene extends Phaser.Scene {
     }else if(resolution.effect==='delayed-spirit-zone'&&resolution.delayedZone){
       const zone=resolution.delayedZone,marker=this.add.circle(zone.x,zone.y,zone.radius,0x73d7c8,.16).setStrokeStyle(3,0x9be8dc,.9).setDepth(4);
       this.tweens.add({targets:marker,alpha:.38,scale:.92,duration:zone.delayMs,yoyo:true,repeat:0});
-      this.abilityDelayedZoneTimer=this.time.delayedCall(zone.delayMs,()=>{this.abilityDelayedZoneFired=true;if(this.runFinished){this.abilityDelayedZoneRunFinished=true;marker.destroy();return;}const candidates=this.activeTargets();const targetsInRange=candidates.filter(target=>Phaser.Math.Distance.Between(zone.x,zone.y,target.x,target.y)<=zone.radius);this.abilityDelayedZoneCandidateCount=candidates.length;this.abilityDelayedZoneInRangeCount=targetsInRange.length;for(const target of targetsInRange){const dealt=this.damageEnemy(target,damage,element);this.abilityDelayedZoneDamage+=dealt;this.abilityLastDamage+=dealt;}marker.setFillStyle(0x73d7c8,.3).setStrokeStyle(4,0xb8fff2,1);this.cameras.main.flash(120,70,170,160);this.time.delayedCall(zone.visualDurationMs,()=>marker.destroy());});
+      this.abilityDelayedZoneTimer=this.time.delayedCall(zone.delayMs,()=>{this.abilityDelayedZoneFired=true;if(this.runFinished){this.abilityDelayedZoneRunFinished=true;marker.destroy();return;}const candidates=this.activeTargets();const targetsInRange=candidates.filter(target=>Phaser.Math.Distance.Between(zone.x,zone.y,target.x,target.y)<=zone.radius);this.abilityDelayedZoneCandidateCount=candidates.length;this.abilityDelayedZoneInRangeCount=targetsInRange.length;for(const target of targetsInRange){const dealt=this.damageEnemy(target,damage,element);this.abilityDelayedZoneDamage+=dealt;this.abilityLastDamage+=dealt;}marker.setFillStyle(0x73d7c8,.3).setStrokeStyle(4,0xb8fff2,1);this.flashCamera(120,70,170,160);this.time.delayedCall(zone.visualDurationMs,()=>marker.destroy());});
       this.cameras.main.shake(70,.0015);
     }else if(resolution.effect==='blink-and-mark'){
       const destination=resolution.blinkDestination!,safe=resolveRegionMapPosition(this.mapLayout,destination.x,destination.y,30);
@@ -2012,6 +2015,7 @@ export class RunScene extends Phaser.Scene {
 
   private damageEnemy(enemy:Phaser.Physics.Arcade.Sprite,baseDamage:number,element?:ElementId):number {
     if(!enemy.active||this.runFinished||Number(enemy.getData('untargetableUntil')??0)>this.time.now)return 0;
+    this.showDamageNumber(enemy,baseDamage);
     if(enemy.getData('isBoss'))return this.damageBossTarget(enemy,baseDamage,element);
     const def=this.enemyDefinition(enemy);if(!def)return 0;
     const actor=this.enemyStates.get(enemy);
@@ -3017,9 +3021,15 @@ export class RunScene extends Phaser.Scene {
     const title=this.add.text(w/2,h*.36,'DURAKLATILDI',{fontFamily:'Georgia',fontSize:'34px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201);
     this.overlay.push(shade,title);
     this.createOverlayButton(w/2,h*.48,260,54,'DEVAM ET',()=>{this.clearOverlay();this.resumeRunWorld();});
-    this.createOverlayButton(w/2,h*.62,260,54,'HİKÂYE DEFTERİ',()=>this.openQuestJournal());
-    this.createOverlayButton(w/2,h*.76,260,54,'ANA MENÜ',()=>this.scene.start('main-menu'));
+    this.createOverlayButton(w/2,h*.58,260,50,'HİKÂYE DEFTERİ',()=>this.openQuestJournal());
+    this.createOverlayButton(w/2,h*.70,260,50,'AYARLAR',()=>this.openSettings());
+    this.createOverlayButton(w/2,h*.82,260,50,'ANA MENÜ',()=>this.scene.start('main-menu'));
     this.overlayBackIndex=0;
+  }
+
+  private openSettings():void {
+    if(!this.paused||this.runFinished)return;
+    this.scene.launch('settings',{returnScene:'run'});
   }
 
   private openQuestJournal():void {
@@ -3152,6 +3162,26 @@ export class RunScene extends Phaser.Scene {
   }
 
   private clearOverlay():void {this.overlay.forEach(o=>o.destroy());this.overlay=[];this.overlayButtons=[];this.overlayActions=[];this.overlaySelectionIndex=0;this.overlayBackIndex=null;}
+
+  private applyTouchControlSettings():void {
+    const visible=this.gameSettings.touchControlsVisible;
+    const scale=this.gameSettings.touchControlScale;
+    this.touchControlObjects.forEach(object=>object.setVisible(visible).setScale(scale).setAlpha(visible&&this.sys.game.device.input.touch?1:0));
+  }
+
+  private showDamageNumber(target:Phaser.GameObjects.GameObject & {x:number;y:number},amount:number):void {
+    if(!this.gameSettings.damageNumbers)return;
+    const label=this.add.text(target.x,target.y-18,String(Math.max(1,Math.round(amount))),{fontFamily:'Arial',fontSize:'14px',fontStyle:'bold',color:'#fff0c8',stroke:'#241b20',strokeThickness:3}).setOrigin(.5).setDepth(35);
+    this.tweens.add({targets:label,y:label.y-30,alpha:0,duration:480,ease:'Cubic.Out',onComplete:()=>label.destroy()});
+  }
+
+  private shakeCamera(duration:number,intensity:number):void {
+    if(this.gameSettings.screenShake)this.cameras.main.shake(duration,intensity);
+  }
+
+  private flashCamera(duration:number,red:number,green:number,blue:number):void {
+    if(this.gameSettings.screenFlash)this.cameras.main.flash(duration,red,green,blue);
+  }
 
   private updateEnvironment(force=false):void {
     const next=resolveEnvironment(this.region.id,this.state.elapsedMs);
