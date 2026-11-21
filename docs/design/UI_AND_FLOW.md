@@ -16,6 +16,12 @@ Primary action is New Run. It opens Character Select instead of starting a defau
 ## Character selection
 Five catalog-driven hunter cards show role, combat description, health, movement speed and active ability. Desktop keeps the five-card overview. Touch-capable devices switch to a single large hunter preview with large previous/next targets, keeping the same catalog details readable without shrinking five cards onto a phone. All five are selectable. Left/right arrows, D-pad or left stick move the selection; Enter / controller A continues; Escape / Backspace / controller B returns to the main menu. The Ayrıntılar action opens the selected hunter's full dossier; keyboard I, gamepad Y and a supported TV remote's yellow key are also shortcuts. Mouse and touch can select a card and activate the visible actions.
 
+## Character detail, mastery and cosmetics
+
+The selected hunter's dossier is a separate screen opened from Character Select. It presents the authored story and role, real combat stats, starting weapon and passive, active ability and cooldown, weapon synergies, and elemental affinities. The mastery panel reads the local SaveManager profile: points, calculated level, progress to the next authored threshold, and the actual unlocked state of the level 2 / 5 / 10 rewards. Cosmetic entries are shown from the character catalog; the default appearance is available, while additional appearances are marked unlocked only when their IDs exist in the saved cosmetic collection. The dossier is read-only and never grants rewards or edits progression.
+
+Left/right, D-pad or left stick browse the five hunters; gamepad shoulders and supported TV remote yellow/blue keys also browse. Enter/A, Escape/B and the remote's confirm/back keys return to Character Select without losing the selected hunter. Touch-capable devices use large previous/next targets and a large return action. The dossier uses temporary vector panels and text; final character portraits, costume art and animation remain deferred to the asset-production phase.
+
 The current emblems and panels are temporary vector UI. They are not final character portraits or pixel art.
 
 ## Region and difficulty selection
