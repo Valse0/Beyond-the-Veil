@@ -26,6 +26,143 @@ async function readQuestJournalSnapshot(page: import('@playwright/test').Page): 
   });
 }
 
+type CharacterDetailBrowserSnapshot = {
+  characterId: string;
+  name: string;
+  unlocked: boolean;
+  startingWeaponId: string;
+  startingWeaponName: string;
+  startingPassiveId: string;
+  startingPassiveName: string;
+  activeAbility: string;
+  health: number;
+  moveSpeed: number;
+  damageMultiplier: number;
+  criticalChance: number;
+  armor: number;
+  weaponSynergies: { id: string; name: string }[];
+  elementSynergies: { id: string; name: string }[];
+  masteryPoints: number;
+  masteryLevel: number;
+  nextMilestonePoints: number | null;
+  masteryRewards: { level: number; rewardId: string; description: string; unlocked: boolean }[];
+  cosmetics: { id: string; unlocked: boolean }[];
+};
+
+async function readCharacterDetailSnapshot(page: import('@playwright/test').Page): Promise<CharacterDetailBrowserSnapshot> {
+  return page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => CharacterDetailBrowserSnapshot } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('character-detail').browserTestSnapshot();
+  });
+}
+
+test('character detail presents real mastery, loadout, synergies and cosmetic save state', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.goto('/?bv-test=1');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+
+  await page.evaluate(() => {
+    const key = 'beyond-the-veil.save';
+    const raw = window.localStorage.getItem(key);
+    if (!raw) throw new Error('First-launch save was not created.');
+    const save = JSON.parse(raw) as {
+      collections: { characterMastery: Record<string, number>; unlockedMasteryRewardIds: string[]; unlockedCosmeticIds: string[] };
+    };
+    save.collections.characterMastery['cursed-hunter'] = 120;
+    save.collections.unlockedMasteryRewardIds = ['hunter-title', 'pulse-alt'];
+    save.collections.unlockedCosmeticIds = ['ashen-hunter'];
+    window.localStorage.setItem(key, JSON.stringify(save));
+  });
+  await page.reload();
+  await expect(canvas).toBeVisible();
+  await page.mouse.click(160, 555);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('character-select'));
+  });
+  await page.mouse.click(640, 632);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('character-detail'));
+  });
+
+  const detail = await readCharacterDetailSnapshot(page);
+  expect(detail).toMatchObject({
+    characterId: 'cursed-hunter',
+    name: 'Lanetli Avcı',
+    unlocked: true,
+    startingWeaponId: 'veil-bolt',
+    startingWeaponName: 'Eşik Kıvılcımı',
+    startingPassiveId: 'soul-vessel',
+    startingPassiveName: 'Ruh Kabı',
+    activeAbility: 'Ruh Darbesi',
+    health: 100,
+    moveSpeed: 225,
+    masteryPoints: 120,
+    masteryLevel: 5,
+    nextMilestonePoints: 250
+  });
+  expect(detail.weaponSynergies.map(item => item.name)).toEqual(['Eşik Kıvılcımı', 'Yemin Mızrağı']);
+  expect(detail.elementSynergies.map(item => item.name)).toEqual(['Ruh', 'Karanlık']);
+  expect(detail.masteryRewards.map(item => ({ level: item.level, unlocked: item.unlocked }))).toEqual([
+    { level: 2, unlocked: true }, { level: 5, unlocked: true }, { level: 10, unlocked: false }
+  ]);
+  expect(detail.cosmetics).toEqual([
+    { id: 'default-hunter', unlocked: true },
+    { id: 'ashen-hunter', unlocked: true },
+    { id: 'forest-wraith', unlocked: false }
+  ]);
+
+  await page.keyboard.press('ArrowRight');
+  expect((await readCharacterDetailSnapshot(page)).characterId).toBe('black-knight');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('character-select'));
+  });
+  const selection = await page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { characterId: string } } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('character-select').browserTestSnapshot();
+  });
+  expect(selection.characterId).toBe('black-knight');
+  expect(pageErrors).toEqual([]);
+});
+
+test('touch users can open character details, browse hunters and return to selection', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true });
+  const page = await context.newPage();
+  const canvas = page.locator('#game-container canvas');
+  const tapCanvas = async (x: number, y: number) => {
+    const bounds = await canvas.boundingBox();
+    if (!bounds) throw new Error('Game canvas is not visible.');
+    await page.touchscreen.tap(bounds.x + (x / 1280) * bounds.width, bounds.y + (y / 720) * bounds.height);
+  };
+  await page.goto('/?bv-test=1');
+  await expect(canvas).toBeVisible();
+  await tapCanvas(160, 555);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('character-select'));
+  });
+  await tapCanvas(640, 660);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('character-detail'));
+  });
+  await tapCanvas(1236, 360);
+  expect((await readCharacterDetailSnapshot(page)).characterId).toBe('black-knight');
+  await tapCanvas(190, 660);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('character-select'));
+  });
+  await context.close();
+});
+
 test('player can select a hunter and an unlocked region before starting a run', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
