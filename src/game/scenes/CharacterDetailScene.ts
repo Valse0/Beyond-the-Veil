@@ -91,7 +91,7 @@ export class CharacterDetailScene extends Phaser.Scene {
     cosmetics: CosmeticSnapshot[];
   } {
     this.assertBrowserTestMode();
-    return this.getSnapshot();
+    return this.buildSnapshot();
   }
 
   private getSnapshot(): ReturnType<CharacterDetailScene['buildSnapshot']> {
