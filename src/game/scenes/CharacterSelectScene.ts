@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
+import { drawUiBackdrop, drawUiPanel } from '../ui/dark-fantasy-theme.js';
 import { CHARACTERS } from '../../data/characters.js';
 import { resolveRemoteAction } from '../input/platform-input.js';
 

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
+import { drawUiBackdrop, drawUiPanel } from '../ui/dark-fantasy-theme.js';
 import type { ChallengeId, GameMode } from '../../core/types/game.js';
 import type { RegionId } from '../../core/types/content.js';
 import { CHARACTERS } from '../../data/characters.js';
