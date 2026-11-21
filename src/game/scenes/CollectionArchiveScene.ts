@@ -151,7 +151,6 @@ export class CollectionArchiveScene extends Phaser.Scene {
   }
 
   private renderTouch(category: CollectionArchiveCategory | undefined): void {
-    const width = this.scale.width;
     const tabs = this.snapshot.categories;
     const tabWidth = 178;
     tabs.forEach((entry, index) => {
