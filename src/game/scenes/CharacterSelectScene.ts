@@ -194,7 +194,12 @@ export class CharacterSelectScene extends Phaser.Scene {
     }
   }
 
-  private openDetails(): void {\n    const character = CHARACTERS[this.selectedIndex] ?? CHARACTERS[0]!;\n    this.scene.start('character-detail', { characterId: character.id });\n  }\n\n  private continue(): void {
+  private openDetails(): void {
+    const character = CHARACTERS[this.selectedIndex] ?? CHARACTERS[0]!;
+    this.scene.start('character-detail', { characterId: character.id });
+  }
+
+  private continue(): void {
     const character = CHARACTERS[this.selectedIndex] ?? CHARACTERS[0]!;
     this.scene.start('region-select', { characterId: character.id });
   }
