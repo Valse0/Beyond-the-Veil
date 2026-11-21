@@ -83,7 +83,7 @@ test('character detail presents real mastery, loadout, synergies and cosmetic sa
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('character-select'));
   });
-  await page.mouse.click(640, 632);
+  await page.mouse.click(640, 655);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('character-detail'));
