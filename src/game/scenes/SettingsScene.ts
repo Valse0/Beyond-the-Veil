@@ -93,6 +93,11 @@ export class SettingsScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { this.rows = []; this.buttons = []; this.actions = []; });
   }
 
+  browserTestSnapshot(): { screenShake: boolean; screenFlash: boolean; damageNumbers: boolean; touchControlsVisible: boolean; touchControlScale: number; selected: number; returnScene: string } {
+    if (this.registry.get('browserTestMode') !== true) throw new Error('Browser test controls are disabled.');
+    return { ...this.settings, selected: this.selected, returnScene: this.returnScene };
+  }
+
   update(): void {
     const pad = this.input.gamepad?.getPad(0);
     if (!pad) { this.previousPadConfirm = false; this.previousPadBack = false; this.previousPadNavigation = ''; return; }
