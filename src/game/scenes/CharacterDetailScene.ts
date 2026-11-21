@@ -18,6 +18,7 @@ export class CharacterDetailScene extends Phaser.Scene {
   private selectedIndex = 0;
   private previousPad = { left: false, right: false, confirm: false, back: false, next: false, previous: false };
   private touchLayout = false;
+  private activeTouchSection = 0;
 
   constructor() { super('character-detail'); }
 
@@ -25,6 +26,7 @@ export class CharacterDetailScene extends Phaser.Scene {
     const index = CHARACTERS.findIndex(character => character.id === data?.characterId);
     this.selectedIndex = index >= 0 ? index : 0;
     this.touchLayout = false;
+    this.activeTouchSection = 0;
     this.previousPad = { left: false, right: false, confirm: false, back: false, next: false, previous: false };
   }
 
@@ -89,9 +91,12 @@ export class CharacterDetailScene extends Phaser.Scene {
     nextMilestonePoints: number | null;
     masteryRewards: MasteryRewardSnapshot[];
     cosmetics: CosmeticSnapshot[];
+    layoutMode: 'touch-sections' | 'desktop-columns';
+    activeSection: number;
+    presentationFontSize: number;
   } {
     this.assertBrowserTestMode();
-    return this.buildSnapshot();
+    return { ...this.buildSnapshot(), layoutMode: this.touchLayout ? 'touch-sections' : 'desktop-columns', activeSection: this.activeTouchSection, presentationFontSize: this.touchLayout ? 22 : 14 };
   }
 
   private buildSnapshot() {
@@ -168,6 +173,17 @@ export class CharacterDetailScene extends Phaser.Scene {
     this.add.text(width - 64, 46, character.unlocked ? 'AÇIK AVCI' : 'KİLİTLİ AVCI', {
       fontFamily: 'Arial, sans-serif', fontSize: small + 'px', color: character.unlocked ? '#b9c9a2' : '#d18b82'
     }).setOrigin(1, 0);
+
+    if (touch) {
+      this.renderTouchSections(snapshot, character, width, height);
+      this.makeArrow(44, height / 2, '‹', () => this.moveSelection(-1));
+      this.makeArrow(width - 44, height / 2, '›', () => this.moveSelection(1));
+      this.makeButton(64, height - 86, '‹  AVCI SEÇİMİNE DÖN', () => this.returnToSelection(), 250, 16, 76);
+      this.add.text(width - 64, height - 28, 'ÖNCEKİ / SONRAKİ: AVCI DEĞİŞTİR', {
+        fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#aaa09a'
+      }).setOrigin(1, 0.5);
+      return;
+    }
 
     const panelColors = [0x30251f, 0x211d26, 0x211a23];
     panelXs.forEach((x, index) => {
@@ -301,6 +317,120 @@ export class CharacterDetailScene extends Phaser.Scene {
     this.add.text(width - 64, height - 28, '← / → D-PAD: AVCI DEĞİŞTİR   •   A / ENTER / B / ESC: GERİ', {
       fontFamily: 'Arial, sans-serif', fontSize: small + 'px', color: '#77727a'
     }).setOrigin(1, 0.5);
+  }
+
+  private renderTouchSections(snapshot: ReturnType<CharacterDetailScene['buildSnapshot']>, character: typeof CHARACTERS[number], width: number, height: number): void {
+    const sections = ['KİMLİK & İSTATİSTİKLER', 'SİLAH & YETENEKLER', 'USTALIK & KOZMETİK'];
+    const margin = 108;
+    const gap = 12;
+    const tabY = 104;
+    const tabHeight = 60;
+    const tabWidth = (width - margin * 2 - gap * 2) / 3;
+    sections.forEach((label, index) => {
+      const x = margin + index * (tabWidth + gap);
+      const selected = this.activeTouchSection === index;
+      const tab = this.add.rectangle(x + tabWidth / 2, tabY + tabHeight / 2, tabWidth, tabHeight,
+        selected ? 0x79513c : 0x302832, 1).setStrokeStyle(2, selected ? 0xd1ad72 : 0x6b5b55, 0.9)
+        .setInteractive({ useHandCursor: true });
+      this.add.text(x + tabWidth / 2, tabY + tabHeight / 2, label, {
+        fontFamily: 'Arial, sans-serif', fontSize: '20px', color: selected ? '#fff1d8' : '#c7b8a8',
+        fontStyle: 'bold', align: 'center', wordWrap: { width: tabWidth - 20 }
+      }).setOrigin(0.5);
+      tab.on('pointerup', () => {
+        this.activeTouchSection = index;
+        this.render();
+      });
+    });
+
+    const panelX = margin;
+    const panelY = 184;
+    const panelWidth = width - margin * 2;
+    const panelHeight = height - 278;
+    this.add.rectangle(panelX + panelWidth / 2, panelY + panelHeight / 2, panelWidth, panelHeight, 0x211d26, 0.98)
+      .setStrokeStyle(2, 0x8c7054, 0.85);
+    const left = panelX + 34;
+    const right = panelX + panelWidth - 34;
+    const bodyWidth = panelWidth - 68;
+    const heading = (x: number, y: number, text: string) => this.add.text(x, y, text, {
+      fontFamily: 'Arial, sans-serif', fontSize: '19px', color: '#c7ad7b', fontStyle: 'bold'
+    });
+    const body = (x: number, y: number, text: string, wrapWidth = bodyWidth) => this.add.text(x, y, text, {
+      fontFamily: 'Arial, sans-serif', fontSize: '20px', color: '#e0d3c1',
+      wordWrap: { width: wrapWidth }, lineSpacing: 7
+    });
+    const title = (x: number, y: number, text: string, wrapWidth = bodyWidth) => this.add.text(x, y, text, {
+      fontFamily: 'Georgia, serif', fontSize: '25px', color: '#f0e6d6', fontStyle: 'bold',
+      wordWrap: { width: wrapWidth }
+    });
+
+    if (this.activeTouchSection === 0) {
+      const columnGap = 34;
+      const columnWidth = (bodyWidth - columnGap) / 2;
+      title(left, panelY + 26, character.name, columnWidth);
+      body(left, panelY + 66, character.role, columnWidth).setColor('#c7ad7b');
+      heading(left, panelY + 126, 'SAVAŞ İSTATİSTİKLERİ');
+      body(left, panelY + 158, [
+        'Can: ' + character.health,
+        'Hareket hızı: ' + character.moveSpeed,
+        'Hasar çarpanı: x' + character.stats.damageMultiplier.toFixed(2),
+        'Kritik şansı: %' + Math.round(character.stats.criticalChance * 100),
+        'Zırh: ' + character.stats.armor
+      ].join('\n'), columnWidth);
+      const storyX = left + columnWidth + columnGap;
+      heading(storyX, panelY + 26, 'KARAKTERİN HİKÂYESİ');
+      body(storyX, panelY + 62, character.description + '\n\n' + character.story, columnWidth)
+        .setColor('#c9c0b8');
+    } else if (this.activeTouchSection === 1) {
+      const weapon = WEAPONS.find(item => item.id === character.startingWeaponId);
+      const passive = PASSIVES.find(item => item.id === character.startingPassiveId);
+      const columnGap = 34;
+      const columnWidth = (bodyWidth - columnGap) / 2;
+      heading(left, panelY + 26, 'BAŞLANGIÇ SİLAHI');
+      title(left, panelY + 60, weapon?.name ?? character.startingWeaponId, columnWidth);
+      body(left, panelY + 102, weapon?.description ?? 'Başlangıç silahı', columnWidth).setColor('#c9c0b8');
+      heading(left, panelY + 214, 'PASİF');
+      title(left, panelY + 248, passive?.name ?? character.startingPassiveId, columnWidth);
+      body(left, panelY + 290, passive?.specialUpgrade.effect ?? passive?.description ?? 'Başlangıç pasifi', columnWidth)
+        .setColor('#c9c0b8');
+      const rightX = left + columnWidth + columnGap;
+      heading(rightX, panelY + 26, 'AKTİF YETENEK');
+      title(rightX, panelY + 60, character.activeAbility, columnWidth);
+      body(rightX, panelY + 102, 'Bekleme süresi: ' + (character.ability.cooldownMs / 1000).toFixed(1) + ' saniye', columnWidth);
+      heading(rightX, panelY + 174, 'SİLAH SİNERJİLERİ');
+      body(rightX, panelY + 208, snapshot.weaponSynergies.map(item => item.name).join('  •  '), columnWidth);
+      heading(rightX, panelY + 280, 'ELEMENT UYUMU');
+      body(rightX, panelY + 314, snapshot.elementSynergies.map(item => item.name).join('  •  '), columnWidth);
+    } else {
+      heading(left, panelY + 24, 'KARAKTER USTALIĞI');
+      title(left, panelY + 56, 'SEVİYE ' + snapshot.masteryLevel + '  •  ' + snapshot.masteryPoints + ' PUAN');
+      const nextMilestone = CHARACTER_MASTERY_THRESHOLDS.find(item => item.level > snapshot.masteryLevel);
+      const previousThreshold = [...CHARACTER_MASTERY_THRESHOLDS].reverse().find(item => item.level <= snapshot.masteryLevel)?.points ?? 0;
+      const progress = nextMilestone
+        ? Phaser.Math.Clamp((snapshot.masteryPoints - previousThreshold) / (nextMilestone.points - previousThreshold), 0, 1)
+        : 1;
+      const barWidth = Math.min(420, bodyWidth * 0.52);
+      this.add.rectangle(left + barWidth / 2, panelY + 112, barWidth, 14, 0x100e13, 1).setOrigin(0.5);
+      this.add.rectangle(left + (barWidth * progress) / 2, panelY + 112, barWidth * progress, 14, 0xb99a61, 1).setOrigin(0.5);
+      body(left, panelY + 134, nextMilestone
+        ? 'Sonraki eşik: Seviye ' + nextMilestone.level + ' / ' + nextMilestone.points + ' puan'
+        : 'Azami ustalık seviyesine ulaşıldı.', bodyWidth).setColor('#c9c0b8');
+      const columnGap = 34;
+      const columnWidth = (bodyWidth - columnGap) / 2;
+      heading(left, panelY + 196, 'USTALIK ÖDÜLLERİ');
+      snapshot.masteryRewards.forEach((reward, index) => {
+        const item = body(left, panelY + 230 + index * 48,
+          (reward.unlocked ? '✓  ' : '◇  ') + 'Seviye ' + reward.level + '  •  ' + reward.description, columnWidth);
+        item.setColor(reward.unlocked ? '#b9c9a2' : '#c9c0b8');
+      });
+      const cosmeticX = left + columnWidth + columnGap;
+      heading(cosmeticX, panelY + 196, 'KOZMETİKLER');
+      snapshot.cosmetics.forEach((cosmetic, index) => {
+        const label = cosmetic.id.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+        const item = body(cosmeticX, panelY + 230 + index * 40,
+          (cosmetic.unlocked ? '✓  ' : '🔒  ') + label, columnWidth);
+        item.setColor(cosmetic.unlocked ? '#b9c9a2' : '#89818a');
+      });
+    }
   }
 
   private moveSelection(direction: number): void {

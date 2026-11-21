@@ -154,8 +154,15 @@ test('touch users can open character details, browse hunters and return to selec
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('character-detail'));
   });
+  const initialDetail = await readCharacterDetailSnapshot(page);
+  expect(initialDetail).toMatchObject({ characterId: 'cursed-hunter', layoutMode: 'touch-sections', activeSection: 0, presentationFontSize: 22 });
+  await tapCanvas(640, 134);
+  expect((await readCharacterDetailSnapshot(page)).activeSection).toBe(1);
+  await tapCanvas(1000, 134);
+  expect((await readCharacterDetailSnapshot(page)).activeSection).toBe(2);
   await tapCanvas(1236, 360);
   expect((await readCharacterDetailSnapshot(page)).characterId).toBe('black-knight');
+  expect((await readCharacterDetailSnapshot(page)).activeSection).toBe(2);
   await tapCanvas(190, 660);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
