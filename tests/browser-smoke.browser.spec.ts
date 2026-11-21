@@ -2567,7 +2567,7 @@ test('quest journal opens above the paused run and returns to the pause menu wit
   await page.keyboard.press('Escape');
   await expect.poll(async () => (await readBrowserRunSnapshot(page)).paused).toBe(true);
 
-  await page.mouse.click(640, 446);
+  await page.mouse.click(640, 418);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean; isPaused: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('quest-journal') && game.scene.isActive('run'));
