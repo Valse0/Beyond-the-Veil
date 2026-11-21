@@ -170,8 +170,8 @@ export class CharacterDetailScene extends Phaser.Scene {
     this.add.text(64, 34, 'AVCI DOSYASI', {
       fontFamily: 'Georgia, serif', fontSize: touch ? '28px' : '34px', color: '#e9dfcb', fontStyle: 'bold'
     });
-    this.add.text(width - 64, 46, character.unlocked ? 'AÇIK AVCI' : 'KİLİTLİ AVCI', {
-      fontFamily: 'Arial, sans-serif', fontSize: (touch ? 18 : small) + 'px', color: character.unlocked ? '#b9c9a2' : '#d18b82'
+    this.add.text(width - 64, 46, snapshot.unlocked ? 'AÇIK AVCI' : 'KİLİTLİ AVCI', {
+      fontFamily: 'Arial, sans-serif', fontSize: (touch ? 18 : small) + 'px', color: snapshot.unlocked ? '#b9c9a2' : '#d18b82'
     }).setOrigin(1, 0);
 
     if (touch) {
@@ -349,7 +349,6 @@ export class CharacterDetailScene extends Phaser.Scene {
     this.add.rectangle(panelX + panelWidth / 2, panelY + panelHeight / 2, panelWidth, panelHeight, 0x211d26, 0.98)
       .setStrokeStyle(2, 0x8c7054, 0.85);
     const left = panelX + 34;
-    const right = panelX + panelWidth - 34;
     const bodyWidth = panelWidth - 68;
     const heading = (x: number, y: number, text: string) => this.add.text(x, y, text, {
       fontFamily: 'Arial, sans-serif', fontSize: '19px', color: '#c7ad7b', fontStyle: 'bold'
