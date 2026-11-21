@@ -2903,3 +2903,45 @@ test('touch-first hunter, region and run-preparation layouts keep large selectio
   expect(pageErrors).toEqual([]);
   await context.close();
 });
+
+
+test('settings are reachable from the main menu and persist real accessibility choices', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.goto('/?bv-test=1');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  await page.keyboard.press('s');
+  const isActive = () => page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('settings'));
+  });
+  await expect.poll(isActive).toBe(true);
+  const snapshot = () => page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { screenShake: boolean; screenFlash: boolean; damageNumbers: boolean; touchControlsVisible: boolean; touchControlScale: number; selected: number; returnScene: string } } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Game bridge unavailable.');
+    return game.scene.getScene('settings').browserTestSnapshot();
+  });
+  expect((await snapshot()).screenShake).toBe(true);
+  expect((await snapshot()).returnScene).toBe('main-menu');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await snapshot()).screenShake).toBe(false);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await snapshot()).screenFlash).toBe(false);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await snapshot()).damageNumbers).toBe(true);
+  const persisted = await page.evaluate(() => {
+    const save = JSON.parse(window.localStorage.getItem('beyond-the-veil.save') ?? '{}') as { settings?: Record<string, unknown> };
+    return save.settings;
+  });
+  expect(persisted).toMatchObject({ screenShake: false, screenFlash: false, damageNumbers: true });
+  await page.keyboard.press('Escape');
+  await expect.poll(isActive).toBe(false);
+  await expect.poll(() => page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('main-menu'));
+  })).toBe(true);
+  expect(pageErrors).toEqual([]);
+});
