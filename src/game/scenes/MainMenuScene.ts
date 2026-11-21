@@ -3,7 +3,7 @@ import { beginNewGamePlus, canStartNewGamePlus } from '../../gameplay/run/new-ga
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { resolveRemoteAction } from '../input/platform-input.js';
 
-type MainMenuItem = 'new-run' | 'hunter-hub' | 'story-journal' | 'new-game-plus';
+type MainMenuItem = 'new-run' | 'hunter-hub' | 'story-journal' | 'new-game-plus' | 'settings';
 
 export class MainMenuScene extends Phaser.Scene {
   private selectedItem: MainMenuItem = 'new-run';
@@ -14,6 +14,7 @@ export class MainMenuScene extends Phaser.Scene {
   private hubButton?: Phaser.GameObjects.Text;
   private newGamePlusButton?: Phaser.GameObjects.Text;
   private journalButton?: Phaser.GameObjects.Text;
+  private settingsButton?: Phaser.GameObjects.Text;
   private newGamePlusAvailable = false;
   private newGamePlusLevel = 0;
   private confirmationOpen = false;
@@ -58,6 +59,13 @@ export class MainMenuScene extends Phaser.Scene {
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
     this.journalButton.on('pointerover', () => this.setSelectedItem('story-journal'));
     this.journalButton.on('pointerup', () => this.openQuestJournal());
+
+    this.settingsButton = this.add.text(w - 250, 54, 'AYARLAR', {
+      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#d9c9aa',
+      backgroundColor: '#211b24', padding: { x: 18, y: 12 }
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    this.settingsButton.on('pointerover', () => this.setSelectedItem('settings'));
+    this.settingsButton.on('pointerup', () => this.openSettings());
 
     this.playButton = this.add.text(82, h - 185, '▶  YENİ KOŞU', {
       fontFamily: 'Arial, sans-serif', fontSize: '22px', color: '#f2e8d4',
@@ -194,8 +202,8 @@ export class MainMenuScene extends Phaser.Scene {
 
   private menuItems(): MainMenuItem[] {
     return this.newGamePlusAvailable
-      ? ['new-run', 'hunter-hub', 'story-journal', 'new-game-plus']
-      : ['new-run', 'hunter-hub', 'story-journal'];
+      ? ['new-run', 'hunter-hub', 'story-journal', 'new-game-plus', 'settings']
+      : ['new-run', 'hunter-hub', 'story-journal', 'settings'];
   }
 
   private navigateMenu(direction: number): void {
@@ -227,6 +235,11 @@ export class MainMenuScene extends Phaser.Scene {
       color: item === 'story-journal' ? '#fff0ce' : '#d9c9aa',
       fontStyle: item === 'story-journal' ? 'bold' : 'normal'
     });
+    this.settingsButton?.setStyle({
+      backgroundColor: item === 'settings' ? '#5b4938' : '#211b24',
+      color: item === 'settings' ? '#fff0ce' : '#d9c9aa',
+      fontStyle: item === 'settings' ? 'bold' : 'normal'
+    });
   }
 
   private activateSelectedItem(): void {
@@ -236,6 +249,7 @@ export class MainMenuScene extends Phaser.Scene {
     } else if (this.selectedItem === 'new-run') this.startNewRun();
     else if (this.selectedItem === 'new-game-plus') this.openNewGamePlusConfirmation();
     else if (this.selectedItem === 'story-journal') this.openQuestJournal();
+    else if (this.selectedItem === 'settings') this.openSettings();
     else this.openHunterHub();
   }
 
@@ -321,6 +335,11 @@ export class MainMenuScene extends Phaser.Scene {
     if (this.confirmationOpen) return;
     this.scene.pause();
     this.scene.launch('quest-journal', { returnScene: 'main-menu' });
+  }
+
+  private openSettings(): void {
+    this.scene.pause();
+    this.scene.launch('settings', { returnScene: 'main-menu' });
   }
 
   private openHunterHub(): void {
