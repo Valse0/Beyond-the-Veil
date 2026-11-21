@@ -47,21 +47,21 @@ export class SettingsScene extends Phaser.Scene {
       { key: 'touchControlsVisible', label: 'DOKUNMATİK KONTROLLER', detail: 'Telefon ve tabletlerde sanal kontroller', values: [true, false], format: v => v ? 'GÖSTER' : 'GİZLE', next: v => ({ touchControlsVisible: !v as boolean }) },
       { key: 'touchControlScale', label: 'DOKUNMATİK KONTROL BOYUTU', detail: 'Sanal kontrol alanlarının boyutu', values: [0.85, 1, 1.15], format: v => v === 0.85 ? 'KÜÇÜK' : v === 1.15 ? 'BÜYÜK' : 'NORMAL', next: v => ({ touchControlScale: (v === 0.85 ? 1 : v === 1 ? 1.15 : 0.85) as GameSettings['touchControlScale'] }) }
     ];
-    const rowTop = h * (compact ? 0.29 : 0.30);
-    const rowGap = Math.min(compact ? 54 : 84, h * (compact ? 0.135 : 0.125));
+    const rowTop = h * (compact ? 0.27 : 0.30);
+    const rowGap = Math.min(compact ? 88 : 84, h * (compact ? 0.125 : 0.125));
     rows.forEach((row, index) => {
       const y = rowTop + index * rowGap;
       const rowWidth = Math.min(700, w * 0.82);
-      const card = this.add.rectangle(w / 2, y, rowWidth, compact ? 48 : 68, 0x28212a, 0.98)
+      const card = this.add.rectangle(w / 2, y, rowWidth, compact ? 80 : 68, 0x28212a, 0.98)
         .setStrokeStyle(2, 0x6e5a45, 0.85).setInteractive({ useHandCursor: true });
       const label = this.add.text(w / 2 - rowWidth / 2 + 20, y - 13, row.label, {
-        fontSize: compact ? '14px' : '17px', color: '#f0dfbd', fontStyle: 'bold'
+        fontSize: compact ? '18px' : '17px', color: '#f0dfbd', fontStyle: 'bold'
       }).setOrigin(0, 0.5);
       const detail = this.add.text(w / 2 - rowWidth / 2 + 20, y + 13, row.detail, {
-        fontSize: compact ? '10px' : '12px', color: '#a99c8b'
+        fontSize: compact ? '14px' : '12px', color: '#a99c8b'
       }).setOrigin(0, 0.5);
       const value = this.add.text(w / 2 + rowWidth / 2 - 22, y, '', {
-        fontSize: compact ? '14px' : '16px', color: '#e5c58c', fontStyle: 'bold'
+        fontSize: compact ? '18px' : '16px', color: '#e5c58c', fontStyle: 'bold'
       }).setOrigin(1, 0.5);
       this.rows.push(card, label, detail, value);
       const refresh = () => value.setText(row.format(this.settings[row.key]));
@@ -122,7 +122,7 @@ export class SettingsScene extends Phaser.Scene {
       manager.save(next);
       this.settings = normalizeGameSettings(next.settings);
       this.status?.setText('AYAR KAYDEDİLDİ');
-      if (this.scene.isActive('run')) {
+      if (this.returnScene === 'run') {
         const run = this.scene.get('run') as Phaser.Scene & { refreshSettingsFromSave?: () => void };
         run.refreshSettingsFromSave?.();
       }
@@ -137,7 +137,7 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   private close(): void {
-    if (this.scene.isActive(this.returnScene)) this.scene.resume(this.returnScene);
+    this.scene.resume(this.returnScene);
     this.scene.stop();
   }
 }
