@@ -103,6 +103,15 @@ export class CharacterDetailScene extends Phaser.Scene {
     const masteryPoints = data?.collections.characterMastery[character.id] ?? 0;
     const masteryLevel = getCharacterMasteryLevel(masteryPoints);
     const nextMilestone = CHARACTER_MASTERY_THRESHOLDS.find(item => item.level > masteryLevel);
+    const cosmetics: CosmeticSnapshot[] = character.cosmetics.map((id, index) => ({
+      id,
+      unlocked: index === 0 || unlockedCosmeticIds.has(id)
+    }));
+    const masteryCosmeticReward = character.mastery.find(reward => reward.level === 10);
+    if (masteryCosmeticReward && unlockedCosmeticIds.has(masteryCosmeticReward.rewardId)
+      && !cosmetics.some(cosmetic => cosmetic.id === masteryCosmeticReward.rewardId)) {
+      cosmetics.push({ id: masteryCosmeticReward.rewardId, unlocked: true });
+    }
     return {
       characterId: character.id,
       name: character.name,
@@ -126,10 +135,7 @@ export class CharacterDetailScene extends Phaser.Scene {
         ...reward,
         unlocked: unlockedMasteryRewardIds.has(reward.rewardId)
       })),
-      cosmetics: character.cosmetics.map((id, index) => ({
-        id,
-        unlocked: index === 0 || unlockedCosmeticIds.has(id)
-      }))
+      cosmetics
     };
   }
 
