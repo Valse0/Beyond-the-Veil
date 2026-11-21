@@ -48,11 +48,11 @@ export class SettingsScene extends Phaser.Scene {
       { key: 'touchControlScale', label: 'DOKUNMATİK KONTROL BOYUTU', detail: 'Sanal kontrol alanlarının boyutu', values: [0.85, 1, 1.15], format: v => v === 0.85 ? 'KÜÇÜK' : v === 1.15 ? 'BÜYÜK' : 'NORMAL', next: v => ({ touchControlScale: (v === 0.85 ? 1 : v === 1 ? 1.15 : 0.85) as GameSettings['touchControlScale'] }) }
     ];
     const rowTop = h * (compact ? 0.29 : 0.30);
-    const rowGap = Math.min(compact ? 76 : 84, h * 0.125);
+    const rowGap = Math.min(compact ? 54 : 84, h * (compact ? 0.135 : 0.125));
     rows.forEach((row, index) => {
       const y = rowTop + index * rowGap;
       const rowWidth = Math.min(700, w * 0.82);
-      const card = this.add.rectangle(w / 2, y, rowWidth, compact ? 62 : 68, 0x28212a, 0.98)
+      const card = this.add.rectangle(w / 2, y, rowWidth, compact ? 48 : 68, 0x28212a, 0.98)
         .setStrokeStyle(2, 0x6e5a45, 0.85).setInteractive({ useHandCursor: true });
       const label = this.add.text(w / 2 - rowWidth / 2 + 20, y - 13, row.label, {
         fontSize: compact ? '14px' : '17px', color: '#f0dfbd', fontStyle: 'bold'
@@ -72,7 +72,7 @@ export class SettingsScene extends Phaser.Scene {
       this.actions.push(activate);
       card.setData('refresh', refresh);
     });
-    const backY = Math.min(h * 0.9, rowTop + rows.length * rowGap + 20);
+    const backY = Math.min(h * 0.92, rowTop + rows.length * rowGap + 15);
     const back = this.add.rectangle(w / 2, backY, compact ? 240 : 270, compact ? 54 : 58, 0x5b3d32, 1)
       .setStrokeStyle(2, 0xb99a61).setInteractive({ useHandCursor: true });
     this.add.text(w / 2, backY, 'GERİ DÖN', { fontSize: compact ? '16px' : '18px', color: '#fff2df', fontStyle: 'bold' }).setOrigin(0.5);
@@ -117,6 +117,10 @@ export class SettingsScene extends Phaser.Scene {
       manager.save(next);
       this.settings = normalizeGameSettings(next.settings);
       this.status?.setText('AYAR KAYDEDİLDİ');
+      if (this.scene.isActive('run')) {
+        const run = this.scene.get('run') as Phaser.Scene & { refreshSettingsFromSave?: () => void };
+        run.refreshSettingsFromSave?.();
+      }
       this.rows.forEach(object => { const refresh = object.getData?.('refresh'); if (typeof refresh === 'function') refresh(); });
       this.refreshSelection();
     } catch { this.status?.setText('KAYIT BAŞARISIZ. ÖNCEKİ AYAR KORUNDU.'); }
