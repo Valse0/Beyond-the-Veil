@@ -92,14 +92,16 @@ export class CharacterSelectScene extends Phaser.Scene {
       this.makeTouchArrow(width - 142, 354, '›', () => this.moveSelection(1));
     }
     this.makeButton(64, height - 102, this.touchLayout ? '‹  GERİ' : '‹  GERİ', () => this.scene.start('main-menu'), false, this.touchLayout ? 190 : 150, this.touchLayout ? 19 : 15, this.touchLayout ? 82 : 46);
-    this.makeButton(width / 2 - (this.touchLayout ? 90 : 80), height - (this.touchLayout ? 102 : 88), 'AYRINTILAR', () => this.openDetails(), false, this.touchLayout ? 180 : 160, this.touchLayout ? 16 : 14, this.touchLayout ? 82 : 46);\n    this.makeButton(width - (this.touchLayout ? 292 : 250), height - 88, 'BÖLGEYE DEVAM ET  ›', () => this.continue(), false, this.touchLayout ? 228 : 186, this.touchLayout ? 18 : 15, this.touchLayout ? 82 : 46);
+    this.makeButton(width / 2 - (this.touchLayout ? 90 : 80), height - (this.touchLayout ? 102 : 88), 'AYRINTILAR', () => this.openDetails(), false, this.touchLayout ? 180 : 160, this.touchLayout ? 16 : 14, this.touchLayout ? 82 : 46);
+    this.makeButton(width - (this.touchLayout ? 292 : 250), height - 88, 'BÖLGEYE DEVAM ET  ›', () => this.continue(), false, this.touchLayout ? 228 : 186, this.touchLayout ? 18 : 15, this.touchLayout ? 82 : 46);
     this.add.text(width / 2, height - 8, '← / → veya D-PAD: SEÇ     A / ENTER: DEVAM     B / ESC: GERİ', {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '11px', color: '#77727a'
     }).setOrigin(0.5);
 
     this.input.keyboard?.on('keydown-LEFT', () => this.moveSelection(-1));
     this.input.keyboard?.on('keydown-RIGHT', () => this.moveSelection(1));
-    this.input.keyboard?.on('keydown-ENTER', () => this.continue());\n    this.input.keyboard?.on('keydown-I', () => this.openDetails());
+    this.input.keyboard?.on('keydown-ENTER', () => this.continue());
+    this.input.keyboard?.on('keydown-I', () => this.openDetails());
     this.input.keyboard?.on('keydown-ESC', () => this.scene.start('main-menu'));
     this.input.keyboard?.on('keydown-BACKSPACE', () => this.scene.start('main-menu'));
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
@@ -108,6 +110,8 @@ export class CharacterSelectScene extends Phaser.Scene {
       event.preventDefault();
       if (action === 'back' || action === 'red') this.scene.start('main-menu');
       else if (action === 'confirm' || action === 'green') this.continue();
+      else if (action === 'yellow') this.openDetails();
+      else if (action === 'blue') this.moveSelection(1);
     });
     this.refreshSelection();
   }
@@ -119,11 +123,13 @@ export class CharacterSelectScene extends Phaser.Scene {
     const right = pad.right || pad.leftStick.x > 0.55;
     const confirm = pad.A || Boolean(pad.buttons[9]?.pressed);
     const back = pad.B;
+    const details = Boolean(pad.buttons[3]?.pressed);
     if (left && !this.previousPad.left) this.moveSelection(-1);
     if (right && !this.previousPad.right) this.moveSelection(1);
     if (confirm && !this.previousPad.confirm) this.continue();
     if (back && !this.previousPad.back) this.scene.start('main-menu');
-    this.previousPad = { left, right, confirm, back };
+    if (details && !this.previousPad.details) this.openDetails();
+    this.previousPad = { left, right, confirm, back, details };
   }
 
   private moveSelection(direction: number): void {
