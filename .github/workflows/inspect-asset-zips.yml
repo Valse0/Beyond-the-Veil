@@ -1,0 +1,206 @@
+name: Inspect Game Asset ZIPs
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [full-game-development]
+    paths:
+      - '.github/workflows/inspect-asset-zips.yml'
+      - 'A_mysterious_adult_male_cursed.zip'
+      - 'Beyond_The_Veil_Asset_Pack_0.1.0.zip'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-assets:
+    name: Extract and catalogue asset packs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout approved branch
+        uses: actions/checkout@v4
+        with:
+          ref: full-game-development
+
+      - name: Install image inspection tools
+        run: |
+          python -m pip install --disable-pip-version-check Pillow
+
+      - name: Extract ZIPs safely and build visual inventory
+        shell: bash
+        run: |
+          python <<'PY'
+          import json, os, zipfile, stat, hashlib
+          from pathlib import Path, PurePosixPath
+          from PIL import Image, ImageOps, ImageDraw
+          from xml.etree import ElementTree as ET
+
+          root = Path.cwd()
+          out = root / "asset-inspection"
+          extracted = out / "extracted"
+          previews = out / "previews"
+          extracted.mkdir(parents=True, exist_ok=True)
+          previews.mkdir(parents=True, exist_ok=True)
+
+          archives = [
+              "A_mysterious_adult_male_cursed.zip",
+              "Beyond_The_Veil_Asset_Pack_0.1.0.zip",
+          ]
+          records = []
+          total_uncompressed = 0
+          max_total = 500 * 1024 * 1024
+          max_file = 100 * 1024 * 1024
+          max_entries = 10000
+
+          for archive_name in archives:
+              archive = root / archive_name
+              if not archive.is_file():
+                  raise SystemExit(f"Required ZIP missing: {archive_name}")
+              archive_dir = extracted / Path(archive_name).stem
+              archive_dir.mkdir(parents=True, exist_ok=True)
+              archive_records = []
+              with zipfile.ZipFile(archive) as zf:
+                  infos = zf.infolist()
+                  if len(infos) > max_entries:
+                      raise SystemExit(f"Too many entries in {archive_name}: {len(infos)}")
+                  for info in infos:
+                      raw = info.filename.replace("\\", "/")
+                      p = PurePosixPath(raw)
+                      mode = (info.external_attr >> 16) & 0xFFFF
+                      if p.is_absolute() or ".." in p.parts or (mode and stat.S_ISLNK(mode)):
+                          raise SystemExit(f"Unsafe ZIP entry rejected: {archive_name}:{raw}")
+                      if info.file_size > max_file:
+                          raise SystemExit(f"Entry exceeds 100 MB: {archive_name}:{raw}")
+                      total_uncompressed += info.file_size
+                      if total_uncompressed > max_total:
+                          raise SystemExit("Combined uncompressed ZIP content exceeds 500 MB")
+                      target = archive_dir.joinpath(*p.parts)
+                      if info.is_dir():
+                          target.mkdir(parents=True, exist_ok=True)
+                          continue
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      with zf.open(info) as src, target.open("wb") as dst:
+                          while True:
+                              chunk = src.read(1024 * 1024)
+                              if not chunk:
+                                  break
+                              dst.write(chunk)
+                      rec = {
+                          "archive": archive_name,
+                          "path": raw,
+                          "extracted_path": str(target.relative_to(out)),
+                          "extension": target.suffix.lower(),
+                          "bytes": info.file_size,
+                      }
+                      if target.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"}:
+                          try:
+                              with Image.open(target) as im:
+                                  rec.update({
+                                      "width": im.width,
+                                      "height": im.height,
+                                      "mode": im.mode,
+                                      "has_alpha": "A" in im.getbands() or "transparency" in im.info,
+                                      "frames": getattr(im, "n_frames", 1),
+                                      "animated": bool(getattr(im, "is_animated", False)),
+                                      "frame_durations_ms": (
+                                          [im.seek(i) or im.info.get("duration", 0) for i in range(min(getattr(im, "n_frames", 1), 120))]
+                                          if getattr(im, "n_frames", 1) > 1 else []
+                                      ),
+                                  })
+                          except Exception as exc:
+                              rec["image_error"] = str(exc)
+                      elif target.suffix.lower() == ".svg":
+                          try:
+                              tree = ET.parse(target)
+                              el = tree.getroot()
+                              rec["svg_width"] = el.attrib.get("width")
+                              rec["svg_height"] = el.attrib.get("height")
+                              rec["svg_viewBox"] = el.attrib.get("viewBox")
+                          except Exception as exc:
+                              rec["svg_error"] = str(exc)
+                      elif target.suffix.lower() in {".json", ".txt", ".md", ".xml", ".yaml", ".yml", ".tsx", ".ts", ".js"} and info.file_size <= 2_000_000:
+                          try:
+                              rec["text_preview"] = target.read_text(errors="replace")[:3000]
+                          except Exception:
+                              pass
+                      archive_records.append(rec)
+                      records.append(rec)
+
+              image_records = [r for r in archive_records if r.get("width") and not r.get("image_error")]
+              batch_size = 24
+              for batch_no in range(0, len(image_records), batch_size):
+                  batch = image_records[batch_no:batch_no + batch_size]
+                  cols, cell_w, cell_h = 4, 280, 220
+                  rows = (len(batch) + cols - 1) // cols
+                  sheet = Image.new("RGB", (cols * cell_w, rows * cell_h), "#20232b")
+                  draw = ImageDraw.Draw(sheet)
+                  for idx, rec in enumerate(batch):
+                      img_path = out / rec["extracted_path"]
+                      try:
+                          with Image.open(img_path) as im:
+                              im.seek(0)
+                              im = im.convert("RGBA")
+                              tile = Image.new("RGBA", (240, 160), "#353944")
+                              checker = Image.new("RGBA", (240, 160), "#353944")
+                              cd = ImageDraw.Draw(checker)
+                              step = 16
+                              for yy in range(0, 160, step):
+                                  for xx in range(0, 240, step):
+                                      if (xx // step + yy // step) % 2:
+                                          cd.rectangle((xx, yy, xx+step-1, yy+step-1), fill="#454a56")
+                              thumb = ImageOps.contain(im, (220, 140), method=Image.Resampling.NEAREST)
+                              tile.alpha_composite(checker)
+                              tile.alpha_composite(thumb, ((240-thumb.width)//2, (160-thumb.height)//2))
+                              x, y = (idx % cols) * cell_w, (idx // cols) * cell_h
+                              sheet.paste(tile.convert("RGB"), (x+20, y+4))
+                              label = f'{rec["width"]}x{rec["height"]} | {rec.get("frames",1)}f'
+                              draw.text((x+8, y+170), label, fill="white")
+                              name = rec["path"]
+                              if len(name) > 38:
+                                  name = "…" + name[-37:]
+                              draw.text((x+8, y+188), name, fill="#d6d9e0")
+                      except Exception as exc:
+                          print(f"Preview skipped {rec['path']}: {exc}")
+                  sheet_name = f'{Path(archive_name).stem}-sheet-{batch_no//batch_size+1:02d}.jpg'
+                  sheet.save(previews / sheet_name, quality=90)
+
+          (out / "asset-inventory.json").write_text(json.dumps(records, indent=2, ensure_ascii=False))
+          lines = ["archive\tpath\text\tbytes\tdimensions\tframes\talpha"]
+          for r in records:
+              dims = f'{r.get("width","")}x{r.get("height","")}' if r.get("width") else ""
+              lines.append("\t".join(str(x).replace("\t"," ") for x in [
+                  r["archive"], r["path"], r.get("extension",""), r["bytes"],
+                  dims, r.get("frames",""), r.get("has_alpha","")
+              ]))
+          (out / "file-inventory.tsv").write_text("\n".join(lines) + "\n")
+
+          summary = {}
+          for name in archives:
+              subset = [r for r in records if r["archive"] == name]
+              imgs = [r for r in subset if r.get("width")]
+              summary[name] = {
+                  "files": len(subset),
+                  "images": len(imgs),
+                  "image_errors": sum(1 for r in subset if r.get("image_error")),
+                  "extensions": dict(sorted({e: sum(1 for r in subset if r.get("extension")==e) for e in {r.get("extension","") for r in subset}}.items())),
+              }
+          report = ["# Asset ZIP inspection", "", "ZIP files were extracted only into this temporary runner workspace. Original repository ZIPs were not modified.", ""]
+          for name, data in summary.items():
+              report += [f'## {name}', f'- Files: {data["files"]}', f'- Images: {data["images"]}', f'- Image decode errors: {data["image_errors"]}', f'- Extensions: {json.dumps(data["extensions"], ensure_ascii=False)}', ""]
+          report += ["## Output files", "- asset-inventory.json: dimensions, alpha, animation frame count/durations and metadata previews.", "- file-inventory.tsv: complete file list.", "- previews/: contact sheets of raster images with checkerboard transparency background.", "- extracted/: temporary extracted source files, included only for inspection."]
+          (out / "REPORT.md").write_text("\n".join(report) + "\n")
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary_path:
+              with open(summary_path, "a") as f:
+                  f.write("\n".join(report) + "\n")
+          print(json.dumps(summary, indent=2))
+          PY
+
+      - name: Upload inspection report and contact sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: beyond-the-veil-asset-inspection
+          path: asset-inspection/
+          if-no-files-found: error
+          retention-days: 7
