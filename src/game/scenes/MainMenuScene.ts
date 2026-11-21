@@ -125,6 +125,9 @@ export class MainMenuScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-J', (event: KeyboardEvent) => {
       if (!event.repeat && !this.confirmationOpen) this.openQuestJournal();
     });
+    this.input.keyboard?.on('keydown-S', (event: KeyboardEvent) => {
+      if (!event.repeat && !this.confirmationOpen) this.openSettings();
+    });
     this.input.keyboard?.on('keydown-ESC', (event: KeyboardEvent) => {
       if (event.repeat) return;
       if (this.confirmationOpen) this.closeNewGamePlusConfirmation();
