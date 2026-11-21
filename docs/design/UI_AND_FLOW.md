@@ -48,3 +48,10 @@ The Settings screen is reachable from the main menu and the in-run pause overlay
 
 ## Not yet implemented
 Full region map, Alchemist/Relic Master/special merchant service views, audio controls and input remapping, expanded archive/collection, remaining quest and crafting interactions, full accessibility/localization, and physical mobile/controller/TV device coverage.
+
+
+## Collection Archive
+
+The Collection Archive is a read-only view over the existing local profile. It presents the six authored collections: Bestiary (25), Arsenal (12), Relic Vault (10), Story Archive (5), Hunter Biographies (5) and Mastery Attire (5). Each category shows actual discovery counts, completion state and the real saved collection reward state. Discovered entries show catalog names and descriptions; undiscovered entries remain masked as unknown so the archive does not spoil unrevealed content. The grand collection reward is shown only when its saved reward ID is present. No discovery, reward or achievement is granted by opening the archive.
+
+Desktop uses a category rail and paged two-column entry grid with a selected-entry detail panel. Touch-capable screens use large category tabs and a single focused entry with large previous/next controls. Keyboard arrows, gamepad D-pad/left stick, supported TV remote back and colour-key category navigation, and pointer/touch selection are supported. The archive returns to the paused main menu. Catalog art remains placeholder-backed until the final asset-production phase.

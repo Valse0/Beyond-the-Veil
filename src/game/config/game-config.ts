@@ -8,6 +8,7 @@ import { HunterHubScene } from '../scenes/HunterHubScene.js';
 import { RunScene } from '../scenes/RunScene.js';
 import { QuestJournalScene } from '../scenes/QuestJournalScene.js';
 import { SettingsScene } from '../scenes/SettingsScene.js';
+import { CollectionArchiveScene } from '../scenes/CollectionArchiveScene.js';
 
 export function createGameConfig(): Phaser.Types.Core.GameConfig {
   return {
@@ -20,6 +21,6 @@ export function createGameConfig(): Phaser.Types.Core.GameConfig {
     input: { gamepad: true },
     physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false } },
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, autoRound: true },
-    scene: [MainMenuScene, CharacterSelectScene, CharacterDetailScene, RegionSelectScene, RunPreparationScene, HunterHubScene, RunScene, QuestJournalScene, SettingsScene]
+    scene: [MainMenuScene, CharacterSelectScene, CharacterDetailScene, RegionSelectScene, RunPreparationScene, HunterHubScene, RunScene, QuestJournalScene, SettingsScene, CollectionArchiveScene]
   };
 }

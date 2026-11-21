@@ -2945,3 +2945,86 @@ test('settings are reachable from the main menu and persist real accessibility c
   })).toBe(true);
   expect(pageErrors).toEqual([]);
 });
+
+type CollectionArchiveBrowserSnapshot = {
+  categories: { id: string; name: string; discovered: number; total: number; completed: boolean; rewardUnlocked: boolean; items: { id: string; name: string; description: string; discovered: boolean }[] }[];
+  discovered: number; total: number; completedCategories: number; grandRewardUnlocked: boolean;
+  selectedCategoryIndex: number; selectedItemIndex: number; layoutMode: 'touch-focus' | 'desktop-grid';
+};
+
+async function readCollectionArchiveSnapshot(page: import('@playwright/test').Page): Promise<CollectionArchiveBrowserSnapshot> {
+  return page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => CollectionArchiveBrowserSnapshot } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('collection-archive').browserTestSnapshot();
+  });
+}
+
+
+test('collection archive reflects saved discoveries and hides undiscovered entries', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.goto('/?bv-test=1');
+  await expect(page.locator('#game-container canvas')).toBeVisible();
+  await page.evaluate(() => {
+    const raw = window.localStorage.getItem('beyond-the-veil.save');
+    if (!raw) throw new Error('Initial save is missing.');
+    const save = JSON.parse(raw) as { collections: Record<string, unknown> };
+    Object.assign(save.collections, {
+      discoveredEnemyIds: ['rootbound-husk'], discoveredWeaponIds: ['veil-bolt'], relicIds: ['forest-heart'],
+      discoveredLoreIds: ['cursed-forest-lore'], discoveredCharacterBioIds: ['cursed-hunter'],
+      unlockedMasteryRewardIds: ['ashen-trail'], unlockedCollectionRewardIds: ['bestiary-scholar']
+    });
+    window.localStorage.setItem('beyond-the-veil.save', JSON.stringify(save));
+  });
+  await page.reload();
+  await page.keyboard.press('c');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('collection-archive'));
+  });
+  const snapshot = await readCollectionArchiveSnapshot(page);
+  expect(snapshot).toMatchObject({ discovered: 6, completedCategories: 0, grandRewardUnlocked: false, layoutMode: 'desktop-grid' });
+  expect(snapshot.categories).toHaveLength(6);
+  expect(snapshot.categories.map(item => item.total)).toEqual([25, 12, 10, 5, 5, 5]);
+  expect(snapshot.categories[0]?.items[0]).toMatchObject({ id: 'rootbound-husk', name: 'Kök Tutsağı', discovered: true });
+  expect(snapshot.categories[0]?.items[1]).toMatchObject({ name: '???', description: 'Bu kayıt henüz keşfedilmedi.', discovered: false });
+  expect(snapshot.categories[0]?.rewardUnlocked).toBe(true);
+  await page.keyboard.press('ArrowRight');
+  expect((await readCollectionArchiveSnapshot(page)).selectedCategoryIndex).toBe(1);
+  await page.keyboard.press('Escape');
+  await expect.poll(() => page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('main-menu'));
+  })).toBe(true);
+  expect(pageErrors).toEqual([]);
+});
+
+test('collection archive uses touch focus layout and supports touch category and item browsing', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true });
+  const page = await context.newPage();
+  const canvas = page.locator('#game-container canvas');
+  const tapCanvas = async (x: number, y: number) => {
+    const bounds = await canvas.boundingBox();
+    if (!bounds) throw new Error('Game canvas is not visible.');
+    await page.touchscreen.tap(bounds.x + (x / 1280) * bounds.width, bounds.y + (y / 720) * bounds.height);
+  };
+  await page.goto('/?bv-test=1');
+  await expect(canvas).toBeVisible();
+  await page.keyboard.press('c');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('collection-archive'));
+  });
+  expect((await readCollectionArchiveSnapshot(page)).layoutMode).toBe('touch-focus');
+  await tapCanvas(352, 148);
+  expect((await readCollectionArchiveSnapshot(page)).selectedCategoryIndex).toBe(1);
+  await tapCanvas(1130, 390);
+  expect((await readCollectionArchiveSnapshot(page)).selectedItemIndex).toBe(1);
+  await tapCanvas(640, 675);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('main-menu'));
+  });
+  await context.close();
+});
