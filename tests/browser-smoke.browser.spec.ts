@@ -73,7 +73,7 @@ test('character detail presents real mastery, loadout, synergies and cosmetic sa
     };
     save.collections.characterMastery['cursed-hunter'] = 120;
     save.collections.unlockedMasteryRewardIds = ['hunter-title', 'pulse-alt'];
-    save.collections.unlockedCosmeticIds = ['ashen-hunter'];
+    save.collections.unlockedCosmeticIds = ['ashen-hunter', 'ashen-trail'];
     window.localStorage.setItem(key, JSON.stringify(save));
   });
   await page.reload();
@@ -113,7 +113,8 @@ test('character detail presents real mastery, loadout, synergies and cosmetic sa
   expect(detail.cosmetics).toEqual([
     { id: 'default-hunter', unlocked: true },
     { id: 'ashen-hunter', unlocked: true },
-    { id: 'forest-wraith', unlocked: false }
+    { id: 'forest-wraith', unlocked: false },
+    { id: 'ashen-trail', unlocked: true }
   ]);
 
   await page.keyboard.press('ArrowRight');
