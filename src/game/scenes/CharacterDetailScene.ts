@@ -94,10 +94,6 @@ export class CharacterDetailScene extends Phaser.Scene {
     return this.buildSnapshot();
   }
 
-  private getSnapshot(): ReturnType<CharacterDetailScene['buildSnapshot']> {
-    return this.buildSnapshot();
-  }
-
   private buildSnapshot() {
     const character = CHARACTERS[this.selectedIndex] ?? CHARACTERS[0]!;
     const loaded = (this.registry.get('saveManager') as SaveManager | undefined)?.load();
@@ -285,7 +281,7 @@ export class CharacterDetailScene extends Phaser.Scene {
     });
     snapshot.cosmetics.forEach((cosmetic, index) => {
       const y = panelY + 330 + index * 28;
-      this.add.text(right + 22, y, (cosmetic.unlocked ? '✓ ' : '🔒 ') + cosmetic.id.replace(/-/g, ' '), {
+      this.add.text(right + 22, y, (cosmetic.unlocked ? '✓ ' : '🔒 ') + cosmetic.id.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' '), {
         fontFamily: 'Arial, sans-serif', fontSize: small + 'px', color: cosmetic.unlocked ? '#b9c9a2' : '#89818a',
         wordWrap: { width: panelWidth - 44 }
       });
