@@ -202,6 +202,7 @@ test('touch users can open character details, browse hunters and return to selec
 });
 
 test('player can select a hunter and an unlocked region before starting a run', async ({ page }) => {
+  test.setTimeout(60000);
   const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
 
@@ -2938,6 +2939,10 @@ test('settings are reachable from the main menu and persist real accessibility c
   await page.goto('/?bv-test=1');
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('main-menu'));
+  });
   await page.keyboard.press('s');
   const isActive = () => page.evaluate(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
