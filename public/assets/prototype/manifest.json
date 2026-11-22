@@ -1,0 +1,347 @@
+{
+  "version": 1,
+  "purpose": "Curated first-playable-prototype art bundle",
+  "player": {
+    "idle": {
+      "file": "/assets/prototype/characters/player/cursed-hunter-idle.png",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 4,
+      "frameDuration": 180,
+      "startFrameByDirection": {
+        "south": 0,
+        "south-west": 4,
+        "west": 8,
+        "north-west": 12,
+        "north": 16,
+        "north-east": 20,
+        "east": 24,
+        "south-east": 28
+      },
+      "directionOrder": [
+        "south",
+        "south-west",
+        "west",
+        "north-west",
+        "north",
+        "north-east",
+        "east",
+        "south-east"
+      ]
+    },
+    "walk": {
+      "file": "/assets/prototype/characters/player/cursed-hunter-walk.png",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 6,
+      "frameDuration": 120,
+      "startFrameByDirection": {
+        "south": 0,
+        "south-west": 6,
+        "west": 12,
+        "north-west": 18,
+        "north": 24,
+        "north-east": 30,
+        "east": 36,
+        "south-east": 42
+      },
+      "directionOrder": [
+        "south",
+        "south-west",
+        "west",
+        "north-west",
+        "north",
+        "north-east",
+        "east",
+        "south-east"
+      ]
+    }
+  },
+  "enemies": {
+    "rootbound-husk": {
+      "file": "/assets/prototype/characters/enemies/rootbound-husk.png",
+      "sourceId": "cursed_root_beast",
+      "sourcePack": "enemies",
+      "frameWidth": 56,
+      "frameHeight": 56,
+      "frameCount": 4
+    },
+    "thorn-pouncer": {
+      "file": "/assets/prototype/characters/enemies/thorn-pouncer.png",
+      "sourceId": "twisted_forest_stalker",
+      "sourcePack": "enemies",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 4
+    },
+    "spore-spitter": {
+      "file": "/assets/prototype/characters/enemies/spore-spitter.png",
+      "sourceId": "blighted_crow",
+      "sourcePack": "enemies",
+      "frameWidth": 40,
+      "frameHeight": 40,
+      "frameCount": 4
+    },
+    "gravebloom-nest": {
+      "file": "/assets/prototype/characters/enemies/gravebloom-nest.png",
+      "sourceId": "the_hollow_treant",
+      "sourcePack": "elite",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frameCount": 4
+    },
+    "briarback-charger": {
+      "file": "/assets/prototype/characters/enemies/briarback-charger.png",
+      "sourceId": "the_thorned_reaper",
+      "sourcePack": "elite",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frameCount": 4
+    },
+    "tomb-warden": {
+      "file": "/assets/prototype/characters/enemies/tomb-warden.png",
+      "sourceId": "gravebound_skeleton",
+      "sourcePack": "enemies",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 4
+    },
+    "wailing-wisp": {
+      "file": "/assets/prototype/characters/enemies/wailing-wisp.png",
+      "sourceId": "tomb_wraith",
+      "sourcePack": "enemies",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 4
+    },
+    "bone-skitter": {
+      "file": "/assets/prototype/characters/enemies/bone-skitter.png",
+      "sourceId": "bone_crawler",
+      "sourcePack": "enemies",
+      "frameWidth": 40,
+      "frameHeight": 40,
+      "frameCount": 4
+    },
+    "mourner-acolyte": {
+      "file": "/assets/prototype/characters/enemies/mourner-acolyte.png",
+      "sourceId": "the_mourning_specter",
+      "sourcePack": "elite",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frameCount": 4
+    },
+    "crypt-leaper": {
+      "file": "/assets/prototype/characters/enemies/crypt-leaper.png",
+      "sourceId": "the_gravewarden",
+      "sourcePack": "elite",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frameCount": 4
+    },
+    "brass-sentinel": {
+      "file": "/assets/prototype/characters/enemies/brass-sentinel.png",
+      "sourceId": "abyssal_brute",
+      "sourcePack": "enemies",
+      "frameWidth": 56,
+      "frameHeight": 56,
+      "frameCount": 4
+    },
+    "ember-mortar": {
+      "file": "/assets/prototype/characters/enemies/ember-mortar.png",
+      "sourceId": "bound_experiment",
+      "sourcePack": "enemies",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 4
+    },
+    "chain-duelist": {
+      "file": "/assets/prototype/characters/enemies/chain-duelist.png",
+      "sourceId": "void_stalker",
+      "sourcePack": "enemies",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 4
+    },
+    "tunnel-burrower": {
+      "file": "/assets/prototype/characters/enemies/tunnel-burrower.png",
+      "sourceId": "the_abomination",
+      "sourcePack": "elite",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frameCount": 4
+    },
+    "rune-sapper": {
+      "file": "/assets/prototype/characters/enemies/rune-sapper.png",
+      "sourceId": "the_void_executioner",
+      "sourcePack": "elite",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frameCount": 4
+    },
+    "mire-lurker": {
+      "file": "/assets/prototype/characters/enemies/mire-lurker.png",
+      "sourceId": "mire_toad",
+      "sourcePack": "enemies",
+      "frameWidth": 56,
+      "frameHeight": 56,
+      "frameCount": 4
+    },
+    "bog-leech": {
+      "file": "/assets/prototype/characters/enemies/bog-leech.png",
+      "sourceId": "venom_spitter",
+      "sourcePack": "enemies",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 4
+    },
+    "gas-sac": {
+      "file": "/assets/prototype/characters/enemies/gas-sac.png",
+      "sourceId": "rotting_treant",
+      "sourcePack": "enemies",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 4
+    },
+    "mire-witch": {
+      "file": "/assets/prototype/characters/enemies/mire-witch.png",
+      "sourceId": "the_plague_mother",
+      "sourcePack": "elite",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frameCount": 4
+    },
+    "web-weaver": {
+      "file": "/assets/prototype/characters/enemies/web-weaver.png",
+      "sourceId": "rotting_treant",
+      "sourcePack": "enemies",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 4
+    },
+    "veil-stalker": {
+      "file": "/assets/prototype/characters/enemies/veil-stalker.png",
+      "sourceId": "crimson_sentinel",
+      "sourcePack": "enemies",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 4
+    },
+    "frost-hound": {
+      "file": "/assets/prototype/characters/enemies/frost-hound.png",
+      "sourceId": "cursed_knight",
+      "sourcePack": "enemies",
+      "frameWidth": 56,
+      "frameHeight": 56,
+      "frameCount": 4
+    },
+    "mirror-mimic": {
+      "file": "/assets/prototype/characters/enemies/mirror-mimic.png",
+      "sourceId": "fallen_arbalist",
+      "sourcePack": "enemies",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 4
+    },
+    "soul-anchor": {
+      "file": "/assets/prototype/characters/enemies/soul-anchor.png",
+      "sourceId": "the_fallen_justiciar",
+      "sourcePack": "elite",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frameCount": 4
+    },
+    "dusk-revenant": {
+      "file": "/assets/prototype/characters/enemies/dusk-revenant.png",
+      "sourceId": "the_blood_knight",
+      "sourcePack": "elite",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frameCount": 4
+    }
+  },
+  "bosses": {
+    "thorn-matriarch": {
+      "file": "/assets/prototype/characters/bosses/thorn-matriarch.png",
+      "sourceId": "the_ancient_blight",
+      "frameWidth": 96,
+      "frameHeight": 96,
+      "frameCount": 4,
+      "frameDuration": 180
+    },
+    "ossuary-king": {
+      "file": "/assets/prototype/characters/bosses/ossuary-king.png",
+      "sourceId": "the_undying_monarch",
+      "frameWidth": 96,
+      "frameHeight": 96,
+      "frameCount": 4,
+      "frameDuration": 180
+    },
+    "furnace-colossus": {
+      "file": "/assets/prototype/characters/bosses/furnace-colossus.png",
+      "sourceId": "the_void_devourer",
+      "frameWidth": 96,
+      "frameHeight": 96,
+      "frameCount": 4,
+      "frameDuration": 180
+    },
+    "mire-oracle": {
+      "file": "/assets/prototype/characters/bosses/mire-oracle.png",
+      "sourceId": "the_rotheart_abomination",
+      "frameWidth": 96,
+      "frameHeight": 96,
+      "frameCount": 4,
+      "frameDuration": 180
+    },
+    "unwritten-regent": {
+      "file": "/assets/prototype/characters/bosses/unwritten-regent.png",
+      "sourceId": "the_fallen_sovereign",
+      "frameWidth": 96,
+      "frameHeight": 96,
+      "frameCount": 4,
+      "frameDuration": 180
+    }
+  },
+  "loot": {
+    "xp": {
+      "file": "/assets/prototype/loot/xp-crystal.png",
+      "frameWidth": 24,
+      "frameHeight": 24
+    },
+    "chest": {
+      "file": "/assets/prototype/objects/chest-common.png",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "frameCount": 4
+    }
+  },
+  "regions": {
+    "cursed-forest": {
+      "file": "/assets/prototype/regions/cursed-forest-ground.png",
+      "tileWidth": 32,
+      "tileHeight": 32
+    },
+    "forgotten-graveyard": {
+      "file": "/assets/prototype/regions/forgotten-graveyard-ground.png",
+      "tileWidth": 32,
+      "tileHeight": 32
+    },
+    "deep-dungeon": {
+      "file": "/assets/prototype/regions/deep-dungeon-ground.png",
+      "tileWidth": 32,
+      "tileHeight": 32
+    },
+    "rotten-swamp": {
+      "file": "/assets/prototype/regions/rotten-swamp-ground.png",
+      "tileWidth": 32,
+      "tileHeight": 32
+    },
+    "cursed-castle": {
+      "file": "/assets/prototype/regions/cursed-castle-ground.png",
+      "tileWidth": 32,
+      "tileHeight": 32
+    }
+  },
+  "projectile": {
+    "file": "/assets/prototype/vfx/veil-bolt.png"
+  }
+}
