@@ -1,0 +1,60 @@
+name: Prepare Playable Prototype Art
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+  push:
+    branches: [full-game-development]
+    paths:
+      - '.github/workflows/prepare-prototype-assets.yml'
+      - 'scripts/prepare-prototype-assets.py'
+      - 'assets/**'
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-art:
+    name: Curate game-ready art from the 12 uploaded packs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout prototype branch
+        uses: actions/checkout@v4
+        with:
+          ref: full-game-development
+
+      - name: Download and verify large release archives
+        shell: bash
+        env:
+          BV_RELEASE_DIR: ${{ runner.temp }}/bv-release-assets
+        run: |
+          set -euo pipefail
+          mkdir -p "$BV_RELEASE_DIR"
+          curl --fail --location --retry 3 --output "$BV_RELEASE_DIR/beyond_the_veil_bosses_pack.zip" "https://github.com/Valse0/Beyond-the-Veil/releases/download/asset-library-v1/beyond_the_veil_bosses_pack.zip"
+          curl --fail --location --retry 3 --output "$BV_RELEASE_DIR/beyond_the_veil_elite_miniboss_pack.zip" "https://github.com/Valse0/Beyond-the-Veil/releases/download/asset-library-v1/beyond_the_veil_elite_miniboss_pack.zip"
+          echo "623716fa9f39334f94983b7822ccd644c6183fb889d7c0a6a88cc27286e263f0  $BV_RELEASE_DIR/beyond_the_veil_bosses_pack.zip" | sha256sum --check
+          echo "37132b8a13369ba9c82d84db9299c078a4612f96901c30d4912fc062edba70cc  $BV_RELEASE_DIR/beyond_the_veil_elite_miniboss_pack.zip" | sha256sum --check
+
+      - name: Install image processing dependency
+        run: python -m pip install --disable-pip-version-check Pillow
+
+      - name: Build curated prototype art bundle
+        env:
+          BV_RELEASE_DIR: ${{ runner.temp }}/bv-release-assets
+        run: python scripts/prepare-prototype-assets.py
+
+      - name: Commit curated assets to the development branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/assets/prototype
+          if git diff --cached --quiet; then
+            echo "Curated art bundle is already up to date."
+            exit 0
+          fi
+          git commit -m "Add curated playable prototype art"
+          git push origin HEAD:full-game-development
