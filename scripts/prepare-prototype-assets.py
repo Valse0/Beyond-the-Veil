@@ -49,7 +49,7 @@ ENEMY_SOURCE_MAP = {
     "bog-leech": ("enemies", "venom_spitter"),
     "gas-sac": ("enemies", "rotting_treant"),
     "mire-witch": ("elite", "the_plague_mother"),
-    "web-weaver": ("enemies", "rotting_treant"),
+    "web-weaver": ("elite", "the_mire_colossus"),
     "veil-stalker": ("enemies", "crimson_sentinel"),
     "frost-hound": ("enemies", "cursed_knight"),
     "mirror-mimic": ("enemies", "fallen_arbalist"),
