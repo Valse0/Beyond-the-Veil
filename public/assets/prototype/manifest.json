@@ -212,10 +212,10 @@
     },
     "web-weaver": {
       "file": "/assets/prototype/characters/enemies/web-weaver.png",
-      "sourceId": "rotting_treant",
-      "sourcePack": "enemies",
-      "frameWidth": 48,
-      "frameHeight": 48,
+      "sourceId": "the_mire_colossus",
+      "sourcePack": "elite",
+      "frameWidth": 64,
+      "frameHeight": 64,
       "frameCount": 4
     },
     "veil-stalker": {
