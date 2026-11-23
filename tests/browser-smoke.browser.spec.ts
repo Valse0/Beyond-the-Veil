@@ -3101,7 +3101,7 @@ test('collection archive uses touch focus layout and supports touch category and
       const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scale: { gameSize: { width: number; height: number } } } }).__BEYOND_VEIL_GAME__;
       return game?.scale.gameSize ?? { width: 1280, height: 720 };
     });
-    await page.touchscreen.tap(bounds.x + (x / logicalSize.width) * bounds.width, bounds.y + (y / logicalSize.height) * bounds.height);
+    await page.touchscreen.tap(Math.round(bounds.x + (x / logicalSize.width) * bounds.width), Math.round(bounds.y + (y / logicalSize.height) * bounds.height));
   };
   await page.goto('/?bv-test=1');
   await expect(canvas).toBeVisible();

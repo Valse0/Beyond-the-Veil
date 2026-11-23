@@ -30,6 +30,7 @@ export class MainMenuScene extends Phaser.Scene {
   preload(): void { preloadUiArt(this); }
 
   create(): void {
+    this.menuFrames.clear();
     const h = this.scale.height;
     this.cameras.main.setBackgroundColor('#0b0b10');
 
