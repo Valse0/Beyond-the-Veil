@@ -36,6 +36,46 @@
         "technical_checks_passed": false,
         "approved_by": ""
       }
+    },
+    {
+      "id": "ui.hunter-portraits",
+      "path": "/assets/ui/hunter-portraits.svg",
+      "role": "ui-character-portrait-strip",
+      "format": "svg-spritesheet",
+      "width": 800,
+      "height": 160,
+      "frameWidth": 160,
+      "frameHeight": 160,
+      "frames": [
+        "cursed-hunter",
+        "black-knight",
+        "spirit-mage",
+        "shadow-assassin",
+        "blood-priestess"
+      ],
+      "source": "Original hand-authored SVG, project-owned",
+      "license": "Project-owned original asset",
+      "status": "integrated-unverified"
+    },
+    {
+      "id": "ui.region-art",
+      "path": "/assets/ui/region-art.svg",
+      "role": "ui-region-illustration-strip",
+      "format": "svg-spritesheet",
+      "width": 1280,
+      "height": 160,
+      "frameWidth": 256,
+      "frameHeight": 160,
+      "frames": [
+        "cursed-forest",
+        "forgotten-graveyard",
+        "deep-dungeon",
+        "rotten-swamp",
+        "cursed-castle"
+      ],
+      "source": "Original hand-authored SVG, project-owned",
+      "license": "Project-owned original asset",
+      "status": "integrated-unverified"
     }
   ]
 }
