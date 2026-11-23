@@ -108,7 +108,7 @@ test('character detail presents real mastery, loadout, synergies and cosmetic sa
   });
   await page.reload();
   await expect(canvas).toBeVisible();
-  await clickGamePoint(page, 160, 555);
+  await clickGamePoint(page, 160, 310);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('character-select'));
@@ -174,7 +174,7 @@ test('touch users can open character details, browse hunters and return to selec
   };
   await page.goto('/?bv-test=1');
   await expect(canvas).toBeVisible();
-  await tapCanvas(160, 555);
+  await tapCanvas(160, 310);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('character-select'));
@@ -235,7 +235,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
   expect(dimensions).toEqual({ width: 1280, height: 720 });
 
   const menuFrame = await canvas.screenshot();
-  await clickGamePoint(page, 160, 555);
+  await clickGamePoint(page, 160, 310);
   // Keep the pointer off interactive controls so screenshot comparisons are deterministic.
   await page.mouse.move(1240, 40);
   await expect.poll(async () => !(await canvas.screenshot()).equals(menuFrame), {
@@ -378,7 +378,7 @@ test('main menu keeps pointer access to Hunter Hub', async ({ page }) => {
   await page.goto('/?bv-test=1');
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
-  await clickGamePoint(page, 460, 555);
+  await clickGamePoint(page, 160, 368);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('hunter-hub'));
@@ -402,7 +402,7 @@ test('region selection reads unlocked regions from the persisted profile', async
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
 
-  await clickGamePoint(page, 160, 555);
+  await clickGamePoint(page, 160, 310);
   await page.keyboard.press('Enter');
   await page.waitForTimeout(120);
   const regionScreen = await canvas.screenshot();
@@ -965,7 +965,7 @@ test('run preparation selects a saved equipment profile and applies its real loa
   await page.goto('/?bv-test=1');
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
-  await clickGamePoint(page, 160, 555);
+  await clickGamePoint(page, 160, 310);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('character-select'));
