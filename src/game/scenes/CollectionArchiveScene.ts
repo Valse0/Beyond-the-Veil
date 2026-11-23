@@ -124,7 +124,6 @@ export class CollectionArchiveScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
     const category = this.currentCategory();
-    const centerX = width / 2;
     drawUiBackdrop(this, 'archive');
 
     this.add.text(48, 30, 'KOLEKSİYON ARŞİVİ', {
@@ -137,7 +136,7 @@ export class CollectionArchiveScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#d4bd92'
     }).setOrigin(1, 0);
 
-    if (this.touchLayout) this.renderTouch(category);
+    if (this.touchLayout) this.renderTouch(category, width);
     else this.renderDesktop(category);
 
     const back = this.add.text(width / 2, height - 34, 'ESC / B  •  GERİ', {
@@ -147,7 +146,8 @@ export class CollectionArchiveScene extends Phaser.Scene {
     back.on('pointerup', () => this.closeArchive());
   }
 
-  private renderTouch(category: CollectionArchiveCategory | undefined): void {
+  private renderTouch(category: CollectionArchiveCategory | undefined, width: number): void {
+    const centerX = width / 2;
     const tabs = this.snapshot.categories;
     const tabWidth = 178;
     tabs.forEach((entry, index) => {
