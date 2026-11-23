@@ -1210,9 +1210,10 @@ export class RunScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player,true,0.08,0.08);
     this.cursors=this.input.keyboard!.createCursorKeys();
     this.keys=this.input.keyboard!.addKeys('W,A,S,D,SPACE,E,ESC,ENTER') as Record<string,Phaser.Input.Keyboard.Key>;
-    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
-      // Handle Escape directly from the DOM keyboard event. Some browsers/remote
-      // keyboards do not reliably expose the ESC key state to JustDown(this.keys.ESC).
+    const handleRunKeydown = (event: KeyboardEvent): void => {
+      // Listen in the window capture phase so browser/host listeners cannot consume
+      // Escape before Phaser's keyboard plugin receives it.
+      if (!this.sys.isActive() || this.scene.isPaused()) return;
       if (event.key === 'Escape' || event.code === 'Escape' || event.keyCode === 27) {
         event.preventDefault();
         if (this.paused && this.overlayBackIndex !== null) this.activateOverlayOption(this.overlayBackIndex);
@@ -1235,6 +1236,10 @@ export class RunScene extends Phaser.Scene {
         this.openPause();
         this.activateOverlayOption(1);
       }
+    };
+    window.addEventListener('keydown', handleRunKeydown, true);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      window.removeEventListener('keydown', handleRunKeydown, true);
     });
     this.physics.add.overlap(this.shots,this.enemies,(a,b)=>this.hitEnemy(a as Phaser.Physics.Arcade.Sprite,b as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.shots,this.bossArenaObjects,(a,b)=>this.hitBossArenaObject(a as Phaser.Physics.Arcade.Sprite,b as Phaser.Physics.Arcade.Sprite));
