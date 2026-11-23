@@ -30,3 +30,13 @@ Approve a representative character/enemy target, produce coherent families, norm
 - Provenance: original hand-authored SVG composition for this project; no third-party image, logo, watermark, studio credit, or baked-in menu text.
 - Status: presentation placeholder / iteration asset, **not final pixel art**. It is a visual direction test and may be refined or replaced during the later approved final-art phase.
 - QA still required: inspect the rendered 1280×720 canvas and representative mobile landscape scaling; verify menu text contrast and all pointer/touch/gamepad targets in-engine.
+
+
+## UI art refresh — 2026-11-22
+
+| Stable key | File | Role | Technical format | Source / licence | State |
+|---|---|---|---|---|---|
+| `ui.hunter-portraits` | `public/assets/ui/hunter-portraits.svg` | Five-frame portrait strip in canonical character order from `src/data/characters.ts` | SVG spritesheet, 800×160, 160×160 frames, crisp edges | Original hand-authored project SVG; project-owned, no third-party source | INTEGRATED_UNVERIFIED |
+| `ui.region-art` | `public/assets/ui/region-art.svg` | Five-frame region illustration strip in canonical region order from `src/data/regions.ts` | SVG spritesheet, 1280×160, 256×160 frames, crisp edges | Original hand-authored project SVG; project-owned, no third-party source | INTEGRATED_UNVERIFIED |
+
+These navigation illustrations are original stylized pixel-art UI assets. They are not final in-world character/environment animation assets and do not close the remaining Stage 5 production-art requirements. The original seven approved design PNGs remain unchanged.
