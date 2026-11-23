@@ -33,6 +33,7 @@ export class RunPreparationScene extends Phaser.Scene {
   private globallyEquippedRelicIds: string[] = [];
   private selectedIndex = 0;
   private frames: Phaser.GameObjects.Graphics[] = [];
+  private loadoutSummaryObjects: Phaser.GameObjects.GameObject[] = [];
   private previousPad = { left: false, right: false, confirm: false, back: false, next: false, previous: false };
   private statusText?: Phaser.GameObjects.Text;
   private touchLayout = false;
@@ -60,6 +61,7 @@ export class RunPreparationScene extends Phaser.Scene {
     this.globallyEquippedRelicIds = [];
     this.selectedIndex = 0;
     this.frames = [];
+    this.loadoutSummaryObjects = [];
     this.previousPad = { left: false, right: false, confirm: false, back: false, next: false, previous: false };
     this.statusText = undefined;
     this.touchLayout = false;
@@ -161,16 +163,16 @@ export class RunPreparationScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '14px' : '10px', color: '#89818a'
     }).setOrigin(1, 0);
 
-    const cardWidth = this.touchLayout ? width - 530 : (width - 530) / 2;
-    const cardHeight = this.touchLayout ? 250 : 112;
+    const cardWidth = this.touchLayout || this.options.length === 1 ? width - 530 : (width - 530) / 2;
+    const cardHeight = 112;
     const startX = 446;
-    const startY = this.touchLayout ? 238 : 194;
+    const startY = 194;
     this.options.forEach((option, index) => {
       if (this.touchLayout && index !== this.selectedIndex) return;
       const column = index % 2;
       const row = Math.floor(index / 2);
-      const x = this.touchLayout ? startX : startX + column * (cardWidth + 18);
-      const y = this.touchLayout ? startY : startY + row * 124;
+      const x = this.touchLayout || this.options.length === 1 ? startX : startX + column * (cardWidth + 18);
+      const y = this.touchLayout || this.options.length === 1 ? startY : startY + row * 124;
       const frame = this.add.graphics();
       this.frames.push(frame);
       const weapon = option ? WEAPONS.find(item => item.id === option.startingWeaponId) : WEAPONS.find(item => item.id === character.startingWeaponId);
@@ -309,8 +311,8 @@ export class RunPreparationScene extends Phaser.Scene {
     this.frames.forEach((frame, index) => {
       const column = index % 2;
       const row = Math.floor(index / 2);
-      const x = this.touchLayout ? startX : startX + column * (cardWidth + 18);
-      const y = this.touchLayout ? startY : startY + row * 124;
+      const x = this.touchLayout || this.options.length === 1 ? startX : startX + column * (cardWidth + 18);
+      const y = this.touchLayout || this.options.length === 1 ? startY : startY + row * 124;
       const selected = this.touchLayout || index === this.selectedIndex;
       frame.clear();
       frame.fillStyle(selected ? 0x30251f : 0x17161b, selected ? 0.98 : 0.78);
@@ -323,11 +325,73 @@ export class RunPreparationScene extends Phaser.Scene {
       }
     });
     const option = this.options[this.selectedIndex] ?? null;
+    this.renderLoadoutSummary();
     if (this.statusText) {
       this.statusText.setText(option
         ? 'Bu koşuda "' + option.name + '" profili kullanılacak. Kayıtlı aktif profilin değişmez.'
         : 'Bu koşuda ' + (CHARACTERS.find(item => item.id === this.characterId)?.name ?? 'avcı') + ' varsayılan dizilimi kullanılacak.');
     }
+  }
+
+  private renderLoadoutSummary(): void {
+    this.loadoutSummaryObjects.forEach(object => object.destroy());
+    this.loadoutSummaryObjects = [];
+
+    const character = CHARACTERS.find(item => item.id === this.characterId) ?? CHARACTERS[0]!;
+    const option = this.options[this.selectedIndex] ?? null;
+    const weapon = WEAPONS.find(item => item.id === (option?.startingWeaponId ?? character.startingWeaponId));
+    const passive = PASSIVES.find(item => item.id === (option?.startingPassiveId ?? character.startingPassiveId));
+    const relicIds = option?.relicIds ?? this.globallyEquippedRelicIds;
+    const relics = relicIds.map(id => RELICS.find(item => item.id === id))
+      .filter((item): item is (typeof RELICS)[number] => Boolean(item));
+
+    const cards = [
+      {
+        label: 'SİLAH', name: weapon?.name ?? 'Bilinmeyen silah',
+        detail: weapon?.description ?? 'Avcının başlangıç silahı',
+        icon: 'upgrade-icon-weapon', accent: 0xb99a61
+      },
+      {
+        label: 'PASİF', name: passive?.name ?? 'Bilinmeyen pasif',
+        detail: passive?.description ?? 'Avcının kalıcı pasif özelliği',
+        icon: 'upgrade-icon-passive', accent: 0x8f9b87
+      },
+      {
+        label: 'AKTİF YETENEK', name: character.activeAbility,
+        detail: Math.round(character.ability.cooldownMs / 1000) + ' sn bekleme  •  ' + character.ability.range + ' menzil',
+        icon: 'upgrade-icon-base', accent: 0x7d9d9a
+      },
+      {
+        label: 'KALINTI', name: relics[0]?.name ?? 'Boş yuva',
+        detail: relics.length ? (relics.length + ' kalıntı kuşanıldı') : 'Koşu sırasında keşfedilebilir',
+        icon: 'upgrade-icon-passive', accent: 0x9a7b88
+      }
+    ];
+
+    const cardWidth = 170;
+    const cardHeight = 176;
+    const gap = 12;
+    const startX = 446;
+    const top = 342;
+    cards.forEach((card, index) => {
+      const x = startX + index * (cardWidth + gap);
+      const panel = drawUiPanel(this, x, top, cardWidth, cardHeight, card.accent, -1, 0.98).setScrollFactor(0);
+      const icon = this.add.image(x + cardWidth / 2, top + 43, card.icon)
+        .setDisplaySize(54, 54).setScrollFactor(0).setDepth(5);
+      const label = this.add.text(x + cardWidth / 2, top + 82, card.label, {
+        fontFamily: 'Arial, sans-serif', fontSize: '10px', fontStyle: 'bold',
+        color: '#c7ad7b', letterSpacing: 1, align: 'center'
+      }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(5);
+      const name = this.add.text(x + cardWidth / 2, top + 103, card.name, {
+        fontFamily: 'Georgia, serif', fontSize: '13px', fontStyle: 'bold',
+        color: '#f0e6d6', align: 'center', wordWrap: { width: cardWidth - 18 }
+      }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(5);
+      const detail = this.add.text(x + cardWidth / 2, top + 139, card.detail, {
+        fontFamily: 'Arial, sans-serif', fontSize: '9px', color: '#aaa2a0',
+        align: 'center', wordWrap: { width: cardWidth - 20 }, lineSpacing: 2
+      }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(5);
+      this.loadoutSummaryObjects.push(panel, icon, label, name, detail);
+    });
   }
 
   private makeTouchArrow(x: number, y: number, label: string, action: () => void): void {
