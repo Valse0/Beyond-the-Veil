@@ -9,6 +9,7 @@ on:
       - 'assets/**'
       - 'A_mysterious_adult_male_cursed.zip'
       - 'Beyond_The_Veil_Asset_Pack_0.1.0.zip'
+      - 'beyond-the-veil-ui-design/**'
 
   release:
     types: [published]
