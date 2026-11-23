@@ -124,6 +124,7 @@ export class CollectionArchiveScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
     const category = this.currentCategory();
+    const centerX = width / 2;
     drawUiBackdrop(this, 'archive');
 
     this.add.text(48, 30, 'KOLEKSİYON ARŞİVİ', {
@@ -161,18 +162,18 @@ export class CollectionArchiveScene extends Phaser.Scene {
     });
     if (!category) return;
     const item = category.items[this.itemIndex];
-    this.add.text(640, 235, category.name, { fontFamily: 'Georgia, serif', fontSize: '24px', color: '#e9dfcb' }).setOrigin(0.5);
-    this.add.text(640, 268, `${category.discovered} / ${category.total}  •  ${category.completed ? 'TAMAMLANDI' : 'DEVAM EDİYOR'}`, { fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#b99a61' }).setOrigin(0.5);
-    this.add.rectangle(640, 390, 620, 190, 0x17131c, 0.98).setStrokeStyle(2, 0x756653, 0.85);
-    this.add.text(640, 335, item?.discovered ? item.name : '???', { fontFamily: 'Georgia, serif', fontSize: '26px', color: item?.discovered ? '#fff0ce' : '#9c9290' }).setOrigin(0.5);
-    this.add.text(640, 400, item?.description ?? '', { fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#c7b9aa', align: 'center', wordWrap: { width: 500 }, lineSpacing: 8 }).setOrigin(0.5);
-    this.add.text(640, 465, `KAYIT ${this.itemIndex + 1} / ${category.items.length}`, { fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#b99a61' }).setOrigin(0.5);
+    this.add.text(centerX, 235, category.name, { fontFamily: 'Georgia, serif', fontSize: '24px', color: '#e9dfcb' }).setOrigin(0.5);
+    this.add.text(centerX, 268, `${category.discovered} / ${category.total}  •  ${category.completed ? 'TAMAMLANDI' : 'DEVAM EDİYOR'}`, { fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#b99a61' }).setOrigin(0.5);
+    this.add.rectangle(centerX, 390, 620, 190, 0x17131c, 0.98).setStrokeStyle(2, 0x756653, 0.85);
+    this.add.text(centerX, 335, item?.discovered ? item.name : '???', { fontFamily: 'Georgia, serif', fontSize: '26px', color: item?.discovered ? '#fff0ce' : '#9c9290' }).setOrigin(0.5);
+    this.add.text(centerX, 400, item?.description ?? '', { fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#c7b9aa', align: 'center', wordWrap: { width: 500 }, lineSpacing: 8 }).setOrigin(0.5);
+    this.add.text(centerX, 465, `KAYIT ${this.itemIndex + 1} / ${category.items.length}`, { fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#b99a61' }).setOrigin(0.5);
     this.drawArrowButton(150, 390, '‹', () => this.moveItem(-1), 92, 92);
-    this.drawArrowButton(1130, 390, '›', () => this.moveItem(1), 92, 92);
-    this.add.text(640, 548, category.rewardUnlocked ? `ÖDÜL AÇILDI  •  ${category.rewardName}` : `TAMAMLAMA ÖDÜLÜ  •  ${category.rewardName}  •  KİLİTLİ`, {
+    this.drawArrowButton(width - 150, 390, '›', () => this.moveItem(1), 92, 92);
+    this.add.text(centerX, 548, category.rewardUnlocked ? `ÖDÜL AÇILDI  •  ${category.rewardName}` : `TAMAMLAMA ÖDÜLÜ  •  ${category.rewardName}  •  KİLİTLİ`, {
       fontFamily: 'Arial, sans-serif', fontSize: '14px', color: category.rewardUnlocked ? '#b9c59c' : '#9b8585', align: 'center'
     }).setOrigin(0.5);
-    if (this.snapshot.grandRewardUnlocked) this.add.text(640, 582, 'BÜYÜK KOLEKSİYON ÖDÜLÜ AÇILDI', { fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#e7c98e' }).setOrigin(0.5);
+    if (this.snapshot.grandRewardUnlocked) this.add.text(centerX, 582, 'BÜYÜK KOLEKSİYON ÖDÜLÜ AÇILDI', { fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#e7c98e' }).setOrigin(0.5);
   }
 
   private renderDesktop(category: CollectionArchiveCategory | undefined): void {
