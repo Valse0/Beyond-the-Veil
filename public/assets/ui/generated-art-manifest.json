@@ -7,11 +7,39 @@
     "selection-backdrop.png",
     "preparation-backdrop.png",
     "game-over-backdrop.png",
+    "upgrade-icon-weapon.png",
+    "upgrade-icon-passive.png",
+    "upgrade-icon-base.png",
     "region-card-cursed-forest.png",
     "region-card-forgotten-graveyard.png",
     "region-card-deep-dungeon.png",
     "region-card-rotten-swamp.png",
-    "region-card-cursed-castle.png"
+    "region-card-cursed-castle.png",
+    "world/props/cursed-forest-forest_tree_ancient_roots_01.png",
+    "world/props/cursed-forest-forest_tree_dead_oak_01.png",
+    "world/props/cursed-forest-forest_crystal_turquoise_01.png",
+    "world/props/cursed-forest-forest_bush_dense_01.png",
+    "world/props/cursed-forest-forest_mushroom_violet_01.png",
+    "world/props/forgotten-graveyard-cemetery_chapel_facade_ruined_01.png",
+    "world/props/forgotten-graveyard-cemetery_gravestone_gothic_01.png",
+    "world/props/forgotten-graveyard-cemetery_crypt_entrance_open_01.png",
+    "world/props/forgotten-graveyard-cemetery_cursed_monument_flame_01.png",
+    "world/props/forgotten-graveyard-cemetery_gothic_pillar_pair_01.png",
+    "world/props/deep-dungeon-dungeon_arch_gothic_01.png",
+    "world/props/deep-dungeon-dungeon_machine_gear_large_01.png",
+    "world/props/deep-dungeon-dungeon_gate_iron_open.png",
+    "world/props/deep-dungeon-dungeon_torch_fire_01.png",
+    "world/props/deep-dungeon-dungeon_lava_fissure_01.png",
+    "world/props/rotten-swamp-swamp_tree_ancient_01.png",
+    "world/props/rotten-swamp-swamp_tree_submerged_01.png",
+    "world/props/rotten-swamp-swamp_root_arch_large_01.png",
+    "world/props/rotten-swamp-swamp_plant_reeds_01.png",
+    "world/props/rotten-swamp-swamp_fog_teal_01.png",
+    "world/props/cursed-castle-citadel_tower_central_keep_01.png",
+    "world/props/cursed-castle-citadel_spire_gothic_01.png",
+    "world/props/cursed-castle-citadel_gate_royal_ceremonial_01.png",
+    "world/props/cursed-castle-citadel_statue_knight_kneeling_01.png",
+    "world/props/cursed-castle-citadel_veil_portal_active_01.png"
   ],
   "sources": [
     {
@@ -33,6 +61,36 @@
       "sha256": "3179125739d7abf0cd927dc6aff7e153abf8b6d85a9621d0f65d19ce19f72810"
     },
     {
+      "label": "cursed-forest world prop forest_tree_ancient_roots_01",
+      "image": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_nature_atlas.png",
+      "metadata": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_nature_atlas.json",
+      "sha256": "cf528b5c5a83aee6a80feb6ad75c7ff4317ba9c49141d6bd9ee612a32765e2be"
+    },
+    {
+      "label": "cursed-forest world prop forest_tree_dead_oak_01",
+      "image": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_nature_atlas.png",
+      "metadata": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_nature_atlas.json",
+      "sha256": "cf528b5c5a83aee6a80feb6ad75c7ff4317ba9c49141d6bd9ee612a32765e2be"
+    },
+    {
+      "label": "cursed-forest world prop forest_crystal_turquoise_01",
+      "image": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_nature_atlas.png",
+      "metadata": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_nature_atlas.json",
+      "sha256": "cf528b5c5a83aee6a80feb6ad75c7ff4317ba9c49141d6bd9ee612a32765e2be"
+    },
+    {
+      "label": "cursed-forest world prop forest_bush_dense_01",
+      "image": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_nature_atlas.png",
+      "metadata": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_nature_atlas.json",
+      "sha256": "cf528b5c5a83aee6a80feb6ad75c7ff4317ba9c49141d6bd9ee612a32765e2be"
+    },
+    {
+      "label": "cursed-forest world prop forest_mushroom_violet_01",
+      "image": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_nature_atlas.png",
+      "metadata": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_nature_atlas.json",
+      "sha256": "cf528b5c5a83aee6a80feb6ad75c7ff4317ba9c49141d6bd9ee612a32765e2be"
+    },
+    {
       "label": "forgotten-graveyard props",
       "image": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.png",
       "metadata": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.json",
@@ -43,6 +101,36 @@
       "image": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_terrain_atlas.png",
       "metadata": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_terrain_atlas.json",
       "sha256": "c92aaa8ac6ad99874cfb3d52075a4e16868b873f06ab601345600078c9e1c3d4"
+    },
+    {
+      "label": "forgotten-graveyard world prop cemetery_chapel_facade_ruined_01",
+      "image": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.png",
+      "metadata": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.json",
+      "sha256": "d5c578cfa815f5de5870d6366aa8bcb19e5fe81a04941def135959c667870cb4"
+    },
+    {
+      "label": "forgotten-graveyard world prop cemetery_gravestone_gothic_01",
+      "image": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.png",
+      "metadata": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.json",
+      "sha256": "d5c578cfa815f5de5870d6366aa8bcb19e5fe81a04941def135959c667870cb4"
+    },
+    {
+      "label": "forgotten-graveyard world prop cemetery_crypt_entrance_open_01",
+      "image": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.png",
+      "metadata": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.json",
+      "sha256": "d5c578cfa815f5de5870d6366aa8bcb19e5fe81a04941def135959c667870cb4"
+    },
+    {
+      "label": "forgotten-graveyard world prop cemetery_cursed_monument_flame_01",
+      "image": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.png",
+      "metadata": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.json",
+      "sha256": "d5c578cfa815f5de5870d6366aa8bcb19e5fe81a04941def135959c667870cb4"
+    },
+    {
+      "label": "forgotten-graveyard world prop cemetery_gothic_pillar_pair_01",
+      "image": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.png",
+      "metadata": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.json",
+      "sha256": "d5c578cfa815f5de5870d6366aa8bcb19e5fe81a04941def135959c667870cb4"
     },
     {
       "label": "deep-dungeon props",
@@ -57,6 +145,36 @@
       "sha256": "70cbf16a91188fe9bbf94faba8718fa7dc2e6d604d346f414bc7b8c1d5e62095"
     },
     {
+      "label": "deep-dungeon world prop dungeon_arch_gothic_01",
+      "image": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_props_atlas.png",
+      "metadata": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_props_atlas.json",
+      "sha256": "e11439d240292ad1316c3df12f9e8a36c0f30be13663c07daf5488066485b7a1"
+    },
+    {
+      "label": "deep-dungeon world prop dungeon_machine_gear_large_01",
+      "image": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_props_atlas.png",
+      "metadata": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_props_atlas.json",
+      "sha256": "e11439d240292ad1316c3df12f9e8a36c0f30be13663c07daf5488066485b7a1"
+    },
+    {
+      "label": "deep-dungeon world prop dungeon_gate_iron_open",
+      "image": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_props_atlas.png",
+      "metadata": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_props_atlas.json",
+      "sha256": "e11439d240292ad1316c3df12f9e8a36c0f30be13663c07daf5488066485b7a1"
+    },
+    {
+      "label": "deep-dungeon world prop dungeon_torch_fire_01",
+      "image": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_props_atlas.png",
+      "metadata": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_props_atlas.json",
+      "sha256": "e11439d240292ad1316c3df12f9e8a36c0f30be13663c07daf5488066485b7a1"
+    },
+    {
+      "label": "deep-dungeon world prop dungeon_lava_fissure_01",
+      "image": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_props_atlas.png",
+      "metadata": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_props_atlas.json",
+      "sha256": "e11439d240292ad1316c3df12f9e8a36c0f30be13663c07daf5488066485b7a1"
+    },
+    {
       "label": "rotten-swamp props",
       "image": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.png",
       "metadata": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.json",
@@ -69,6 +187,36 @@
       "sha256": "0f4e6c689567a78e377add47e20f0f313692749dff08640e584f2c0c63386747"
     },
     {
+      "label": "rotten-swamp world prop swamp_tree_ancient_01",
+      "image": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.png",
+      "metadata": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.json",
+      "sha256": "2477d0d2d954c2842877fe52af4752e3ea0d2aa92ab01183b883ed3e518ae3de"
+    },
+    {
+      "label": "rotten-swamp world prop swamp_tree_submerged_01",
+      "image": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.png",
+      "metadata": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.json",
+      "sha256": "2477d0d2d954c2842877fe52af4752e3ea0d2aa92ab01183b883ed3e518ae3de"
+    },
+    {
+      "label": "rotten-swamp world prop swamp_root_arch_large_01",
+      "image": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.png",
+      "metadata": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.json",
+      "sha256": "2477d0d2d954c2842877fe52af4752e3ea0d2aa92ab01183b883ed3e518ae3de"
+    },
+    {
+      "label": "rotten-swamp world prop swamp_plant_reeds_01",
+      "image": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.png",
+      "metadata": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.json",
+      "sha256": "2477d0d2d954c2842877fe52af4752e3ea0d2aa92ab01183b883ed3e518ae3de"
+    },
+    {
+      "label": "rotten-swamp world prop swamp_fog_teal_01",
+      "image": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.png",
+      "metadata": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.json",
+      "sha256": "2477d0d2d954c2842877fe52af4752e3ea0d2aa92ab01183b883ed3e518ae3de"
+    },
+    {
       "label": "cursed-castle props",
       "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.png",
       "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.json",
@@ -79,6 +227,36 @@
       "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_terrain_atlas.png",
       "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_terrain_atlas.json",
       "sha256": "5b4a8dd44a4c9443504c8fb9e4e84a585837f4e317330eeea1541b4fa2b17702"
+    },
+    {
+      "label": "cursed-castle world prop citadel_tower_central_keep_01",
+      "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.png",
+      "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.json",
+      "sha256": "be93db65253237fee76775a79d44aeb4e87597d2ad766ef1af4fce76c1843d74"
+    },
+    {
+      "label": "cursed-castle world prop citadel_spire_gothic_01",
+      "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.png",
+      "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.json",
+      "sha256": "be93db65253237fee76775a79d44aeb4e87597d2ad766ef1af4fce76c1843d74"
+    },
+    {
+      "label": "cursed-castle world prop citadel_gate_royal_ceremonial_01",
+      "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.png",
+      "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.json",
+      "sha256": "be93db65253237fee76775a79d44aeb4e87597d2ad766ef1af4fce76c1843d74"
+    },
+    {
+      "label": "cursed-castle world prop citadel_statue_knight_kneeling_01",
+      "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.png",
+      "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.json",
+      "sha256": "be93db65253237fee76775a79d44aeb4e87597d2ad766ef1af4fce76c1843d74"
+    },
+    {
+      "label": "cursed-castle world prop citadel_veil_portal_active_01",
+      "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.png",
+      "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.json",
+      "sha256": "be93db65253237fee76775a79d44aeb4e87597d2ad766ef1af4fce76c1843d74"
     },
     {
       "label": "cursed-citadel final boss",
