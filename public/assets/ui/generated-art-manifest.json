@@ -41,7 +41,12 @@
     "world/props/cursed-castle-citadel_spire_gothic_01.png",
     "world/props/cursed-castle-citadel_gate_royal_ceremonial_01.png",
     "world/props/cursed-castle-citadel_statue_knight_kneeling_01.png",
-    "world/props/cursed-castle-citadel_veil_portal_active_01.png"
+    "world/props/cursed-castle-citadel_veil_portal_active_01.png",
+    "world/ground/cursed-forest-ground.png",
+    "world/ground/forgotten-graveyard-ground.png",
+    "world/ground/deep-dungeon-ground.png",
+    "world/ground/rotten-swamp-ground.png",
+    "world/ground/cursed-castle-ground.png"
   ],
   "sources": [
     {
@@ -58,6 +63,12 @@
     },
     {
       "label": "cursed-forest terrain",
+      "image": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_terrain_atlas.png",
+      "metadata": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_terrain_atlas.json",
+      "sha256": "3179125739d7abf0cd927dc6aff7e153abf8b6d85a9621d0f65d19ce19f72810"
+    },
+    {
+      "label": "cursed-forest world ground",
       "image": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_terrain_atlas.png",
       "metadata": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_terrain_atlas.json",
       "sha256": "3179125739d7abf0cd927dc6aff7e153abf8b6d85a9621d0f65d19ce19f72810"
@@ -105,6 +116,12 @@
       "sha256": "c92aaa8ac6ad99874cfb3d52075a4e16868b873f06ab601345600078c9e1c3d4"
     },
     {
+      "label": "forgotten-graveyard world ground",
+      "image": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_terrain_atlas.png",
+      "metadata": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_terrain_atlas.json",
+      "sha256": "c92aaa8ac6ad99874cfb3d52075a4e16868b873f06ab601345600078c9e1c3d4"
+    },
+    {
       "label": "forgotten-graveyard world prop cemetery_chapel_facade_ruined_01",
       "image": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.png",
       "metadata": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.json",
@@ -142,6 +159,12 @@
     },
     {
       "label": "deep-dungeon terrain",
+      "image": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_terrain_atlas.png",
+      "metadata": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_terrain_atlas.json",
+      "sha256": "70cbf16a91188fe9bbf94faba8718fa7dc2e6d604d346f414bc7b8c1d5e62095"
+    },
+    {
+      "label": "deep-dungeon world ground",
       "image": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_terrain_atlas.png",
       "metadata": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_terrain_atlas.json",
       "sha256": "70cbf16a91188fe9bbf94faba8718fa7dc2e6d604d346f414bc7b8c1d5e62095"
@@ -189,6 +212,12 @@
       "sha256": "0f4e6c689567a78e377add47e20f0f313692749dff08640e584f2c0c63386747"
     },
     {
+      "label": "rotten-swamp world ground",
+      "image": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_terrain_atlas.png",
+      "metadata": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_terrain_atlas.json",
+      "sha256": "0f4e6c689567a78e377add47e20f0f313692749dff08640e584f2c0c63386747"
+    },
+    {
       "label": "rotten-swamp world prop swamp_tree_ancient_01",
       "image": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.png",
       "metadata": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.json",
@@ -226,6 +255,12 @@
     },
     {
       "label": "cursed-castle terrain",
+      "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_terrain_atlas.png",
+      "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_terrain_atlas.json",
+      "sha256": "5b4a8dd44a4c9443504c8fb9e4e84a585837f4e317330eeea1541b4fa2b17702"
+    },
+    {
+      "label": "cursed-castle world ground",
       "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_terrain_atlas.png",
       "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_terrain_atlas.json",
       "sha256": "5b4a8dd44a4c9443504c8fb9e4e84a585837f4e317330eeea1541b4fa2b17702"
