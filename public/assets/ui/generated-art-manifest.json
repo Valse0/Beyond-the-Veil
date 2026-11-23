@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "generatedBy": "scripts/build-ui-art.py",
+  "method": "Pillow nearest-neighbor compositions from repository ZIP asset atlases",
+  "outputs": [
+    "menu-backdrop.png",
+    "selection-backdrop.png",
+    "preparation-backdrop.png",
+    "game-over-backdrop.png",
+    "region-card-cursed-forest.png",
+    "region-card-forgotten-graveyard.png",
+    "region-card-deep-dungeon.png",
+    "region-card-rotten-swamp.png",
+    "region-card-cursed-castle.png"
+  ],
+  "sources": [
+    {
+      "label": "cursed-citadel props",
+      "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.png",
+      "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.json",
+      "sha256": "be93db65253237fee76775a79d44aeb4e87597d2ad766ef1af4fce76c1843d74"
+    },
+    {
+      "label": "cursed-forest props",
+      "image": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_nature_atlas.png",
+      "metadata": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_nature_atlas.json",
+      "sha256": "cf528b5c5a83aee6a80feb6ad75c7ff4317ba9c49141d6bd9ee612a32765e2be"
+    },
+    {
+      "label": "cursed-forest terrain",
+      "image": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_terrain_atlas.png",
+      "metadata": "cursed-forest-environment/cursed-forest-environment/atlases/cursed_forest_terrain_atlas.json",
+      "sha256": "3179125739d7abf0cd927dc6aff7e153abf8b6d85a9621d0f65d19ce19f72810"
+    },
+    {
+      "label": "forgotten-graveyard props",
+      "image": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.png",
+      "metadata": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_props_atlas.json",
+      "sha256": "d5c578cfa815f5de5870d6366aa8bcb19e5fe81a04941def135959c667870cb4"
+    },
+    {
+      "label": "forgotten-graveyard terrain",
+      "image": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_terrain_atlas.png",
+      "metadata": "forgotten-cemetery/forgotten-cemetery/atlases/forgotten_cemetery_terrain_atlas.json",
+      "sha256": "c92aaa8ac6ad99874cfb3d52075a4e16868b873f06ab601345600078c9e1c3d4"
+    },
+    {
+      "label": "deep-dungeon props",
+      "image": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_props_atlas.png",
+      "metadata": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_props_atlas.json",
+      "sha256": "e11439d240292ad1316c3df12f9e8a36c0f30be13663c07daf5488066485b7a1"
+    },
+    {
+      "label": "deep-dungeon terrain",
+      "image": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_terrain_atlas.png",
+      "metadata": "abyssal-dungeon/abyssal-dungeon/atlases/abyssal_dungeon_terrain_atlas.json",
+      "sha256": "70cbf16a91188fe9bbf94faba8718fa7dc2e6d604d346f414bc7b8c1d5e62095"
+    },
+    {
+      "label": "rotten-swamp props",
+      "image": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.png",
+      "metadata": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_props_atlas.json",
+      "sha256": "2477d0d2d954c2842877fe52af4752e3ea0d2aa92ab01183b883ed3e518ae3de"
+    },
+    {
+      "label": "rotten-swamp terrain",
+      "image": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_terrain_atlas.png",
+      "metadata": "blighted-swamp/blighted-swamp/atlases/blighted_swamp_terrain_atlas.json",
+      "sha256": "0f4e6c689567a78e377add47e20f0f313692749dff08640e584f2c0c63386747"
+    },
+    {
+      "label": "cursed-castle props",
+      "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.png",
+      "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.json",
+      "sha256": "be93db65253237fee76775a79d44aeb4e87597d2ad766ef1af4fce76c1843d74"
+    },
+    {
+      "label": "cursed-castle terrain",
+      "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_terrain_atlas.png",
+      "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_terrain_atlas.json",
+      "sha256": "5b4a8dd44a4c9443504c8fb9e4e84a585837f4e317330eeea1541b4fa2b17702"
+    },
+    {
+      "label": "cursed-citadel final boss",
+      "image": "beyond_the_veil_bosses_pack/assets/characters/bosses/region/cursed_citadel/the_fallen_sovereign/spritesheets/the_fallen_sovereign_idle.png",
+      "metadata": null,
+      "sha256": "52c0b4560ebc06326103ea184d8cd2b8f07328b2c7868d20a7edeedf8a7bce56"
+    }
+  ]
+}
