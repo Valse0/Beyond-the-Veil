@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { drawUiBackdrop, drawUiPanel } from '../ui/dark-fantasy-theme.js';
+import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import type { RegionId } from '../../core/types/content.js';
 import type { ChallengeId, GameMode } from '../../core/types/game.js';
 import { CHALLENGES } from '../../data/challenges.js';
@@ -23,6 +23,8 @@ export class RegionSelectScene extends Phaser.Scene {
   private touchLayout = false;
 
   constructor() { super('region-select'); }
+
+  preload(): void { preloadUiArt(this); }
 
   init(data: { characterId?: string; regionId?: string; gameMode?: unknown; challengeId?: unknown }): void {
     this.characterId = CHARACTERS.some(character => character.id === data?.characterId)
@@ -76,28 +78,29 @@ export class RegionSelectScene extends Phaser.Scene {
       if (this.touchLayout && index !== this.selectedIndex) return;
       const x = this.touchLayout ? (width - cardWidth) / 2 : margin + index * (cardWidth + gap);
       drawUiPanel(this, x, cardY, cardWidth, cardHeight, Number.parseInt((region.palette[1] ?? '#b99a61').replace('#', ''), 16), -20, 0.88);
-      const frame = this.add.graphics();
+      const frame = this.add.graphics().setDepth(-18)
       this.frames.push(frame);
       const paletteColor = Number.parseInt((region.palette[1] ?? '#51484a').replace('#', ''), 16);
-      this.add.rectangle(x + cardWidth / 2, cardY + 48, cardWidth - 26, 72, paletteColor, 0.85)
-        .setStrokeStyle(1, 0xb99a61, 0.38);
-      this.add.text(x + cardWidth / 2, cardY + 48, String(index + 1).padStart(2, '0'), {
-        fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '42px' : '36px', color: '#e8d9bd'
-      }).setOrigin(0.5);
+      this.add.image(x + cardWidth / 2, cardY + 58, 'region-art', index).setDisplaySize(cardWidth - 26, 100).setDepth(-16);
+      this.add.rectangle(x + cardWidth / 2, cardY + 58, cardWidth - 26, 100, paletteColor, 0.12).setStrokeStyle(1, 0xb99a61, 0.52).setDepth(-15);
+      this.add.text(x + 23, cardY + 18, String(index + 1).padStart(2, '0'), {
+        fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '20px' : '17px', color: '#f1e4c9',
+        backgroundColor: '#0a0d12', padding: { x: 7, y: 4 }
+      }).setOrigin(0, 0);
 
-      this.add.text(x + 13, cardY + (this.touchLayout ? 94 : 100), region.name, {
+      this.add.text(x + 13, cardY + 116, region.name, {
         fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '28px' : '17px', color: '#f0e6d6',
         wordWrap: { width: cardWidth - 26 }, align: 'center', fontStyle: 'bold'
       }).setOrigin(0.5, 0);
-      this.add.text(x + 13, cardY + (this.touchLayout ? 142 : 144), region.subtitle, {
+      this.add.text(x + 13, cardY + (this.touchLayout ? 158 : 154), region.subtitle, {
         fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '18px' : '11px', color: '#c7ad7b',
         wordWrap: { width: cardWidth - 26 }, align: 'center'
       }).setOrigin(0.5, 0);
-      this.add.text(x + 28, cardY + (this.touchLayout ? 174 : 184), region.atmosphere, {
+      this.add.text(x + 28, cardY + (this.touchLayout ? 190 : 184), region.atmosphere, {
         fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '17px' : '11px', color: '#aaa2a0',
         wordWrap: { width: cardWidth - 32 }, align: 'center', lineSpacing: 3
       }).setOrigin(0.5, 0);
-      this.add.text(x + 14, cardY + (this.touchLayout ? 222 : 258),
+      this.add.text(x + 14, cardY + (this.touchLayout ? 238 : 250),
         `BOSS  ${region.bossId.replaceAll('-', ' ').toUpperCase()}\n${region.enemyIds.length} DÜŞMAN TÜRÜ\n${region.hazards.length} ÇEVRESEL TEHLİKE`, {
           fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '10px', color: '#d8c9ad',
           wordWrap: { width: cardWidth - 28 }, align: 'center', lineSpacing: 5
