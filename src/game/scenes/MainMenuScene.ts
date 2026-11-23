@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { drawUiBackdrop, preloadUiArt } from '../ui/dark-fantasy-theme.js';
+import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import { beginNewGamePlus, canStartNewGamePlus } from '../../gameplay/run/new-game-plus-runtime.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { resolveRemoteAction } from '../input/platform-input.js';
@@ -41,6 +41,22 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     drawUiBackdrop(this, 'menu');
+    const progression = loaded && 'data' in loaded ? loaded.data.progression : undefined;
+    if (w >= 1120) {
+      const soulEssence = progression?.soulEssence ?? 0;
+      const hunterCount = progression?.unlockedCharacterIds.length ?? 1;
+      const regionCount = progression?.unlockedRegionIds.length ?? 1;
+      const dossierX = w - 286;
+      drawUiPanel(this, dossierX, 224, 238, 194, 0x9b8059, -10, 0.82);
+      this.add.text(dossierX + 20, 242, 'AVCI KAYDI', { fontFamily: 'Georgia, serif', fontSize: '17px', color: '#e6d5b8', fontStyle: 'bold', letterSpacing: 1 });
+      this.add.rectangle(dossierX + 20, 272, 198, 1, 0xb99a61, 0.55).setOrigin(0, 0);
+      this.add.text(dossierX + 20, 292, 'RUH ÖZÜ', { fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#b99a61', fontStyle: 'bold', letterSpacing: 2 });
+      this.add.text(dossierX + 20, 310, soulEssence.toLocaleString('tr-TR'), { fontFamily: 'Georgia, serif', fontSize: '25px', color: '#f0e6d6', fontStyle: 'bold' });
+      this.add.text(dossierX + 20, 354, 'AVCILAR', { fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#b99a61', fontStyle: 'bold', letterSpacing: 1 });
+      this.add.text(dossierX + 104, 354, hunterCount + ' / 5', { fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#e0d3bf' });
+      this.add.text(dossierX + 20, 382, 'BÖLGELER', { fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#b99a61', fontStyle: 'bold', letterSpacing: 1 });
+      this.add.text(dossierX + 104, 382, regionCount + ' / 5', { fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#e0d3bf' });
+    }
 
     // The artwork remains a clean background; every menu control is real Phaser UI.
     this.add.rectangle(220, h / 2, 440, h, 0x05080e, 0.48).setDepth(-997);
