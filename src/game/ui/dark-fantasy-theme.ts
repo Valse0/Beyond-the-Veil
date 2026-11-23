@@ -17,14 +17,14 @@ const REGION_CARD_KEYS: Record<string, string> = {
 const PALETTE = { abyss: 0x070a11, panel: 0x111824, gold: 0xc6a56b, teal: 0x6fa9a0 } as const;
 
 export function preloadUiArt(scene: Phaser.Scene): void {
-  if (!scene.textures.exists(BACKDROP_KEY)) scene.load.image(BACKDROP_KEY, '/assets/ui/menu-backdrop.png');
-  if (!scene.textures.exists(SELECTION_BACKDROP_KEY)) scene.load.image(SELECTION_BACKDROP_KEY, '/assets/ui/selection-backdrop.png');
-  if (!scene.textures.exists(PREPARATION_BACKDROP_KEY)) scene.load.image(PREPARATION_BACKDROP_KEY, '/assets/ui/preparation-backdrop.png');
-  if (!scene.textures.exists(REGION_SELECTION_BACKDROP_KEY)) scene.load.image(REGION_SELECTION_BACKDROP_KEY, '/assets/ui/region-selection-backdrop.png');
+  if (!scene.textures.exists(BACKDROP_KEY)) scene.load.image(BACKDROP_KEY, '/assets/ui/menu-backdrop.jpg');
+  if (!scene.textures.exists(SELECTION_BACKDROP_KEY)) scene.load.image(SELECTION_BACKDROP_KEY, '/assets/ui/selection-backdrop.jpg');
+  if (!scene.textures.exists(PREPARATION_BACKDROP_KEY)) scene.load.image(PREPARATION_BACKDROP_KEY, '/assets/ui/preparation-backdrop.jpg');
+  if (!scene.textures.exists(REGION_SELECTION_BACKDROP_KEY)) scene.load.image(REGION_SELECTION_BACKDROP_KEY, '/assets/ui/region-selection-backdrop.jpg');
   if (!scene.textures.exists(HUNTER_IDLE_KEY)) scene.load.spritesheet(HUNTER_IDLE_KEY, '/assets/prototype/characters/player/cursed-hunter-idle.png', { frameWidth: 48, frameHeight: 48 });
   if (!scene.textures.exists(UI_ASSET_KEYS.hunterPortraits)) scene.load.spritesheet(UI_ASSET_KEYS.hunterPortraits, '/assets/ui/hunter-portraits.png', { frameWidth: 160, frameHeight: 160 });
   if (!scene.textures.exists(UI_ASSET_KEYS.regionArt)) scene.load.spritesheet(UI_ASSET_KEYS.regionArt, '/assets/ui/region-art.svg', { frameWidth: 256, frameHeight: 160 });
-  if (!scene.textures.exists(UI_ASSET_KEYS.gameOverBackdrop)) scene.load.image(UI_ASSET_KEYS.gameOverBackdrop, '/assets/ui/game-over-backdrop.png');
+  if (!scene.textures.exists(UI_ASSET_KEYS.gameOverBackdrop)) scene.load.image(UI_ASSET_KEYS.gameOverBackdrop, '/assets/ui/game-over-backdrop.jpg');
   for (const key of ['upgrade-icon-weapon', 'upgrade-icon-passive', 'upgrade-icon-base']) {
     if (!scene.textures.exists(key)) scene.load.image(key, '/assets/ui/' + key + '.png');
   }
