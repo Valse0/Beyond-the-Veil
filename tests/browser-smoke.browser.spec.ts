@@ -1,3 +1,4 @@
+import { mkdir } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 
 async function clickGamePoint(page: import('@playwright/test').Page, x: number, y: number): Promise<void> {
@@ -3102,4 +3103,73 @@ test('collection archive uses touch focus layout and supports touch category and
     return Boolean(game?.scene.isActive('main-menu'));
   });
   await context.close();
+});
+
+
+test('captures the seven reference screens for visual QA', async ({ page }) => {
+  test.setTimeout(60000);
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await mkdir('test-results/ui', { recursive: true });
+
+  await page.goto('/?bv-test=1');
+  const canvas = page.locator('#game-container canvas');
+  await expect(canvas).toBeVisible();
+  const capture = async (name: string) => {
+    await canvas.screenshot({ path: 'test-results/ui/' + name + '.png' });
+  };
+
+  await capture('01-main-menu');
+  await clickGamePoint(page, 160, 310);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('character-select'));
+  });
+  await capture('02-character-selection');
+
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('region-select'));
+  });
+  await capture('03-region-selection');
+
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('run-preparation'));
+  });
+  await capture('04-run-preparation');
+
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('run'));
+  });
+  await capture('05-gameplay-hud');
+
+  await page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestPrepareWeaponBranch: (id: string) => void } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestPrepareWeaponBranch('veil-bolt');
+  });
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { paused: boolean } } } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.getScene('run').browserTestSnapshot().paused);
+  });
+  await capture('06-level-up');
+
+  await clickGamePoint(page, 292, 360);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { paused: boolean } } } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game && !game.scene.getScene('run').browserTestSnapshot().paused);
+  });
+  await page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestReceiveDamage: (amount: number) => void } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    game.scene.getScene('run').browserTestReceiveDamage(100000);
+  });
+  await page.waitForTimeout(250);
+  await capture('07-game-over');
+  expect(pageErrors).toEqual([]);
 });
