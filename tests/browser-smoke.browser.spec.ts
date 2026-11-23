@@ -710,7 +710,7 @@ test('Hunter Hub keyboard navigation can purchase a permanent upgrade and return
   await page.goto('/?bv-test=1');
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
-  await clickGamePoint(page, 430, 535);
+  await clickGamePoint(page, 200, 368);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('hunter-hub'));
@@ -752,7 +752,7 @@ test('Hunter Hub respec requires confirmation and refunds net investment after r
   await page.goto('/?bv-test=1');
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
-  await clickGamePoint(page, 430, 535);
+  await clickGamePoint(page, 200, 368);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('hunter-hub'));
@@ -841,7 +841,7 @@ test('Hunter Hub Blacksmith crafts one affordable variant, blocks repeat/unaffor
   });
 
   const openBlacksmith = async () => {
-    await clickGamePoint(page, 430, 535);
+    await clickGamePoint(page, 200, 368);
     await page.waitForFunction(() => {
       const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
       return Boolean(game?.scene.isActive('hunter-hub'));
@@ -1053,7 +1053,7 @@ test('Hunter Hub equipment profiles create, edit, activate, persist and delete p
   const openProfiles = async () => {
     await page.goto('/?bv-test=1');
     await expect(canvas).toBeVisible();
-    await clickGamePoint(page, 430, 535);
+    await clickGamePoint(page, 200, 368);
     await page.waitForFunction(() => {
       const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
       return Boolean(game?.scene.isActive('hunter-hub'));
@@ -2550,7 +2550,7 @@ test('quest journal reads saved branches, regional state and ending history from
   });
   await page.reload();
   await expect(canvas).toBeVisible();
-  await clickGamePoint(page, 1110, 60);
+  await clickGamePoint(page, 200, 426);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean; isPaused: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('quest-journal') && game.scene.isPaused('main-menu'));
@@ -2640,13 +2640,13 @@ test('New Game+ unlocks after an ending, confirms the reset, and scales live ene
   await page.reload();
   await expect(canvas).toBeVisible();
   const before=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
-  await page.mouse.click(760,555);
+  await clickGamePoint(page, 200, 542);
   await page.keyboard.press('Escape');
   const cancelled=await page.evaluate(()=>JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
   expect(cancelled.progression.newGamePlusLevel).toBe(0);
   expect(cancelled.progression.unlockedRegionIds).toContain('forgotten-graveyard');
 
-  await page.mouse.click(760,555);
+  await clickGamePoint(page, 200, 542);
   await page.mouse.click(495,485);
   await page.waitForFunction(()=>{
     const game=(window as Window & {__BEYOND_VEIL_GAME__?:{scene:{isActive:(key:string)=>boolean}}}).__BEYOND_VEIL_GAME__;
