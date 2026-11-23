@@ -3026,13 +3026,13 @@ export class RunScene extends Phaser.Scene {
       const accent=this.banishMode?0xc65d62:(i===0?0xd9b86f:0x8f8067);
       const panel=drawUiPanel(this,x-cardWidth/2,cardCenterY-cardHeight/2,cardWidth,cardHeight,accent,201,.98).setScrollFactor(0);
       const iconKey=choice.kind.startsWith('weapon')?'upgrade-icon-weapon':choice.kind.startsWith('passive')?'upgrade-icon-passive':'upgrade-icon-base';
-      const icon=this.add.image(x,cardCenterY-cardHeight*.29,iconKey).setDisplaySize(68,68).setScrollFactor(0).setDepth(203);
+      const icon=this.add.image(x,cardCenterY-cardHeight*.29,iconKey).setDisplaySize(92,92).setScrollFactor(0).setDepth(203);
       if(this.banishMode)icon.setTint(0xe59a8c);
       const kindLabel=choice.kind.startsWith('weapon')?'SİLAH':choice.kind.startsWith('passive')?'PASİF':'TEMEL GELİŞİM';
       const eyebrow=this.add.text(x,cardCenterY-cardHeight*.10,kindLabel,{fontFamily:'Arial',fontSize:'10px',fontStyle:'bold',color:'#c7ad7b',letterSpacing:1}).setOrigin(.5).setScrollFactor(0).setDepth(203);
-      const name=this.add.text(x,cardCenterY+cardHeight*.07,choice.title,{fontFamily:'Georgia',fontSize:cardWidth<160?'14px':'17px',fontStyle:'bold',color:'#f0dfbd',align:'center',wordWrap:{width:cardWidth-24}}).setOrigin(.5).setScrollFactor(0).setDepth(203);
+      const name=this.add.text(x,cardCenterY+cardHeight*.07,choice.title,{fontFamily:'Georgia',fontSize:cardWidth<160?'15px':'19px',fontStyle:'bold',color:'#f0dfbd',align:'center',wordWrap:{width:cardWidth-24}}).setOrigin(.5).setScrollFactor(0).setDepth(203);
       const divider=this.add.rectangle(x,cardCenterY+cardHeight*.23,cardWidth-34,1,0x9b8059,.55).setScrollFactor(0).setDepth(203);
-      const detail=this.add.text(x,cardCenterY+cardHeight*.34,choice.detail,{fontFamily:'Arial',fontSize:cardWidth<160?'11px':'13px',color:'#d0c6ba',align:'center',wordWrap:{width:cardWidth-26},lineSpacing:5}).setOrigin(.5).setScrollFactor(0).setDepth(203);
+      const detail=this.add.text(x,cardCenterY+cardHeight*.34,choice.detail,{fontFamily:'Arial',fontSize:cardWidth<160?'12px':'14px',color:'#d0c6ba',align:'center',wordWrap:{width:cardWidth-26},lineSpacing:5}).setOrigin(.5).setScrollFactor(0).setDepth(203);
       const hit=this.add.rectangle(x,cardCenterY,cardWidth,cardHeight,0x08070b,0.001).setScrollFactor(0).setDepth(204).setInteractive({useHandCursor:true});
       this.overlay.push(panel,icon,eyebrow,name,divider,detail,hit);
       this.registerOverlayOption(hit,()=>this.banishMode?this.banishLevelChoice(choice):this.chooseUpgrade(choice));
