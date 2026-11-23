@@ -234,7 +234,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/assets/ui/*.png public/assets/ui/generated-art-manifest.json public/assets/world/props/*.png
+          git add -A public/assets/ui/ public/assets/world/props/
           if git diff --cached --quiet; then
             echo "Generated UI art is already up to date."
           else
