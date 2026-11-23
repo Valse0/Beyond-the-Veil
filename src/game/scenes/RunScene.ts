@@ -1099,6 +1099,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   preload():void {
+    preloadUiArt(this);
     if(!this.textures.exists('hunter-idle'))this.load.spritesheet('hunter-idle','/assets/prototype/characters/player/cursed-hunter-idle.png',{frameWidth:48,frameHeight:48});
     if(!this.textures.exists('hunter-walk'))this.load.spritesheet('hunter-walk','/assets/prototype/characters/player/cursed-hunter-walk.png',{frameWidth:48,frameHeight:48});
     for(const [id,size] of Object.entries(PROTOTYPE_ENEMY_FRAME_SIZES)){
@@ -1143,8 +1144,6 @@ export class RunScene extends Phaser.Scene {
       }
     }
   }
-
-  preload():void { preloadUiArt(this); }
 
   create():void {
     this.time.paused=false;this.physics.world.resume();
@@ -2979,7 +2978,7 @@ export class RunScene extends Phaser.Scene {
       const name=this.add.text(x,cardCenterY+cardHeight*.07,choice.title,{fontFamily:'Georgia',fontSize:cardWidth<160?'14px':'17px',fontStyle:'bold',color:'#f0dfbd',align:'center',wordWrap:{width:cardWidth-24}}).setOrigin(.5).setScrollFactor(0).setDepth(203);
       const divider=this.add.rectangle(x,cardCenterY+cardHeight*.23,cardWidth-34,1,0x9b8059,.55).setScrollFactor(0).setDepth(203);
       const detail=this.add.text(x,cardCenterY+cardHeight*.34,choice.detail,{fontFamily:'Arial',fontSize:cardWidth<160?'11px':'13px',color:'#d0c6ba',align:'center',wordWrap:{width:cardWidth-26},lineSpacing:5}).setOrigin(.5).setScrollFactor(0).setDepth(203);
-      const hit=this.add.zone(x,cardCenterY,cardWidth,cardHeight).setScrollFactor(0).setDepth(204).setInteractive({useHandCursor:true});
+      const hit=this.add.rectangle(x,cardCenterY,cardWidth,cardHeight,0x08070b,0.001).setScrollFactor(0).setDepth(204).setInteractive({useHandCursor:true});
       this.overlay.push(panel,icon,eyebrow,name,divider,detail,hit);
       this.registerOverlayOption(hit,()=>this.banishMode?this.banishLevelChoice(choice):this.chooseUpgrade(choice));
     });
