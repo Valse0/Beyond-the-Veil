@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
+import { drawUiBackdrop, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import { beginNewGamePlus, canStartNewGamePlus } from '../../gameplay/run/new-game-plus-runtime.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { resolveRemoteAction } from '../input/platform-input.js';
@@ -41,77 +41,81 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     drawUiBackdrop(this, 'menu');
-    drawUiPanel(this, 48, 44, 535, 242, 0xc6a56b, -900, 0.94);
-    drawUiPanel(this, 62, h - 218, 820, 166, 0x987b52, -900, 0.9);
-    drawUiPanel(this, w - 420, 30, 370, 58, 0x987b52, -900, 0.82);
 
-    this.add.text(74, 82, 'BEYOND', {
-      fontFamily: 'Georgia, serif', fontSize: '58px', color: '#e9dfcb',
-      fontStyle: 'bold', letterSpacing: 5
-    });
-    this.add.text(78, 145, 'THE VEIL', {
-      fontFamily: 'Georgia, serif', fontSize: '32px', color: '#b99a61', letterSpacing: 11
-    });
-    this.add.text(80, 220, 'Ölümün ötesinde, av başlar.', {
-      fontFamily: 'Georgia, serif', fontSize: '20px', color: '#a9a0a0'
-    });
+    // The artwork remains a clean background; every menu control is real Phaser UI.
+    this.add.rectangle(220, h / 2, 440, h, 0x05080e, 0.48).setDepth(-997);
+    const frame = this.add.graphics().setDepth(-996);
+    frame.lineStyle(1, 0xc6a56b, 0.34);
+    frame.lineBetween(66, 232, 390, 232);
+    frame.lineBetween(66, h - 72, 390, h - 72);
+    frame.lineStyle(2, 0xc6a56b, 0.42);
+    frame.lineBetween(66, 232, 92, 232);
+    frame.lineBetween(66, 232, 66, 258);
 
-    this.journalButton = this.add.text(w - 72, 54, 'HİKÂYE DEFTERİ', {
-      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#d9c9aa',
-      backgroundColor: '#211b24', padding: { x: 18, y: 12 }
-    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
-    this.journalButton.on('pointerover', () => this.setSelectedItem('story-journal'));
-    this.journalButton.on('pointerup', () => this.openQuestJournal());
+    this.add.text(88, 70, 'BEYOND THE VEIL', {
+      fontFamily: 'Georgia, serif', fontSize: '46px', color: '#eee4d0',
+      fontStyle: 'bold', letterSpacing: 5, stroke: '#090d13', strokeThickness: 3
+    }).setOrigin(0, 0);
+    this.add.text(92, 132, 'ÖLÜMÜN ÖTESİNDE, AV BAŞLAR.', {
+      fontFamily: 'Georgia, serif', fontSize: '16px', color: '#c3a675',
+      letterSpacing: 3
+    }).setOrigin(0, 0);
+    this.add.text(88, 202, 'YOLUNU SEÇ', {
+      fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#a99b84',
+      fontStyle: 'bold', letterSpacing: 3
+    }).setOrigin(0, 0);
 
-    this.collectionButton = this.add.text(w - 460, 54, 'KOLEKSİYON', {
-      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#d9c9aa',
-      backgroundColor: '#211b24', padding: { x: 18, y: 12 }
-    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
-    this.collectionButton.on('pointerover', () => this.setSelectedItem('collection-archive'));
-    this.collectionButton.on('pointerup', () => this.openCollectionArchive());
+    const firstY = Math.round(h * 0.43);
+    const rowGap = Math.round(h * 0.081);
+    const menuStyle = {
+      fontFamily: 'Arial, sans-serif', fontSize: '19px', color: '#d8d0c3',
+      backgroundColor: '#151b22', padding: { x: 18, y: 10 },
+      fixedWidth: 300
+    } as const;
+    const createMenuButton = (y: number, label: string): Phaser.GameObjects.Text =>
+      this.add.text(88, y, label, menuStyle)
+        .setOrigin(0, 0.5)
+        .setInteractive({ useHandCursor: true });
 
-    this.settingsButton = this.add.text(w - 250, 54, 'AYARLAR', {
-      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#d9c9aa',
-      backgroundColor: '#211b24', padding: { x: 18, y: 12 }
-    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
-    this.settingsButton.on('pointerover', () => this.setSelectedItem('settings'));
-    this.settingsButton.on('pointerup', () => this.openSettings());
-
-    this.playButton = this.add.text(82, h - 185, '▶  YENİ KOŞU', {
-      fontFamily: 'Arial, sans-serif', fontSize: '22px', color: '#f2e8d4',
-      backgroundColor: '#5b3d32', padding: { x: 25, y: 16 }
-    }).setInteractive({ useHandCursor: true });
+    this.playButton = createMenuButton(firstY, '›  YENİ KOŞU');
     this.playButton.on('pointerover', () => this.setSelectedItem('new-run'));
     this.playButton.on('pointerup', () => this.startNewRun());
 
-    this.hubButton = this.add.text(320, h - 185, '⚒  AVCI KARARGAHI', {
-      fontFamily: 'Arial, sans-serif', fontSize: '22px', color: '#f2e8d4',
-      backgroundColor: '#2b2528', padding: { x: 25, y: 16 }
-    }).setInteractive({ useHandCursor: true });
+    this.hubButton = createMenuButton(firstY + rowGap, '   AVCI KARARGÂHI');
     this.hubButton.on('pointerover', () => this.setSelectedItem('hunter-hub'));
     this.hubButton.on('pointerup', () => this.openHunterHub());
 
+    this.journalButton = createMenuButton(firstY + rowGap * 2, '   HİKÂYE DEFTERİ');
+    this.journalButton.on('pointerover', () => this.setSelectedItem('story-journal'));
+    this.journalButton.on('pointerup', () => this.openQuestJournal());
+
+    this.collectionButton = createMenuButton(firstY + rowGap * 3, '   KOLEKSİYON');
+    this.collectionButton.on('pointerover', () => this.setSelectedItem('collection-archive'));
+    this.collectionButton.on('pointerup', () => this.openCollectionArchive());
+
     if (this.newGamePlusAvailable) {
-      this.newGamePlusButton = this.add.text(650, h - 185, '✦  NG+ DÖNGÜSÜ', {
-        fontFamily: 'Arial, sans-serif', fontSize: '20px', color: '#e7c98e',
-        backgroundColor: '#29212b', padding: { x: 22, y: 17 }
-      }).setInteractive({ useHandCursor: true });
+      this.newGamePlusButton = createMenuButton(firstY + rowGap * 4, '   NG+ DÖNGÜSÜ');
       this.newGamePlusButton.on('pointerover', () => this.setSelectedItem('new-game-plus'));
       this.newGamePlusButton.on('pointerup', () => this.openNewGamePlusConfirmation());
-      this.add.text(672, h - 230, 'NG+' + Math.min(5, this.newGamePlusLevel + 1) + '  •  ZORLUK ARTIŞI', {
-        fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#a9977d'
+      this.add.text(108, firstY + rowGap * 4 + 25, 'NG+' + Math.min(5, this.newGamePlusLevel + 1) + '  •  ZORLUK ARTIŞI', {
+        fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#b59a70'
       });
     }
 
+    this.settingsButton = createMenuButton(firstY + rowGap * 5, '   AYARLAR');
+    this.settingsButton.on('pointerover', () => this.setSelectedItem('settings'));
+    this.settingsButton.on('pointerup', () => this.openSettings());
+
     this.setSelectedItem(this.selectedItem);
 
-    this.add.text(84, h - 82, 'WASD / OKLAR: HAREKET     SPACE: DASH     E: RUH DARBESİ     ESC: DURAKLAT', {
-      fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#77727a'
+    this.add.text(88, h - 45, 'OKLAR: SEÇ    ENTER / SPACE / A: ONAYLA', {
+      fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#a99b84'
     });
-    this.add.text(84, h - 125, 'OKLAR: SEÇ     ENTER / SPACE / A: ONAYLA     J: HİKÂYE     C: KOLEKSİYON', {
-      fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#a9977d'
-    });
-
+    this.add.text(w - 34, h - 42, 'BEYOND THE VEIL', {
+      fontFamily: 'Georgia, serif', fontSize: '11px', color: '#8d887e',
+      letterSpacing: 2
+    }).setOrigin(1, 0);
+    
     this.input.keyboard?.on('keydown-LEFT', (event: KeyboardEvent) => {
       if (event.repeat) return;
       if (this.confirmationOpen) this.setConfirmationSelection(false);
