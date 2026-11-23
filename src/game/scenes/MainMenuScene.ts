@@ -103,10 +103,6 @@ export class MainMenuScene extends Phaser.Scene {
     this.add.text(88, h - 45, 'OKLAR: SEÇ    ENTER / SPACE / A: ONAYLA', {
       fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#a99b84'
     });
-    this.add.text(w - 34, h - 42, 'BEYOND THE VEIL', {
-      fontFamily: 'Georgia, serif', fontSize: '11px', color: '#8d887e',
-      letterSpacing: 2
-    }).setOrigin(1, 0);
     
     this.input.keyboard?.on('keydown-LEFT', (event: KeyboardEvent) => {
       if (event.repeat) return;
