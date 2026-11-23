@@ -3,25 +3,50 @@ import { UI_ASSET_KEYS } from '../../data/asset-registry.js';
 
 export type UiBackdropMood = 'menu' | 'selection' | 'preparation' | 'hub' | 'dossier' | 'panel' | 'archive';
 const BACKDROP_KEY = 'veil-ui-backdrop';
+const SELECTION_BACKDROP_KEY = 'veil-ui-selection-backdrop';
+const PREPARATION_BACKDROP_KEY = 'veil-ui-preparation-backdrop';
+const HUNTER_IDLE_KEY = 'ui-cursed-hunter-idle';
+const REGION_CARD_KEYS: Record<string, string> = {
+  'cursed-forest': 'region-card-cursed-forest',
+  'forgotten-graveyard': 'region-card-forgotten-graveyard',
+  'deep-dungeon': 'region-card-deep-dungeon',
+  'rotten-swamp': 'region-card-rotten-swamp',
+  'cursed-castle': 'region-card-cursed-castle'
+};
 const PALETTE = { abyss: 0x070a11, panel: 0x111824, gold: 0xc6a56b, teal: 0x6fa9a0 } as const;
 
 export function preloadUiArt(scene: Phaser.Scene): void {
-  if (!scene.textures.exists(BACKDROP_KEY)) scene.load.image(BACKDROP_KEY, '/assets/ui/veil-menu-backdrop.svg');
+  if (!scene.textures.exists(BACKDROP_KEY)) scene.load.image(BACKDROP_KEY, '/assets/ui/menu-backdrop.png');
+  if (!scene.textures.exists(SELECTION_BACKDROP_KEY)) scene.load.image(SELECTION_BACKDROP_KEY, '/assets/ui/selection-backdrop.png');
+  if (!scene.textures.exists(PREPARATION_BACKDROP_KEY)) scene.load.image(PREPARATION_BACKDROP_KEY, '/assets/ui/preparation-backdrop.png');
+  if (!scene.textures.exists(HUNTER_IDLE_KEY)) scene.load.spritesheet(HUNTER_IDLE_KEY, '/assets/prototype/characters/player/cursed-hunter-idle.png', { frameWidth: 48, frameHeight: 48 });
   if (!scene.textures.exists(UI_ASSET_KEYS.hunterPortraits)) scene.load.spritesheet(UI_ASSET_KEYS.hunterPortraits, '/assets/ui/hunter-portraits.svg', { frameWidth: 160, frameHeight: 160 });
   if (!scene.textures.exists(UI_ASSET_KEYS.regionArt)) scene.load.spritesheet(UI_ASSET_KEYS.regionArt, '/assets/ui/region-art.svg', { frameWidth: 256, frameHeight: 160 });
-  if (!scene.textures.exists(UI_ASSET_KEYS.gameOverBackdrop)) scene.load.image(UI_ASSET_KEYS.gameOverBackdrop, '/assets/ui/game-over-backdrop.svg');
+  if (!scene.textures.exists(UI_ASSET_KEYS.gameOverBackdrop)) scene.load.image(UI_ASSET_KEYS.gameOverBackdrop, '/assets/ui/game-over-backdrop.png');
+  for (const key of Object.values(REGION_CARD_KEYS)) {
+    if (!scene.textures.exists(key)) scene.load.image(key, '/assets/ui/' + key + '.png');
+  }
+}
+
+export function regionCardTextureKey(regionId: string): string {
+  return REGION_CARD_KEYS[regionId] ?? UI_ASSET_KEYS.regionArt;
 }
 
 export function drawUiBackdrop(scene: Phaser.Scene, mood: UiBackdropMood): void {
   const { width, height } = scene.scale;
   scene.cameras.main.setBackgroundColor('#070a11');
-  if (scene.textures.exists(BACKDROP_KEY)) {
-    scene.add.image(width / 2, height / 2, BACKDROP_KEY).setDisplaySize(width, height)
-      .setAlpha(mood === 'menu' ? 0.94 : mood === 'selection' ? 0.56 : mood === 'preparation' ? 0.48 : mood === 'hub' ? 0.34 : 0.26)
+  const backdropKey = mood === 'menu' ? BACKDROP_KEY
+    : mood === 'selection' ? SELECTION_BACKDROP_KEY
+    : mood === 'preparation' ? PREPARATION_BACKDROP_KEY
+    : SELECTION_BACKDROP_KEY;
+  if (scene.textures.exists(backdropKey)) {
+    scene.add.image(width / 2, height / 2, backdropKey).setDisplaySize(width, height)
+      .setAlpha(mood === 'menu' ? 1 : mood === 'selection' ? 0.96 : mood === 'preparation' ? 0.94 : 0.78)
       .setDepth(-1000).setName('ui-atmospheric-backdrop');
   }
   const shade = scene.add.graphics().setDepth(-999);
-  shade.fillGradientStyle(PALETTE.abyss, PALETTE.abyss, 0x080d16, 0x070a11, 0.88, 0.56, 0.82, 0.74);
+  const shadeAlpha = mood === 'menu' ? 0.42 : mood === 'selection' ? 0.5 : mood === 'preparation' ? 0.56 : 0.66;
+  shade.fillGradientStyle(PALETTE.abyss, PALETTE.abyss, 0x080d16, 0x070a11, shadeAlpha, shadeAlpha * 0.72, shadeAlpha, shadeAlpha * 0.88);
   shade.fillRect(0, 0, width, height);
   shade.lineStyle(1, PALETTE.gold, 0.22);
   shade.lineBetween(26, 18, width - 26, 18);
