@@ -1,0 +1,9 @@
+source=beyond-the-veil-ui-design/05_gameplay_hud.png
+original_width=1600
+original_height=900
+format=jpeg
+width=1200
+height=675
+chunks=2
+chunk_size=180000
+preview_bytes=201248

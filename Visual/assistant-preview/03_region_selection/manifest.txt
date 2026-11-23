@@ -1,0 +1,9 @@
+source=beyond-the-veil-ui-design/03_region_selection.png
+original_width=1376
+original_height=768
+format=jpeg
+width=1200
+height=670
+chunks=2
+chunk_size=180000
+preview_bytes=149381

@@ -1,0 +1,9 @@
+source=beyond-the-veil-ui-design/04_run_preparation.png
+original_width=1376
+original_height=768
+format=jpeg
+width=1200
+height=670
+chunks=1
+chunk_size=180000
+preview_bytes=123000
