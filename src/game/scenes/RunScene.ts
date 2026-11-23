@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { drawUiPanel } from '../ui/dark-fantasy-theme.js';
+import { UI_ASSET_KEYS } from '../../data/asset-registry.js';
 import type { ElementId, RegionId, RegionPathDefinition, EnemyDefinition, EnemyMutationId, BossDefinition, CharacterDefinition, WeaponDefinition, PassiveSpecialMechanic } from '../../core/types/content.js';
 import type { ChallengeId, GameMode, RunState, UpgradeId } from '../../core/types/game.js';
 import { CHARACTERS, STARTING_CHARACTER } from '../../data/characters.js';
@@ -1286,41 +1287,50 @@ export class RunScene extends Phaser.Scene {
 
   private createHud():void {
     const w=this.scale.width,center=w/2;
+    const hunterIndex=Math.max(0,CHARACTERS.findIndex(item=>item.id===this.character.id));
     const bossWidth=Math.min(400,w-32),bossBarWidth=bossWidth-56,bossLeft=center-bossBarWidth/2;
     const eventWidth=Math.min(460,w-32),eventBarWidth=eventWidth-44,eventLeft=center-eventBarWidth/2;
-    drawUiPanel(this, 12, 8, w - 24, 62, 0x8c7657, 96, 0.78).setScrollFactor(0);
-    this.hud=this.add.text(24,14,'',{fontFamily:'Arial',fontSize:'13px',color:'#f0e7d8',lineSpacing:5}).setScrollFactor(0).setDepth(100);
-    this.clock=this.add.text(center,10,'00:00',{fontFamily:'Georgia',fontSize:'25px',fontStyle:'bold',color:'#e4c783',stroke:'#100e13',strokeThickness:2}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
-    this.clockCaption=this.add.text(center,40,'15 DAKİKALIK KOŞU',{fontFamily:'Arial',fontSize:'9px',fontStyle:'bold',color:'#b9a17d',letterSpacing:1}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
-    this.add.text(24,52,'XP',{fontFamily:'Arial',fontSize:'9px',fontStyle:'bold',color:'#c7ad7b'}).setScrollFactor(0).setDepth(101);
-    this.add.rectangle(50,57,174,5,0x302d34,1).setOrigin(0,.5).setScrollFactor(0).setDepth(100);
-    this.xpFill=this.add.rectangle(50,57,1,3,0x86c7b5,1).setOrigin(0,.5).setScrollFactor(0).setDepth(101);
-    this.healthText=this.add.text(w-238,15,'CAN  100 / 100',{fontFamily:'Arial',fontSize:'11px',fontStyle:'bold',color:'#f0d6d0'}).setScrollFactor(0).setDepth(101);
-    this.add.rectangle(w-158,43,160,12,0x211d24,0.98).setStrokeStyle(1,0x8c7657,0.82).setScrollFactor(0).setDepth(100);
-    this.add.rectangle(w-158,43,152,5,0x45343a).setScrollFactor(0).setDepth(100);
-    this.health=this.add.rectangle(w-234,43,144,6,0xc76a70).setOrigin(0,.5).setScrollFactor(0).setDepth(101);
-    const pause=this.add.text(w-34,74,'Ⅱ',{fontSize:'25px',color:'#d6c8b3'}).setOrigin(.5).setScrollFactor(0).setDepth(120).setInteractive();
+
+    // Compact left-side hunter dossier, matching the approved gameplay HUD composition.
+    drawUiPanel(this,12,8,360,78,0x8c7657,96,0.88).setScrollFactor(0);
+    this.add.circle(48,47,29,0x171b22,0.94).setStrokeStyle(1,0xc6a56b,0.72).setScrollFactor(0).setDepth(99);
+    this.add.image(48,47,UI_ASSET_KEYS.hunterPortraits,hunterIndex).setDisplaySize(52,52).setScrollFactor(0).setDepth(100);
+    this.hud=this.add.text(86,14,'',{fontFamily:'Arial',fontSize:'11px',color:'#f0e7d8',lineSpacing:4,wordWrap:{width:270}}).setScrollFactor(0).setDepth(100);
+    this.add.text(86,57,'XP',{fontFamily:'Arial',fontSize:'9px',fontStyle:'bold',color:'#c7ad7b'}).setScrollFactor(0).setDepth(101);
+    this.add.rectangle(112,66,244,6,0x302d34,1).setOrigin(0,.5).setScrollFactor(0).setDepth(100);
+    this.xpFill=this.add.rectangle(112,66,1,4,0x86c7b5,1).setOrigin(0,.5).setScrollFactor(0).setDepth(101);
+
+    // Run clock remains centered and separate from the health display.
+    this.clock=this.add.text(center,8,'00:00',{fontFamily:'Georgia',fontSize:'26px',fontStyle:'bold',color:'#e4c783',stroke:'#100e13',strokeThickness:2}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
+    this.clockCaption=this.add.text(center,39,'15 DAKİKALIK KOŞU',{fontFamily:'Arial',fontSize:'9px',fontStyle:'bold',color:'#b9a17d',letterSpacing:1}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
+    this.environmentHud=this.add.text(center,61,'',{fontFamily:'Arial',fontSize:'10px',color:'#c9d2d6',align:'center'}).setOrigin(.5,.5).setScrollFactor(0).setDepth(100);
+
+    // Health and pause controls occupy the upper-right safe corner.
+    this.healthText=this.add.text(w-224,15,'CAN  100 / 100',{fontFamily:'Arial',fontSize:'11px',fontStyle:'bold',color:'#f0d6d0'}).setScrollFactor(0).setDepth(101);
+    this.add.rectangle(w-204,45,154,12,0x211d24,0.98).setStrokeStyle(1,0x8c7657,0.82).setScrollFactor(0).setDepth(100);
+    this.add.rectangle(w-201,45,148,5,0x45343a).setScrollFactor(0).setDepth(100);
+    this.health=this.add.rectangle(w-201,45,144,6,0xc76a70).setOrigin(0,.5).setScrollFactor(0).setDepth(101);
+    const pause=this.add.text(w-34,37,'Ⅱ',{fontSize:'25px',color:'#d6c8b3'}).setOrigin(.5).setScrollFactor(0).setDepth(120).setInteractive();
     pause.on('pointerup',()=>this.openPause());
 
-    this.bossPanel=this.add.rectangle(center,99,bossWidth,94,0x171319,.94).setStrokeStyle(1,0x8d6d55,.78).setScrollFactor(0).setDepth(108).setVisible(false);
-    this.bossHud=this.add.text(center,57,'',{fontFamily:'Georgia',fontSize:'15px',color:'#f0d5ad',align:'center',fontStyle:'bold'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
-    this.bossPhaseText=this.add.text(center,81,'',{fontFamily:'Arial',fontSize:'11px',color:'#d5c1a6',align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
-    this.bossHealthTrack=this.add.rectangle(bossLeft,108,bossBarWidth,7,0x45353b).setOrigin(0,.5).setScrollFactor(0).setDepth(109).setVisible(false);
-    this.bossHealth=this.add.rectangle(bossLeft,108,bossBarWidth,5,0xc85b68).setOrigin(0,.5).setScrollFactor(0).setDepth(111).setVisible(false);
-    this.bossHealthText=this.add.text(center,119,'',{fontFamily:'Arial',fontSize:'10px',color:'#e6d7c5',align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
-    this.bossHintText=this.add.text(center,137,'',{fontFamily:'Arial',fontSize:'10px',color:'#d6b985',align:'center',wordWrap:{width:bossWidth-24}}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.bossPanel=this.add.rectangle(center,111,bossWidth,94,0x171319,.94).setStrokeStyle(1,0x8d6d55,.78).setScrollFactor(0).setDepth(108).setVisible(false);
+    this.bossHud=this.add.text(center,66,'',{fontFamily:'Georgia',fontSize:'15px',color:'#f0d5ad',align:'center',fontStyle:'bold'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.bossPhaseText=this.add.text(center,89,'',{fontFamily:'Arial',fontSize:'11px',color:'#d5c1a6',align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.bossHealthTrack=this.add.rectangle(bossLeft,119,bossBarWidth,7,0x45353b).setOrigin(0,.5).setScrollFactor(0).setDepth(109).setVisible(false);
+    this.bossHealth=this.add.rectangle(bossLeft,119,bossBarWidth,5,0xc85b68).setOrigin(0,.5).setScrollFactor(0).setDepth(111).setVisible(false);
+    this.bossHealthText=this.add.text(center,130,'',{fontFamily:'Arial',fontSize:'10px',color:'#e6d7c5',align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.bossHintText=this.add.text(center,148,'',{fontFamily:'Arial',fontSize:'10px',color:'#d6b985',align:'center',wordWrap:{width:bossWidth-24}}).setOrigin(.5,0).setScrollFactor(0).setDepth(110).setVisible(false);
 
-    this.eventPanel=this.add.rectangle(center,205,eventWidth,82,0x171b20,.94).setStrokeStyle(1,0x657c75,.8).setScrollFactor(0).setDepth(108).setVisible(false);
-    this.eventTitleText=this.add.text(eventLeft,171,'',{fontFamily:'Georgia',fontSize:'13px',color:'#b9e1d4',fontStyle:'bold'}).setScrollFactor(0).setDepth(110).setVisible(false);
-    this.eventObjectiveText=this.add.text(eventLeft,193,'',{fontFamily:'Arial',fontSize:'11px',color:'#e5dfd2'}).setScrollFactor(0).setDepth(110).setVisible(false);
-    this.eventTimerText=this.add.text(eventLeft+eventBarWidth,193,'',{fontFamily:'Arial',fontSize:'11px',color:'#e7c68e'}).setOrigin(1,0).setScrollFactor(0).setDepth(110).setVisible(false);
-    this.eventProgressTrack=this.add.rectangle(eventLeft,222,eventBarWidth,6,0x34413e).setOrigin(0,.5).setScrollFactor(0).setDepth(109).setVisible(false);
-    this.eventProgressFill=this.add.rectangle(eventLeft,222,eventBarWidth,4,0x83c9ad).setOrigin(0,.5).setScrollFactor(0).setDepth(111).setVisible(false);
-    this.eventHud=this.add.text(center,258,'',{fontSize:'12px',color:'#d9c69d',backgroundColor:'#211b20',padding:{x:8,y:4},align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(112).setVisible(false);
+    this.eventPanel=this.add.rectangle(center,216,eventWidth,82,0x171b20,.94).setStrokeStyle(1,0x657c75,.8).setScrollFactor(0).setDepth(108).setVisible(false);
+    this.eventTitleText=this.add.text(eventLeft,182,'',{fontFamily:'Georgia',fontSize:'13px',color:'#b9e1d4',fontStyle:'bold'}).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.eventObjectiveText=this.add.text(eventLeft,204,'',{fontFamily:'Arial',fontSize:'11px',color:'#e5dfd2'}).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.eventTimerText=this.add.text(eventLeft+eventBarWidth,204,'',{fontFamily:'Arial',fontSize:'11px',color:'#e7c68e'}).setOrigin(1,0).setScrollFactor(0).setDepth(110).setVisible(false);
+    this.eventProgressTrack=this.add.rectangle(eventLeft,233,eventBarWidth,6,0x34413e).setOrigin(0,.5).setScrollFactor(0).setDepth(109).setVisible(false);
+    this.eventProgressFill=this.add.rectangle(eventLeft,233,eventBarWidth,4,0x83c9ad).setOrigin(0,.5).setScrollFactor(0).setDepth(111).setVisible(false);
+    this.eventHud=this.add.text(center,269,'',{fontSize:'12px',color:'#d9c69d',backgroundColor:'#211b20',padding:{x:8,y:4},align:'center'}).setOrigin(.5,0).setScrollFactor(0).setDepth(112).setVisible(false);
 
-    this.questHudPanel=this.add.rectangle(198,160,352,82,0x171319,.86).setStrokeStyle(1,0x756653,.7).setScrollFactor(0).setDepth(98).setVisible(false);
-    this.questHud=this.add.text(34,123,'',{fontFamily:'Arial',fontSize:'12px',color:'#e7dccb',lineSpacing:4,wordWrap:{width:326}}).setScrollFactor(0).setDepth(99).setVisible(false);
-    this.environmentHud=this.add.text(w/2+138,20,'',{fontFamily:'Arial',fontSize:'10px',color:'#c9d2d6',align:'left'}).setOrigin(0,.5).setScrollFactor(0).setDepth(100);
+    this.questHudPanel=this.add.rectangle(182,151,340,86,0x171319,.88).setStrokeStyle(1,0x756653,.7).setScrollFactor(0).setDepth(98).setVisible(false);
+    this.questHud=this.add.text(28,114,'',{fontFamily:'Arial',fontSize:'12px',color:'#e7dccb',lineSpacing:4,wordWrap:{width:308}}).setScrollFactor(0).setDepth(99).setVisible(false);
     this.environmentOverlay=this.add.rectangle(center,this.scale.height/2,w,this.scale.height,0xffffff,0).setScrollFactor(0).setDepth(90).setOrigin(.5);
     this.environmentPhaseOverlay=this.add.rectangle(center,this.scale.height/2,w,this.scale.height,0xffffff,0).setScrollFactor(0).setDepth(89).setOrigin(.5);
     this.updateEnvironment(true);
@@ -3372,8 +3382,8 @@ export class RunScene extends Phaser.Scene {
     const abilityRemaining=Math.max(0,this.abilityReady-this.time.now);
     const modeLabel=(this.gameMode==='boss-hunt'?'BOSS HUNT':this.gameMode==='challenge'?'MEYDAN OKUMA':this.gameMode==='endless'?'SONSUZ':'SURVIVAL')+(this.newGamePlusLevel>0?'  •  NG+'+this.newGamePlusLevel:'');
     const endlessRule=this.gameMode==='endless'?getEndlessRule(this.state.elapsedMs):null;
-    this.hud.setText(this.character.name+'  •  '+modeLabel+(endlessRule?'  •  '+endlessRule.name:'')+'\nLV '+this.state.level+'   •   DÜŞMAN '+this.state.kills+'   •   E: '+(abilityRemaining>0?(abilityRemaining/1000).toFixed(1)+'s':'HAZIR'));
-    this.xpFill?.setSize(174*Phaser.Math.Clamp(this.state.experience/Math.max(1,this.state.experienceToNext),0,1),3);
+    this.hud.setText(this.character.name+'  •  '+modeLabel+(endlessRule?'  •  '+endlessRule.name:'')+'\nLV '+this.state.level+'  •  DÜŞMAN '+this.state.kills+'  •  SİLAH '+this.build.weapons.length+'/6  •  PASİF '+this.build.passives.length+'/6  •  E: '+(abilityRemaining>0?(abilityRemaining/1000).toFixed(1)+'s':'HAZIR'));
+    this.xpFill?.setSize(244*Phaser.Math.Clamp(this.state.experience/Math.max(1,this.state.experienceToNext),0,1),4);
     this.health.setSize(144*Phaser.Math.Clamp(this.state.health/this.state.maxHealth,0,1),6);
     this.healthText?.setText('CAN  '+Math.ceil(this.state.health)+' / '+Math.ceil(this.state.maxHealth));
     if(this.bossState&&!this.bossState.defeated)this.clockCaption?.setText('BOSS  •  FAZ '+(this.bossState.phaseIndex+1));
