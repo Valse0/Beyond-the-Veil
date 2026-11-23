@@ -117,23 +117,23 @@ export class RunPreparationScene extends Phaser.Scene {
     this.add.image(340, 238, UI_ASSET_KEYS.hunterPortraits, hunterIndex).setDisplaySize(78, 78);
     this.add.text(82, 202, character.name, {
       fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '27px' : '22px', color: '#f0e6d6', fontStyle: 'bold',
-      wordWrap: { width: 220 }
+      wordWrap: { width: 200 }
     });
     this.add.text(82, 240, character.role + '\n' + character.description, {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '12px', color: '#aaa2a0',
-      wordWrap: { width: 220 }, lineSpacing: 5
+      wordWrap: { width: 200 }, lineSpacing: 5
     });
     this.add.text(82, 326, 'HEDEF BÖLGE', {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '11px', color: '#b99a61', fontStyle: 'bold'
     });
-    this.add.image(326, 418, UI_ASSET_KEYS.regionArt, regionIndex).setDisplaySize(118, 82);
+    this.add.image(344, 418, UI_ASSET_KEYS.regionArt, regionIndex).setDisplaySize(94, 70);
     this.add.text(82, 348, region.name, {
       fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '23px' : '18px', color: '#f0e6d6',
       wordWrap: { width: 220 }
     });
     this.add.text(82, 392, region.subtitle + '\n' + region.atmosphere, {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '14px' : '11px', color: '#aaa2a0',
-      wordWrap: { width: 220 }, lineSpacing: 4
+      wordWrap: { width: 200 }, lineSpacing: 4
     });
     this.add.text(82, 492, 'MOD', {
       fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#b99a61', fontStyle: 'bold'
