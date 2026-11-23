@@ -3160,6 +3160,7 @@ test('captures the seven reference screens for visual QA', async ({ page }) => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('run'));
   });
+  await page.waitForTimeout(6500);
   await capture('05-gameplay-hud');
 
   await page.evaluate(() => {
