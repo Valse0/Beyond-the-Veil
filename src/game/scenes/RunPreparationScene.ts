@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
+import { drawUiBackdrop, drawUiPanel, preloadUiArt, regionCardTextureKey } from '../ui/dark-fantasy-theme.js';
 import type { ChallengeId, GameMode } from '../../core/types/game.js';
 import type { RegionId } from '../../core/types/content.js';
 import { CHARACTERS } from '../../data/characters.js';
@@ -114,7 +114,12 @@ export class RunPreparationScene extends Phaser.Scene {
     const hunterIndex = Math.max(0, CHARACTERS.findIndex(item => item.id === character.id));
     const regionIndex = Math.max(0, REGIONS.findIndex(item => item.id === region.id));
     this.add.circle(340, 238, 48, 0xc6a56b, 0.12).setStrokeStyle(1, 0xc6a56b, 0.58);
-    this.add.image(340, 238, UI_ASSET_KEYS.hunterPortraits, hunterIndex).setDisplaySize(78, 78);
+    if (character.id === 'cursed-hunter') {
+      this.add.sprite(340, 286, 'ui-cursed-hunter-idle', 0)
+        .setOrigin(0.5, 0.88).setScale(1.85).setDepth(2);
+    } else {
+      this.add.image(340, 238, UI_ASSET_KEYS.hunterPortraits, hunterIndex).setDisplaySize(78, 78);
+    }
     this.add.text(82, 202, character.name, {
       fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '27px' : '22px', color: '#f0e6d6', fontStyle: 'bold',
       wordWrap: { width: 200 }
@@ -126,7 +131,7 @@ export class RunPreparationScene extends Phaser.Scene {
     this.add.text(82, 326, 'HEDEF BÖLGE', {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '11px', color: '#b99a61', fontStyle: 'bold'
     });
-    this.add.image(344, 418, UI_ASSET_KEYS.regionArt, regionIndex).setDisplaySize(94, 70);
+    this.add.image(344, 418, regionCardTextureKey(region.id)).setDisplaySize(128, 72);
     this.add.text(82, 348, region.name, {
       fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '23px' : '18px', color: '#f0e6d6',
       wordWrap: { width: 220 }
