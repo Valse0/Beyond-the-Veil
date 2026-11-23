@@ -102,7 +102,8 @@ export class MainMenuScene extends Phaser.Scene {
       });
     }
 
-    this.settingsButton = createMenuButton(firstY + rowGap * 5, '   AYARLAR');
+    const settingsSlot = this.newGamePlusAvailable ? 5 : 4;
+    this.settingsButton = createMenuButton(firstY + rowGap * settingsSlot, '   AYARLAR');
     this.settingsButton.on('pointerover', () => this.setSelectedItem('settings'));
     this.settingsButton.on('pointerup', () => this.openSettings());
 
