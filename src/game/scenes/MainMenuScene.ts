@@ -41,25 +41,8 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     drawUiBackdrop(this, 'menu');
-    const progression = loaded && 'data' in loaded ? loaded.data.progression : undefined;
-    if (w >= 1120) {
-      const soulEssence = progression?.soulEssence ?? 0;
-      const hunterCount = progression?.unlockedCharacterIds.length ?? 1;
-      const regionCount = progression?.unlockedRegionIds.length ?? 1;
-      const dossierX = w - 286;
-      drawUiPanel(this, dossierX, 224, 238, 194, 0x9b8059, -10, 0.82);
-      this.add.text(dossierX + 20, 242, 'AVCI KAYDI', { fontFamily: 'Georgia, serif', fontSize: '17px', color: '#e6d5b8', fontStyle: 'bold', letterSpacing: 1 });
-      this.add.rectangle(dossierX + 20, 272, 198, 1, 0xb99a61, 0.55).setOrigin(0, 0);
-      this.add.text(dossierX + 20, 292, 'RUH ÖZÜ', { fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#b99a61', fontStyle: 'bold', letterSpacing: 2 });
-      this.add.text(dossierX + 20, 310, soulEssence.toLocaleString('tr-TR'), { fontFamily: 'Georgia, serif', fontSize: '25px', color: '#f0e6d6', fontStyle: 'bold' });
-      this.add.text(dossierX + 20, 354, 'AVCILAR', { fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#b99a61', fontStyle: 'bold', letterSpacing: 1 });
-      this.add.text(dossierX + 104, 354, hunterCount + ' / 5', { fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#e0d3bf' });
-      this.add.text(dossierX + 20, 382, 'BÖLGELER', { fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#b99a61', fontStyle: 'bold', letterSpacing: 1 });
-      this.add.text(dossierX + 104, 382, regionCount + ' / 5', { fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#e0d3bf' });
-    }
-
     // The artwork remains a clean background; every menu control is real Phaser UI.
-    this.add.rectangle(220, h / 2, 440, h, 0x05080e, 0.48).setDepth(-997);
+    this.add.rectangle(220, h / 2, 440, h, 0x05080e, 0.28).setDepth(-997);
     const frame = this.add.graphics().setDepth(-996);
     frame.lineStyle(1, 0xc6a56b, 0.34);
     frame.lineBetween(66, 232, 390, 232);
@@ -68,14 +51,6 @@ export class MainMenuScene extends Phaser.Scene {
     frame.lineBetween(66, 232, 92, 232);
     frame.lineBetween(66, 232, 66, 258);
 
-    this.add.text(w * 0.64, 70, 'BEYOND THE VEIL', {
-      fontFamily: 'Georgia, serif', fontSize: '46px', color: '#eee4d0',
-      fontStyle: 'bold', letterSpacing: 5, stroke: '#090d13', strokeThickness: 3
-    }).setOrigin(0.5, 0);
-    this.add.text(w * 0.64, 132, 'ÖLÜMÜN ÖTESİNDE, AV BAŞLAR.', {
-      fontFamily: 'Georgia, serif', fontSize: '16px', color: '#c3a675',
-      letterSpacing: 3
-    }).setOrigin(0.5, 0);
     this.add.text(88, 202, 'YOLUNU SEÇ', {
       fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#a99b84',
       fontStyle: 'bold', letterSpacing: 3
