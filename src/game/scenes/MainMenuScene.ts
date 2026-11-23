@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
+import { drawUiBackdrop, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import { beginNewGamePlus, canStartNewGamePlus } from '../../gameplay/run/new-game-plus-runtime.js';
 import type { SaveManager } from '../../systems/save/save-manager.js';
 import { resolveRemoteAction } from '../input/platform-input.js';
@@ -29,7 +29,6 @@ export class MainMenuScene extends Phaser.Scene {
   preload(): void { preloadUiArt(this); }
 
   create(): void {
-    const w = this.scale.width;
     const h = this.scale.height;
     this.cameras.main.setBackgroundColor('#0b0b10');
 
