@@ -60,7 +60,7 @@ export class RegionSelectScene extends Phaser.Scene {
     const character = CHARACTERS.find(item => item.id === this.characterId) ?? CHARACTERS[0]!;
     this.cameras.main.setBackgroundColor('#0b0b10');
 
-    drawUiBackdrop(this, 'selection');
+    drawUiBackdrop(this, 'regions');
 
     const selectedHunterIndex = Math.max(0, CHARACTERS.findIndex(item => item.id === this.characterId));
     drawUiPanel(this, 52, 24, 250, 74, 0x9a8058, -10, 0.9);
