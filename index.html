@@ -24,10 +24,10 @@
         display: none; position: fixed; inset: 0; z-index: 20; padding: 28px;
         align-items: center; justify-content: center; flex-direction: column; text-align: center;
         background: rgba(9, 8, 13, .96); color: #e9dfcb;
-        font: 600 18px/1.5 Arial, sans-serif; letter-spacing: .02em; pointer-events: none;
+        font: 600 18px/1.5 Arial, sans-serif; letter-spacing: .02em; pointer-events: auto; touch-action: none;
       }
       #orientation-hint span { display: block; max-width: 28rem; color: #c7ad7b; font-size: 14px; font-weight: 400; margin-top: 10px; }
-      @media (orientation: portrait) and (max-width: 900px) { #orientation-hint { display: flex; } }
+      @media (orientation: portrait) { #orientation-hint { display: flex; } }
     </style>
   </head>
   <body>
