@@ -3005,7 +3005,7 @@ export class RunScene extends Phaser.Scene {
       const accent=this.banishMode?0xc65d62:(i===0?0xd9b86f:0x8f8067);
       const panel=drawUiPanel(this,x-cardWidth/2,cardCenterY-cardHeight/2,cardWidth,cardHeight,accent,201,.98).setScrollFactor(0);
       const iconKey=choice.kind.startsWith('weapon')?'upgrade-icon-weapon':choice.kind.startsWith('passive')?'upgrade-icon-passive':'upgrade-icon-base';
-      const icon=this.add.image(x,cardCenterY-cardHeight*.29,iconKey).setDisplaySize(54,54).setScrollFactor(0).setDepth(203);
+      const icon=this.add.image(x,cardCenterY-cardHeight*.29,iconKey).setDisplaySize(68,68).setScrollFactor(0).setDepth(203);
       if(this.banishMode)icon.setTint(0xe59a8c);
       const kindLabel=choice.kind.startsWith('weapon')?'SİLAH':choice.kind.startsWith('passive')?'PASİF':'TEMEL GELİŞİM';
       const eyebrow=this.add.text(x,cardCenterY-cardHeight*.10,kindLabel,{fontFamily:'Arial',fontSize:'10px',fontStyle:'bold',color:'#c7ad7b',letterSpacing:1}).setOrigin(.5).setScrollFactor(0).setDepth(203);
