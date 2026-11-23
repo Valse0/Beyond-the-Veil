@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import { CHARACTERS } from '../../data/characters.js';
+import { WEAPONS } from '../../data/weapons.js';
+import { PASSIVES } from '../../data/passives.js';
 import { UI_ASSET_KEYS } from '../../data/asset-registry.js';
 import { resolveRemoteAction } from '../input/platform-input.js';
 
@@ -9,6 +11,14 @@ export class CharacterSelectScene extends Phaser.Scene {
   private frames: Phaser.GameObjects.Graphics[] = [];
   private previousPad = { left: false, right: false, confirm: false, back: false, details: false };
   private touchLayout = false;
+  private selectedPortrait?: Phaser.GameObjects.Image;
+  private selectedName?: Phaser.GameObjects.Text;
+  private selectedRole?: Phaser.GameObjects.Text;
+  private selectedDescription?: Phaser.GameObjects.Text;
+  private weaponText?: Phaser.GameObjects.Text;
+  private passiveText?: Phaser.GameObjects.Text;
+  private abilityText?: Phaser.GameObjects.Text;
+  private statsText?: Phaser.GameObjects.Text;
 
   constructor() { super('character-select'); }
 
@@ -27,68 +37,101 @@ export class CharacterSelectScene extends Phaser.Scene {
     const height = this.scale.height;
     this.touchLayout = this.sys.game.device.input.touch;
     this.cameras.main.setBackgroundColor('#0b0b10');
-
     drawUiBackdrop(this, 'selection');
 
-    this.add.text(64, 48, 'AVCINI SEÇ', {
-      fontFamily: 'Georgia, serif', fontSize: '38px', color: '#e9dfcb', fontStyle: 'bold'
-    });
-    this.add.text(67, 98, 'Her avcının kendine özgü bir silahı, yeteneği ve savaş tarzı vardır.', {
-      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#a9a0a0'
-    });
+    this.add.text(width / 2, 34, 'AVCI SEÇİMİ', {
+      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '42px' : '38px',
+      color: '#e9dfcb', fontStyle: 'bold', letterSpacing: 2
+    }).setOrigin(0.5, 0);
+    this.add.text(width / 2, 84, 'Avcını seç. Kaderini belirle.', {
+      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '20px' : '16px',
+      color: '#c7ad7b', letterSpacing: 1
+    }).setOrigin(0.5, 0);
 
-    const gap = 14;
-    const margin = this.touchLayout ? 230 : 64;
-    const cardWidth = this.touchLayout ? 820 : (width - margin * 2 - gap * 4) / 5;
-    const cardY = this.touchLayout ? 142 : 190;
-    const cardHeight = this.touchLayout ? 430 : 350;
     const accents = [0xc2a36d, 0x8793a7, 0x75b9b2, 0x8e77b8, 0xc65c70];
-
+    const railX = 70;
+    const railY = 166;
+    const railSize = 82;
+    const railGap = 12;
     CHARACTERS.forEach((character, index) => {
-      if (this.touchLayout && index !== this.selectedIndex) return;
-      const x = this.touchLayout ? (width - cardWidth) / 2 : margin + index * (cardWidth + gap);
-      drawUiPanel(this, x, cardY, cardWidth, cardHeight, accents[index] ?? 0xc6a56b, -20, 0.88);
-      const frame = this.add.graphics().setDepth(-18)
+      const y = railY + index * (railSize + railGap);
+      drawUiPanel(this, railX, y, railSize, railSize, accents[index] ?? 0xc6a56b, -20, 0.88);
+      const frame = this.add.graphics().setDepth(-18);
       this.frames.push(frame);
+      this.add.image(railX + railSize / 2, y + railSize / 2, UI_ASSET_KEYS.hunterPortraits, index)
+        .setDisplaySize(68, 68).setDepth(-16).setName('hunter-portrait-' + character.id);
+      this.add.zone(railX + railSize / 2, y + railSize / 2, railSize, railSize)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerup', () => {
+          this.selectedIndex = index;
+          this.refreshSelection();
+        });
+    });
 
-      this.add.circle(x + cardWidth / 2, cardY + 76, 62, accents[index] ?? 0xb99a61, 0.13)
-        .setStrokeStyle(2, accents[index] ?? 0xb99a61, 0.72).setDepth(-16);
-      this.add.image(x + cardWidth / 2, cardY + 76, UI_ASSET_KEYS.hunterPortraits, index)
-        .setDisplaySize(116, 116).setDepth(-15).setName('hunter-portrait-' + character.id);
+    const heroX = 470;
+    const heroY = 346;
+    const accent = accents[this.selectedIndex] ?? 0xc2a36d;
+    this.add.circle(heroX, heroY, 154, accent, 0.09).setStrokeStyle(2, accent, 0.52).setDepth(-16);
+    this.add.circle(heroX, heroY, 132, 0x080b12, 0.58).setStrokeStyle(1, 0xe0c58e, 0.34).setDepth(-15);
+    const pedestal = this.add.graphics().setDepth(-14);
+    pedestal.fillStyle(0x0b1018, 0.92);
+    pedestal.fillEllipse(heroX, 510, 286, 34);
+    pedestal.lineStyle(2, 0xc6a56b, 0.58);
+    pedestal.strokeEllipse(heroX, 510, 286, 34);
+    this.selectedPortrait = this.add.image(heroX, heroY, UI_ASSET_KEYS.hunterPortraits, this.selectedIndex)
+      .setDisplaySize(276, 276).setDepth(-13).setName('selected-hunter-portrait');
+    this.selectedName = this.add.text(heroX, 526, '', {
+      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '30px' : '25px',
+      color: '#f0e6d6', fontStyle: 'bold', align: 'center'
+    }).setOrigin(0.5, 0);
+    this.selectedRole = this.add.text(heroX, 562, '', {
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '18px' : '14px',
+      color: '#c7ad7b', align: 'center'
+    }).setOrigin(0.5, 0);
+    this.selectedDescription = this.add.text(heroX, 586, '', {
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '11px',
+      color: '#aaa2a0', align: 'center', wordWrap: { width: 440 }, lineSpacing: 3
+    }).setOrigin(0.5, 0);
 
-      this.add.text(x + 14, cardY + (this.touchLayout ? 154 : 150), character.name, {
-        fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '30px' : '18px', color: '#f0e6d6', fontStyle: 'bold',
-        wordWrap: { width: cardWidth - 28 }, align: 'center'
-      }).setOrigin(0.5, 0);
-      this.add.text(x + 14, cardY + (this.touchLayout ? 202 : 194), character.role, {
-        fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '19px' : '12px', color: '#c7ad7b',
-        wordWrap: { width: cardWidth - 28 }, align: 'center'
-      }).setOrigin(0.5, 0);
-      this.add.text(x + 36, cardY + (this.touchLayout ? 248 : 232), character.description, {
-        fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '19px' : '12px', color: '#aaa2a0',
-        wordWrap: { width: cardWidth - 72 }, lineSpacing: this.touchLayout ? 8 : 4, align: 'center'
-      }).setOrigin(0.5, 0);
-      this.add.text(x + 18, cardY + (this.touchLayout ? 360 : 302),
-        `CAN  ${character.health}   •   HIZ  ${character.moveSpeed}\nYETENEK  ${character.activeAbility}`, {
-          fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '17px' : '11px', color: '#d9c9aa',
-          wordWrap: { width: cardWidth - 36 }, align: 'center', lineSpacing: 5
-        }).setOrigin(0.5, 0);
-
-      const hitArea = this.add.zone(x + cardWidth / 2, cardY + cardHeight / 2, cardWidth, cardHeight)
-        .setInteractive({ useHandCursor: true });
-      hitArea.on('pointerup', () => {
-        this.selectedIndex = index;
-        this.refreshSelection();
-      });
+    const panelX = 830;
+    const panelY = 166;
+    const panelWidth = 380;
+    const panelHeight = 420;
+    const panelAccent = accents[this.selectedIndex] ?? 0xc2a36d;
+    drawUiPanel(this, panelX, panelY, panelWidth, panelHeight, panelAccent, -12, 0.96);
+    this.add.text(panelX + 28, panelY + 24, 'AVCI KAYDI', {
+      fontFamily: 'Georgia, serif', fontSize: '20px', color: '#e6d5b8', fontStyle: 'bold', letterSpacing: 1
+    });
+    this.add.rectangle(panelX + 28, panelY + 58, panelWidth - 56, 1, 0xb99a61, 0.52).setOrigin(0, 0);
+    const labelStyle = { fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#b99a61', fontStyle: 'bold', letterSpacing: 1 };
+    this.add.text(panelX + 28, panelY + 82, 'SİLAH', labelStyle);
+    this.weaponText = this.add.text(panelX + 28, panelY + 101, '', {
+      fontFamily: 'Georgia, serif', fontSize: '18px', color: '#f0e6d6'
+    });
+    this.add.text(panelX + 28, panelY + 145, 'PASİF UZMANLIK', labelStyle);
+    this.passiveText = this.add.text(panelX + 28, panelY + 164, '', {
+      fontFamily: 'Georgia, serif', fontSize: '17px', color: '#e4d7c2'
+    });
+    this.add.text(panelX + 28, panelY + 208, 'BENZERSİZ YETENEK', labelStyle);
+    this.abilityText = this.add.text(panelX + 28, panelY + 228, '', {
+      fontFamily: 'Georgia, serif', fontSize: '18px', color: '#e4d7c2'
+    });
+    this.add.rectangle(panelX + 28, panelY + 264, panelWidth - 56, 1, 0xb99a61, 0.34).setOrigin(0, 0);
+    this.statsText = this.add.text(panelX + 28, panelY + 282, '', {
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '17px' : '13px',
+      color: '#d9c9aa', lineSpacing: 8, wordWrap: { width: panelWidth - 56 }
+    });
+    this.add.text(panelX + 28, panelY + 366, '← / →  AVCILAR ARASINDA GEÇİŞ', {
+      fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#89818a', letterSpacing: 1
     });
 
     if (this.touchLayout) {
       this.makeTouchArrow(142, 354, '‹', () => this.moveSelection(-1));
       this.makeTouchArrow(width - 142, 354, '›', () => this.moveSelection(1));
     }
-    this.makeButton(64, height - 102, this.touchLayout ? '‹  GERİ' : '‹  GERİ', () => this.scene.start('main-menu'), false, this.touchLayout ? 190 : 150, this.touchLayout ? 19 : 15, this.touchLayout ? 82 : 46);
+    this.makeButton(64, height - 102, '‹  GERİ', () => this.scene.start('main-menu'), false, this.touchLayout ? 190 : 150, this.touchLayout ? 19 : 15, this.touchLayout ? 82 : 46);
     this.makeButton(width / 2 - (this.touchLayout ? 90 : 80), height - (this.touchLayout ? 102 : 88), 'AYRINTILAR', () => this.openDetails(), false, this.touchLayout ? 180 : 160, this.touchLayout ? 16 : 14, this.touchLayout ? 82 : 46);
-    this.makeButton(width - (this.touchLayout ? 292 : 250), height - 88, 'BÖLGEYE DEVAM ET  ›', () => this.continue(), false, this.touchLayout ? 228 : 186, this.touchLayout ? 18 : 15, this.touchLayout ? 82 : 46);
+    this.makeButton(width - (this.touchLayout ? 292 : 250), height - 88, 'AVCIYI SEÇ  ›', () => this.continue(), false, this.touchLayout ? 228 : 186, this.touchLayout ? 18 : 15, this.touchLayout ? 82 : 46);
     this.add.text(width / 2, height - 8, '← / → veya D-PAD: SEÇ     A / ENTER: DEVAM     B / ESC: GERİ', {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '11px', color: '#77727a'
     }).setOrigin(0.5);
@@ -143,25 +186,41 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
 
   private refreshSelection(): void {
-    const width = this.scale.width;
-    const gap = 14;
-    const margin = this.touchLayout ? 230 : 64;
-    const cardWidth = this.touchLayout ? 820 : (width - margin * 2 - gap * 4) / 5;
-    const cardY = this.touchLayout ? 142 : 190;
-    const cardHeight = this.touchLayout ? 430 : 350;
+    const railX = 70;
+    const railY = 166;
+    const railSize = 82;
+    const railGap = 12;
+    const accents = [0xc2a36d, 0x8793a7, 0x75b9b2, 0x8e77b8, 0xc65c70];
     this.frames.forEach((frame, index) => {
-      const x = this.touchLayout ? (width - cardWidth) / 2 : margin + index * (cardWidth + gap);
-      const selected = this.touchLayout || index === this.selectedIndex;
+      const x = railX;
+      const y = railY + index * (railSize + railGap);
+      const selected = index === this.selectedIndex;
       frame.clear();
-      frame.fillStyle(selected ? 0x30251f : 0x17161b, selected ? 0.98 : 0.88);
-      frame.fillRoundedRect(x, cardY, cardWidth, cardHeight, 12);
-      frame.lineStyle(selected ? 3 : 1, selected ? 0xd4b777 : 0x51484a, selected ? 1 : 0.7);
-      frame.strokeRoundedRect(x, cardY, cardWidth, cardHeight, 12);
+      frame.fillStyle(selected ? 0x30251f : 0x17161b, selected ? 0.98 : 0.68);
+      frame.fillRoundedRect(x, y, railSize, railSize, 9);
+      frame.lineStyle(selected ? 3 : 1, selected ? 0xe1c17f : 0x51484a, selected ? 1 : 0.68);
+      frame.strokeRoundedRect(x, y, railSize, railSize, 9);
       if (selected) {
-        frame.fillStyle(0xd4b777, 1);
-        frame.fillRoundedRect(x + 18, cardY + cardHeight - 9, cardWidth - 36, 3, 2);
+        frame.lineStyle(2, accents[index] ?? 0xc6a56b, 0.9);
+        frame.strokeRoundedRect(x + 5, y + 5, railSize - 10, railSize - 10, 6);
       }
     });
+
+    const character = CHARACTERS[this.selectedIndex] ?? CHARACTERS[0]!;
+    const weapon = WEAPONS.find(item => item.id === character.startingWeaponId);
+    const passive = PASSIVES.find(item => item.id === character.startingPassiveId);
+    this.selectedPortrait?.setFrame(this.selectedIndex);
+    this.selectedName?.setText(character.name);
+    this.selectedRole?.setText(character.role.toLocaleUpperCase('tr-TR'));
+    this.selectedDescription?.setText(character.description);
+    this.weaponText?.setText(weapon?.name ?? 'Bilinmeyen silah');
+    this.passiveText?.setText(passive?.name ?? 'Bilinmeyen pasif');
+    this.abilityText?.setText(character.activeAbility);
+    this.statsText?.setText(
+      'CAN  ' + character.health + '     HIZ  ' + character.moveSpeed +
+      '\nHASAR  ' + Math.round(character.stats.damageMultiplier * 100) + '%     KRİTİK  ' +
+      Math.round(character.stats.criticalChance * 100) + '%'
+    );
   }
 
   private makeTouchArrow(x: number, y: number, label: string, action: () => void): void {
