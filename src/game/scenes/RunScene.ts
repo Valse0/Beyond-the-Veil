@@ -3302,8 +3302,8 @@ export class RunScene extends Phaser.Scene {
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,defeated?.38:.92).setScrollFactor(0).setDepth(200);
     const panel=drawUiPanel(this,w/2-panelWidth/2,panelY-panelHeight/2,panelWidth,panelHeight,defeated?0x9f4148:0x987b52,201,.98).setScrollFactor(0);
     const eyebrow=this.add.text(w/2,h*(defeated?.105:.075),'KOŞU RAPORU',{fontSize:(compact?15:14)*uiScale+'px',fontStyle:'bold',color:defeated?'#d98b83':'#b99b70',letterSpacing:3}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-    const title=this.add.text(w/2,h*(defeated?.19:.135),defeated?'ÖLDÜN':result.title,{fontFamily:'Georgia',fontSize:titleSize+'px',fontStyle:'bold',color:result.won?'#f0dfbd':'#f3d2c8'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-    const context=this.add.text(w/2,h*(defeated?.285:.225),defeated?'Bu dünya henüz seni affetmedi...':result.characterName+'  •  '+result.regionName+'  •  '+result.modeLabel,{fontFamily:'Georgia',fontSize:15*uiScale+'px',color:'#d8c7b7',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+    const title=this.add.text(w/2,h*(defeated?.29:.135),defeated?'ÖLDÜN':result.title,{fontFamily:'Georgia',fontSize:titleSize+'px',fontStyle:'bold',color:result.won?'#f0dfbd':'#f3d2c8'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+    const context=this.add.text(w/2,h*(defeated?.365:.225),defeated?'Bu dünya henüz seni affetmedi...':result.characterName+'  •  '+result.regionName+'  •  '+result.modeLabel,{fontFamily:'Georgia',fontSize:15*uiScale+'px',color:'#d8c7b7',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
     const leftX=w/2-panelWidth*.245,rightX=w/2+panelWidth*.245;
     const headingY=panelY-panelHeight/2+(defeated?34:38),contentY=headingY+(defeated?42:48);
     const divider=this.add.rectangle(w/2,panelY,panelWidth*.002,panelHeight*.72,0x78634d,.8).setScrollFactor(0).setDepth(202);
