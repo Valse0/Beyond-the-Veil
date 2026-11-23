@@ -188,7 +188,11 @@ test('touch users can open character details, browse hunters and return to selec
   const tapCanvas = async (x: number, y: number) => {
     const bounds = await canvas.boundingBox();
     if (!bounds) throw new Error('Game canvas is not visible.');
-    await page.touchscreen.tap(bounds.x + (x / 1280) * bounds.width, bounds.y + (y / 720) * bounds.height);
+    const logicalSize = await page.evaluate(() => {
+      const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scale: { gameSize: { width: number; height: number } } } }).__BEYOND_VEIL_GAME__;
+      return game?.scale.gameSize ?? { width: 1280, height: 720 };
+    });
+    await page.touchscreen.tap(bounds.x + (x / logicalSize.width) * bounds.width, bounds.y + (y / logicalSize.height) * bounds.height);
   };
   await page.goto('/?bv-test=1');
   await expect(canvas).toBeVisible();
@@ -287,6 +291,8 @@ test('player can select a hunter and an unlocked region before starting a run', 
 
   // Reopening the region screen and returning again must not retain stale selection graphics.
   await page.keyboard.press('Escape');
+  await page.waitForTimeout(120);
+  await page.mouse.move(1240, 40);
   await page.waitForTimeout(120);
   expect((await canvas.screenshot()).equals(selectedHunterFrame)).toBe(true);
   await page.keyboard.press('Enter');
@@ -611,7 +617,7 @@ test('real level-up overlay supports XP, two rerolls, banish and one skip', asyn
   expect(afterFirstReroll.choices.map(choice=>choice.id).some(id=>firstIds.includes(id))).toBe(false);
 
   const secondIds=afterFirstReroll.choices.map(choice=>choice.id).sort();
-  await canvas.click({position:{x:410,y:569}});
+  await canvas.click({position:{x:410,y:601}});
   const afterSecondReroll=await readBrowserRunSnapshot(page);
   expect(afterSecondReroll.controls.rerollsRemaining).toBe(0);
   expect(afterSecondReroll.choices.map(choice=>choice.id).some(id=>secondIds.includes(id))).toBe(false);
@@ -2909,7 +2915,11 @@ test('touch-first hunter, region and run-preparation layouts keep large selectio
   const tapLogical = async (x: number, y: number): Promise<void> => {
     const bounds = await canvas.boundingBox();
     if (!bounds) throw new Error('Game canvas has no visible bounds.');
-    await page.touchscreen.tap(bounds.x + bounds.width * x / 1280, bounds.y + bounds.height * y / 720);
+    const logicalSize = await page.evaluate(() => {
+      const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scale: { gameSize: { width: number; height: number } } } }).__BEYOND_VEIL_GAME__;
+      return game?.scale.gameSize ?? { width: 1280, height: 720 };
+    });
+    await page.touchscreen.tap(bounds.x + bounds.width * x / logicalSize.width, bounds.y + bounds.height * y / logicalSize.height);
   };
   const isActive = (key: string) => page.evaluate(sceneKey => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (scene: string) => boolean } } }).__BEYOND_VEIL_GAME__;
