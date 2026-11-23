@@ -42,10 +42,13 @@ jobs:
           image.save(preview, "JPEG", quality=82, optimize=True)
 
           encoded = base64.b64encode(preview.read_bytes()).decode("ascii")
-          chunk_size = 6000
+          chunk_size = 180000
 
           for old in output.glob("part-*.txt"):
               old.unlink()
+          single = output / "preview-base64.txt"
+          if single.exists():
+              single.unlink()
 
           chunks = [
               encoded[i:i + chunk_size]
