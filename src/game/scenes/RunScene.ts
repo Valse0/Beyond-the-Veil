@@ -1123,7 +1123,7 @@ export class RunScene extends Phaser.Scene {
     if(!this.textures.exists('shot'))this.load.image('shot','/assets/prototype/vfx/veil-bolt.png');
     for(const region of REGIONS){
       const key='region-floor-'+region.id;
-      if(!this.textures.exists(key))this.load.image(key,`/assets/prototype/regions/${region.id}-ground.png`);
+      if(!this.textures.exists(key))this.load.image(key,`/assets/world/ground/${region.id}-ground.png`);
       for(const propId of REGION_WORLD_PROPS[region.id]??[]){
         const propKey='region-prop-'+region.id+'-'+propId;
         if(!this.textures.exists(propKey))this.load.image(propKey,`/assets/world/props/${region.id}-${propId}.png`);
@@ -1201,7 +1201,7 @@ export class RunScene extends Phaser.Scene {
     this.makeTextures();this.createPrototypeAnimations();
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
     this.mapWalls=this.physics.add.staticGroup();
-    for(const point of resolvedMap.boundary){const wall=this.mapWalls.create(point.x,point.y,'map-wall') as Phaser.Physics.Arcade.Image;wall.setDepth(-3);(wall.body as Phaser.Physics.Arcade.StaticBody).setCircle(20);}
+    for(const point of resolvedMap.boundary){const wall=this.mapWalls.create(point.x,point.y,'map-wall') as Phaser.Physics.Arcade.Image;wall.setDepth(-3).setVisible(false);(wall.body as Phaser.Physics.Arcade.StaticBody).setCircle(20);}
     const mapDrawing=this.add.graphics().setDepth(-4);mapDrawing.lineStyle(7,0x756653,.38);
     for(const room of this.mapLayout.rooms){mapDrawing.strokeEllipse(room.x,room.y,room.radiusX*2,room.radiusY*2);}
     mapDrawing.lineStyle(9,0x756653,.24);
@@ -1214,11 +1214,11 @@ export class RunScene extends Phaser.Scene {
     floor.lineStyle(1,0x3a3337,0.12);
     for(let i=0;i<28;i++){const x=Phaser.Math.Between(80,WORLD_W-80),y=Phaser.Math.Between(80,WORLD_H-80);floor.lineStyle(2,0x8a795d,0.08);floor.strokeCircle(x,y,Phaser.Math.Between(18,64));}
     floor.setDepth(-9);
-    this.createRegionDecorations();
     this.enemies=this.physics.add.group();this.shots=this.physics.add.group({maxSize:100});this.orbs=this.physics.add.group({maxSize:80});this.eventObjects=this.physics.add.group();this.bossArenaObjects=this.physics.add.group();this.bossTraceObjects=this.add.group();
     const start=resolveRegionMapPosition(this.mapLayout,WORLD_W/2,WORLD_H/2,24);
+    this.createRegionDecorations(start);
     const playerTexture=this.textures.exists('hunter-idle')?'hunter-idle':'hunter';
-    this.player=this.physics.add.sprite(start.x,start.y,playerTexture).setCircle(12).setCollideWorldBounds(true).setDepth(3);
+    this.player=this.physics.add.sprite(start.x,start.y,playerTexture).setCircle(12).setCollideWorldBounds(true).setDepth(3).setScale(1.8);
     if(this.anims.exists('hunter-idle-south'))this.player.anims.play('hunter-idle-south');
     this.physics.add.collider(this.player,this.mapWalls);
     this.physics.add.collider(this.enemies,this.mapWalls);
@@ -1278,22 +1278,43 @@ export class RunScene extends Phaser.Scene {
     }
   }
 
-  private createRegionDecorations():void {
+  private createRegionDecorations(start:{x:number;y:number}):void {
     const props=REGION_WORLD_PROPS[this.region.id]??[];
     if(!props.length)return;
+    const addProp=(x:number,y:number,propIndex:number,scale:number,name:string):void=>{
+      const propId=props[propIndex%props.length]!;
+      const key='region-prop-'+this.region.id+'-'+propId;
+      if(!this.textures.exists(key))return;
+      this.add.image(
+        Phaser.Math.Clamp(x,72,WORLD_W-72),
+        Phaser.Math.Clamp(y,72,WORLD_H-72),
+        key
+      ).setOrigin(.5,.86).setScale(scale).setAlpha(.98).setDepth(-8)
+        .setName('region-decoration-'+this.region.id+'-'+name);
+    };
+
+    // Keep several large landmarks in the initial camera view so the arena
+    // feels dressed from the first frame, not only at distant room edges.
+    const openingOffsets=[
+      [-320,-175,0,1.55], [300,-235,1,1.35], [350,155,2,1.5],
+      [-285,225,3,1.35], [15,-315,4,1.25]
+    ] as const;
+    openingOffsets.forEach(([dx,dy,index,scale],i)=>{
+      addProp(start.x+dx,start.y+dy,index,scale,'opening-'+i);
+    });
+
     const rooms=this.mapLayout.rooms;
+    const startRoomIndex=rooms.reduce((best,room,index)=>
+      Phaser.Math.Distance.Between(room.x,room.y,start.x,start.y)<
+      Phaser.Math.Distance.Between(rooms[best]!.x,rooms[best]!.y,start.x,start.y)?index:best,0);
     rooms.forEach((room,index)=>{
+      if(index===startRoomIndex)return;
       const count=Math.min(3,props.length);
       for(let i=0;i<count;i++){
-        const propId=props[(index+i*2)%props.length]!;
-        const key='region-prop-'+this.region.id+'-'+propId;
-        if(!this.textures.exists(key))continue;
         const angle=index*2.399+i*(Math.PI*2/count);
-        const x=Phaser.Math.Clamp(room.x+Math.cos(angle)*room.radiusX*.68,72,WORLD_W-72);
-        const y=Phaser.Math.Clamp(room.y+Math.sin(angle)*room.radiusY*.68,72,WORLD_H-72);
-        const scale=this.region.id==='cursed-forest'||this.region.id==='rotten-swamp'?1.45:1.25;
-        this.add.image(x,y,key).setOrigin(.5,.86).setScale(scale).setAlpha(.92).setDepth(-8)
-          .setName('region-decoration-'+this.region.id+'-'+index+'-'+i);
+        const x=room.x+Math.cos(angle)*room.radiusX*.62;
+        const y=room.y+Math.sin(angle)*room.radiusY*.62;
+        addProp(x,y,index+i*2,1.25+((index+i)%3)*.12,'room-'+index+'-'+i);
       }
     });
   }
