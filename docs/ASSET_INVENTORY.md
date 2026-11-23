@@ -39,4 +39,7 @@ Approve a representative character/enemy target, produce coherent families, norm
 | `ui.hunter-portraits` | `public/assets/ui/hunter-portraits.svg` | Five-frame portrait strip in canonical character order from `src/data/characters.ts` | SVG spritesheet, 800×160, 160×160 frames, crisp edges | Original hand-authored project SVG; project-owned, no third-party source | INTEGRATED_UNVERIFIED |
 | `ui.region-art` | `public/assets/ui/region-art.svg` | Five-frame region illustration strip in canonical region order from `src/data/regions.ts` | SVG spritesheet, 1280×160, 256×160 frames, crisp edges | Original hand-authored project SVG; project-owned, no third-party source | INTEGRATED_UNVERIFIED |
 
+
+| `ui.game-over-backdrop` | `public/assets/ui/game-over-backdrop.svg` | Defeat-only full-screen hooded warden and crimson eclipse backdrop; live UI/results remain Phaser text and controls | SVG, 1280×720, single frame | Original hand-authored project SVG; project-owned, no third-party source | INTEGRATED_UNVERIFIED |
+
 These navigation illustrations are original stylized pixel-art UI assets. They are not final in-world character/environment animation assets and do not close the remaining Stage 5 production-art requirements. The original seven approved design PNGs remain unchanged.
