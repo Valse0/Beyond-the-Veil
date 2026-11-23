@@ -112,7 +112,6 @@ export class RunPreparationScene extends Phaser.Scene {
       fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '21px' : '18px', color: '#d9c9aa', fontStyle: 'bold'
     });
     const hunterIndex = Math.max(0, CHARACTERS.findIndex(item => item.id === character.id));
-    const regionIndex = Math.max(0, REGIONS.findIndex(item => item.id === region.id));
     this.add.circle(340, 238, 48, 0xc6a56b, 0.12).setStrokeStyle(1, 0xc6a56b, 0.58);
     if (character.id === 'cursed-hunter') {
       this.add.sprite(340, 286, 'ui-cursed-hunter-idle', 0)
