@@ -104,6 +104,40 @@
         "technical_checks_passed": false,
         "approved_by": ""
       }
+    },
+    {
+      "id": "ui.game-over-backdrop",
+      "path": "public/assets/ui/game-over-backdrop.svg",
+      "role": "defeat screen illustration backdrop",
+      "status": "implemented-unverified",
+      "technical": {
+        "dimensions": "1280x720",
+        "alpha": false,
+        "anchor": "center",
+        "frames": 1,
+        "filtering": "linear"
+      },
+      "visual_locks": [
+        "Hooded skeletal warden silhouette centered over a muted crimson eclipse",
+        "Dark navy, charcoal and restrained blood-red palette",
+        "No baked text, buttons, result values or interface chrome",
+        "Keep the lower-middle area dark enough for live result panels"
+      ],
+      "source": {
+        "kind": "original-authored-svg",
+        "url_or_tool": "Hand-authored SVG illustration created for Beyond the Veil",
+        "creator": "Beyond the Veil project",
+        "created_at": "2026-11-23",
+        "license": "Original project-owned artwork",
+        "attribution": "No third-party asset",
+        "prompt_or_source_record": "Original vector illustration with no external source assets."
+      },
+      "verification": {
+        "native_scale_reviewed": false,
+        "in_engine_reviewed": false,
+        "technical_checks_passed": false,
+        "approved_by": ""
+      }
     }
   ]
 }
