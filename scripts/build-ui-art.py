@@ -316,6 +316,13 @@ reference_sources.append({
     "sha256": hashlib.sha256(levelup_path.read_bytes()).hexdigest()
 })
 
+hud_reference_path = Path("beyond-the-veil-ui-design/05_gameplay_hud.png")
+reference_sources.append({
+    "file": str(hud_reference_path),
+    "sha256": hashlib.sha256(hud_reference_path.read_bytes()).hexdigest(),
+    "usage": "layout reference for the live Phaser gameplay HUD and world dressing"
+})
+
 # The reference game-over composition supplies the skull/veil boss artwork.
 # Mask only the old result text and controls; Phaser renders live run results.
 game_over_reference = reference_image("07_game_over.png")
