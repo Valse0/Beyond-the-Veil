@@ -87,38 +87,37 @@ export class RegionSelectScene extends Phaser.Scene {
     REGIONS.forEach((region, index) => {
       if (this.touchLayout && index !== this.selectedIndex) return;
       const x = this.touchLayout ? (width - cardWidth) / 2 : margin + index * (cardWidth + gap);
-      drawUiPanel(this, x, cardY, cardWidth, cardHeight, Number.parseInt((region.palette[1] ?? '#b99a61').replace('#', ''), 16), -20, 0.88);
+      drawUiPanel(this, x, cardY, cardWidth, cardHeight, Number.parseInt((region.palette[1] ?? '#b99a61').replace('#', ''), 16), -20, 0.98);
       const frame = this.add.graphics().setDepth(-18)
       this.frames.push(frame);
       const paletteColor = Number.parseInt((region.palette[1] ?? '#51484a').replace('#', ''), 16);
       const artWidth = this.touchLayout ? 224 : cardWidth - 22;
-      const artHeight = this.touchLayout ? 126 : Math.round(artWidth * 9 / 16);
-      const artY = cardY + (this.touchLayout ? 68 : 82);
-      this.add.image(x + cardWidth / 2, artY, regionCardTextureKey(region.id))
-        .setDisplaySize(artWidth, artHeight).setDepth(-16);
-      this.add.rectangle(x + cardWidth / 2, artY, artWidth, artHeight, paletteColor, 0.08)
-        .setStrokeStyle(1, 0xb99a61, 0.52).setDepth(-15);
-      this.add.text(x + 23, cardY + 18, String(index + 1).padStart(2, '0'), {
-        fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '20px' : '17px', color: '#f1e4c9',
+      const artHeight = this.touchLayout ? 126 : 148;
+      const artY = cardY + (this.touchLayout ? 150 : 155);
+      this.add.text(x + 23, cardY + 12, String(index + 1).padStart(2, '0'), {
+        fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '20px' : '15px', color: '#f1e4c9',
         backgroundColor: '#0a0d12', padding: { x: 7, y: 4 }
       }).setOrigin(0, 0);
-
-      this.add.text(x + 13, cardY + (this.touchLayout ? 136 : 164), region.name, {
-        fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '28px' : '17px', color: '#f0e6d6',
-        wordWrap: { width: cardWidth - 26 }, align: 'center', fontStyle: 'bold'
+      this.add.text(x + cardWidth / 2, cardY + (this.touchLayout ? 12 : 10), region.name, {
+        fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '28px' : '15px', color: '#f0e6d6',
+        wordWrap: { width: cardWidth - 48 }, align: 'center', fontStyle: 'bold'
       }).setOrigin(0.5, 0);
-      this.add.text(x + 13, cardY + (this.touchLayout ? 172 : 202), region.subtitle, {
-        fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '18px' : '11px', color: '#c7ad7b',
-        wordWrap: { width: cardWidth - 26 }, align: 'center'
+      this.add.text(x + cardWidth / 2, cardY + (this.touchLayout ? 43 : 36), region.subtitle, {
+        fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '18px' : '10px', color: '#c7ad7b',
+        wordWrap: { width: cardWidth - 28 }, align: 'center'
       }).setOrigin(0.5, 0);
-      this.add.text(x + 28, cardY + (this.touchLayout ? 202 : 228), region.atmosphere, {
-        fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '17px' : '11px', color: '#aaa2a0',
+      this.add.image(x + cardWidth / 2, artY, regionCardTextureKey(region.id))
+        .setDisplaySize(artWidth, artHeight).setDepth(-16);
+      this.add.rectangle(x + cardWidth / 2, artY, artWidth, artHeight, paletteColor, 0.04)
+        .setStrokeStyle(1, 0xb99a61, 0.62).setDepth(-15);
+      this.add.text(x + cardWidth / 2, cardY + (this.touchLayout ? 218 : 236), region.atmosphere, {
+        fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '17px' : '10px', color: '#aaa2a0',
         wordWrap: { width: cardWidth - 32 }, align: 'center', lineSpacing: 3
       }).setOrigin(0.5, 0);
-      this.add.text(x + 14, cardY + (this.touchLayout ? 244 : 266),
-        `BOSS  ${region.bossId.replaceAll('-', ' ').toUpperCase()}\n${region.enemyIds.length} DÜŞMAN TÜRÜ\n${region.hazards.length} ÇEVRESEL TEHLİKE`, {
-          fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '10px', color: '#d8c9ad',
-          wordWrap: { width: cardWidth - 28 }, align: 'center', lineSpacing: 5
+      this.add.text(x + cardWidth / 2, cardY + (this.touchLayout ? 246 : 264),
+        `BOSS  ${region.bossId.replaceAll('-', ' ').toUpperCase()}  •  ${region.enemyIds.length} DÜŞMAN  •  ${region.hazards.length} TEHLİKE`, {
+          fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '9px', color: '#d8c9ad',
+          wordWrap: { width: cardWidth - 28 }, align: 'center', lineSpacing: 4
         }).setOrigin(0.5, 0);
 
       const unlocked = this.unlockedRegionIds.has(region.id);
