@@ -124,6 +124,9 @@ export class RunScene extends Phaser.Scene {
   private hud!:Phaser.GameObjects.Text;
   private clock!:Phaser.GameObjects.Text;
   private health!:Phaser.GameObjects.Rectangle;
+  private healthText?:Phaser.GameObjects.Text;
+  private xpFill?:Phaser.GameObjects.Rectangle;
+  private clockCaption?:Phaser.GameObjects.Text;
   private bossPanel?:Phaser.GameObjects.Rectangle;
   private bossHud?:Phaser.GameObjects.Text;
   private bossHealthTrack?:Phaser.GameObjects.Rectangle;
@@ -1272,13 +1275,18 @@ export class RunScene extends Phaser.Scene {
     const w=this.scale.width,center=w/2;
     const bossWidth=Math.min(400,w-32),bossBarWidth=bossWidth-56,bossLeft=center-bossBarWidth/2;
     const eventWidth=Math.min(460,w-32),eventBarWidth=eventWidth-44,eventLeft=center-eventBarWidth/2;
-    drawUiPanel(this, 12, 8, w - 24, 54, 0x8c7657, 96, 0.68);
-    this.hud=this.add.text(22,18,'',{fontFamily:'Arial',fontSize:'15px',color:'#eee5d6',lineSpacing:6}).setScrollFactor(0).setDepth(100);
-    this.clock=this.add.text(center,18,'00:00',{fontFamily:'Georgia',fontSize:'23px',color:'#d4b777'}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
-    this.add.rectangle(w-130,32,184,14,0x211d24,0.98).setStrokeStyle(1,0x8c7657,0.82).setScrollFactor(0).setDepth(100);
-    this.add.rectangle(w-130,32,172,6,0x45343a).setScrollFactor(0).setDepth(100);
-    this.health=this.add.rectangle(w-216,32,160,7,0xc76a70).setOrigin(0,.5).setScrollFactor(0).setDepth(101);
-    const pause=this.add.text(w-34,68,'Ⅱ',{fontSize:'25px',color:'#d6c8b3'}).setOrigin(.5).setScrollFactor(0).setDepth(120).setInteractive();
+    drawUiPanel(this, 12, 8, w - 24, 62, 0x8c7657, 96, 0.78);
+    this.hud=this.add.text(24,14,'',{fontFamily:'Arial',fontSize:'13px',color:'#f0e7d8',lineSpacing:5}).setScrollFactor(0).setDepth(100);
+    this.clock=this.add.text(center,10,'00:00',{fontFamily:'Georgia',fontSize:'25px',fontStyle:'bold',color:'#e4c783',stroke:'#100e13',strokeThickness:2}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
+    this.clockCaption=this.add.text(center,40,'15 DAKİKALIK KOŞU',{fontFamily:'Arial',fontSize:'9px',fontStyle:'bold',color:'#b9a17d',letterSpacing:1}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
+    this.add.text(24,52,'XP',{fontFamily:'Arial',fontSize:'9px',fontStyle:'bold',color:'#c7ad7b'}).setScrollFactor(0).setDepth(101);
+    this.add.rectangle(50,57,174,5,0x302d34,1).setOrigin(0,.5).setScrollFactor(0).setDepth(100);
+    this.xpFill=this.add.rectangle(50,57,1,3,0x86c7b5,1).setOrigin(0,.5).setScrollFactor(0).setDepth(101);
+    this.healthText=this.add.text(w-238,15,'CAN  100 / 100',{fontFamily:'Arial',fontSize:'11px',fontStyle:'bold',color:'#f0d6d0'}).setScrollFactor(0).setDepth(101);
+    this.add.rectangle(w-158,43,160,12,0x211d24,0.98).setStrokeStyle(1,0x8c7657,0.82).setScrollFactor(0).setDepth(100);
+    this.add.rectangle(w-158,43,152,5,0x45343a).setScrollFactor(0).setDepth(100);
+    this.health=this.add.rectangle(w-234,43,144,6,0xc76a70).setOrigin(0,.5).setScrollFactor(0).setDepth(101);
+    const pause=this.add.text(w-34,74,'Ⅱ',{fontSize:'25px',color:'#d6c8b3'}).setOrigin(.5).setScrollFactor(0).setDepth(120).setInteractive();
     pause.on('pointerup',()=>this.openPause());
 
     this.bossPanel=this.add.rectangle(center,99,bossWidth,94,0x171319,.94).setStrokeStyle(1,0x8d6d55,.78).setScrollFactor(0).setDepth(108).setVisible(false);
@@ -1299,7 +1307,7 @@ export class RunScene extends Phaser.Scene {
 
     this.questHudPanel=this.add.rectangle(198,160,352,82,0x171319,.86).setStrokeStyle(1,0x756653,.7).setScrollFactor(0).setDepth(98).setVisible(false);
     this.questHud=this.add.text(34,123,'',{fontFamily:'Arial',fontSize:'12px',color:'#e7dccb',lineSpacing:4,wordWrap:{width:326}}).setScrollFactor(0).setDepth(99).setVisible(false);
-    this.environmentHud=this.add.text(w/2+118,22,'',{fontFamily:'Arial',fontSize:'12px',color:'#c9d2d6',align:'left'}).setOrigin(0,.5).setScrollFactor(0).setDepth(100);
+    this.environmentHud=this.add.text(w/2+138,20,'',{fontFamily:'Arial',fontSize:'10px',color:'#c9d2d6',align:'left'}).setOrigin(0,.5).setScrollFactor(0).setDepth(100);
     this.environmentOverlay=this.add.rectangle(center,this.scale.height/2,w,this.scale.height,0xffffff,0).setScrollFactor(0).setDepth(90).setOrigin(.5);
     this.environmentPhaseOverlay=this.add.rectangle(center,this.scale.height/2,w,this.scale.height,0xffffff,0).setScrollFactor(0).setDepth(89).setOrigin(.5);
     this.updateEnvironment(true);
@@ -2928,12 +2936,21 @@ export class RunScene extends Phaser.Scene {
     this.overlay.push(this.add.text(w/2,h*.19,'GÜÇLENME SEÇİMİ',{fontFamily:'Georgia',fontSize:'30px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
     const instruction=this.banishMode?'MÜHÜRLEME: ÇIKARMAK İSTEDİĞİN KARTI SEÇ':'Bir gelişim seç. Her seçim koşunu değiştirir.';
     this.overlay.push(this.add.text(w/2,h*.27,instruction,{fontSize:'15px',color:this.banishMode?'#e59a8c':'#aaa0a0'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    const optionCount=Math.max(1,this.currentLevelChoices.length);
+    const cardWidth=Math.min(196,Math.floor((w-72-(optionCount-1)*12)/optionCount));
+    const cardHeight=Math.min(178,Math.max(142,h*.25));
+    const cardGap=12;
+    const rowWidth=optionCount*cardWidth+(optionCount-1)*cardGap;
+    const cardCenterY=h*.53;
     this.currentLevelChoices.forEach((choice,i)=>{
-      const x=w/2+(i-1.5)*220;
-      const card=this.add.rectangle(x,h*.53,196,170,0x28212a,.98).setStrokeStyle(2,this.banishMode?0xc65d62:0x9b8059).setScrollFactor(0).setDepth(201).setInteractive({useHandCursor:true});
-      const name=this.add.text(x,h*.48,choice.title,{fontFamily:'Georgia',fontSize:'17px',color:'#e8d6ad',align:'center',wordWrap:{width:170}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-      const detail=this.add.text(x,h*.59,choice.detail,{fontSize:'12px',color:'#b9b0ae',align:'center',wordWrap:{width:165}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-      this.overlay.push(card,name,detail);
+      const x=w/2-rowWidth/2+cardWidth/2+i*(cardWidth+cardGap);
+      const card=this.add.rectangle(x,cardCenterY,cardWidth,cardHeight,0x211d27,.99).setStrokeStyle(2,this.banishMode?0xc65d62:0x9b8059).setScrollFactor(0).setDepth(201).setInteractive({useHandCursor:true});
+      const kindLabel=choice.kind.startsWith('weapon')?'SİLAH':choice.kind.startsWith('passive')?'PASİF':'TEMEL GELİŞİM';
+      const eyebrow=this.add.text(x,cardCenterY-cardHeight*.36,kindLabel,{fontFamily:'Arial',fontSize:'9px',fontStyle:'bold',color:'#c7ad7b',letterSpacing:1}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      const name=this.add.text(x,cardCenterY-cardHeight*.12,choice.title,{fontFamily:'Georgia',fontSize:cardWidth<160?'14px':'16px',fontStyle:'bold',color:'#f0dfbd',align:'center',wordWrap:{width:cardWidth-22}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      const divider=this.add.rectangle(x,cardCenterY+cardHeight*.08,cardWidth-30,1,0x9b8059,.48).setScrollFactor(0).setDepth(202);
+      const detail=this.add.text(x,cardCenterY+cardHeight*.25,choice.detail,{fontFamily:'Arial',fontSize:cardWidth<160?'11px':'12px',color:'#d0c6ba',align:'center',wordWrap:{width:cardWidth-24},lineSpacing:4}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      this.overlay.push(card,eyebrow,name,divider,detail);
       this.registerOverlayOption(card,()=>this.banishMode?this.banishLevelChoice(choice):this.chooseUpgrade(choice));
     });
     const freeReroll=isPassiveSpecialActive(this.build,'scribes-lens')&&!this.passiveSpecialState.freeRerollUsed;
@@ -3194,7 +3211,7 @@ export class RunScene extends Phaser.Scene {
     const panelWidth=Math.min(1080,w*.9),panelHeight=h*.53,panelY=h*.56;
     const titleSize=(compact?38:38)*uiScale,bodySize=(compact?20:18)*uiScale,sectionSize=(compact?17:16)*uiScale;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.92).setScrollFactor(0).setDepth(200);
-    const panel=this.add.rectangle(w/2,panelY,panelWidth,panelHeight,0x1a151d,.98).setStrokeStyle(2,0x987b52,.95).setScrollFactor(0).setDepth(201);
+    const panel=drawUiPanel(this,w/2-panelWidth/2,panelY-panelHeight/2,panelWidth,panelHeight,0x987b52,201,.98);
     const eyebrow=this.add.text(w/2,h*.075,'KOŞU RAPORU',{fontSize:(compact?16:14)*uiScale+'px',fontStyle:'bold',color:'#b99b70',letterSpacing:3}).setOrigin(.5).setScrollFactor(0).setDepth(202);
     const title=this.add.text(w/2,h*.135,result.title,{fontFamily:'Georgia',fontSize:titleSize+'px',fontStyle:'bold',color:result.won?'#f0dfbd':'#e6b2a6'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
     const context=this.add.text(w/2,h*.225,result.characterName+'  •  '+result.regionName+'  •  '+result.modeLabel,{fontSize:16*uiScale+'px',color:'#c8bba9',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
@@ -3342,8 +3359,14 @@ export class RunScene extends Phaser.Scene {
     const abilityRemaining=Math.max(0,this.abilityReady-this.time.now);
     const modeLabel=(this.gameMode==='boss-hunt'?'BOSS HUNT':this.gameMode==='challenge'?'MEYDAN OKUMA':this.gameMode==='endless'?'SONSUZ':'SURVIVAL')+(this.newGamePlusLevel>0?'  •  NG+'+this.newGamePlusLevel:'');
     const endlessRule=this.gameMode==='endless'?getEndlessRule(this.state.elapsedMs):null;
-    this.hud.setText(this.character.name+'  •  '+modeLabel+(endlessRule?'  •  '+endlessRule.name:'')+'  •  LV '+this.state.level+'\nXP '+Math.floor(this.state.experience)+' / '+this.state.experienceToNext+'  •  Düşman '+this.state.kills+'\n'+this.region.name+'  •  Silah '+this.build.weapons.length+'/6  •  Pasif '+this.build.passives.length+'/6\nE: '+this.character.activeAbility+'  •  '+(abilityRemaining>0?(abilityRemaining/1000).toFixed(1)+'s':'HAZIR'));
-    this.health.setSize(160*Phaser.Math.Clamp(this.state.health/this.state.maxHealth,0,1),8);
+    this.hud.setText(this.character.name+'  •  '+modeLabel+(endlessRule?'  •  '+endlessRule.name:'')+'\nLV '+this.state.level+'   •   DÜŞMAN '+this.state.kills+'   •   E: '+(abilityRemaining>0?(abilityRemaining/1000).toFixed(1)+'s':'HAZIR'));
+    this.xpFill?.setSize(174*Phaser.Math.Clamp(this.state.experience/Math.max(1,this.state.experienceToNext),0,1),3);
+    this.health.setSize(144*Phaser.Math.Clamp(this.state.health/this.state.maxHealth,0,1),6);
+    this.healthText?.setText('CAN  '+Math.ceil(this.state.health)+' / '+Math.ceil(this.state.maxHealth));
+    if(this.bossState&&!this.bossState.defeated)this.clockCaption?.setText('BOSS  •  FAZ '+(this.bossState.phaseIndex+1));
+    else if(this.gameMode==='survival'&&!this.bossSpawned)this.clockCaption?.setText('BOSS İÇİN  '+formatRunDuration(Math.max(0,BOSS_START_MS-this.state.elapsedMs)));
+    else if(this.gameMode==='endless')this.clockCaption?.setText('SONSUZ KOŞU');
+    else this.clockCaption?.setText(modeLabel);
     this.refreshQuestHud();
     if(this.bossState)this.refreshBossHud();
     this.refreshRunEventHud();
