@@ -51,7 +51,7 @@ export function drawUiBackdrop(scene: Phaser.Scene, mood: UiBackdropMood): void 
       .setDepth(-1000).setName('ui-atmospheric-backdrop');
   }
   const shade = scene.add.graphics().setDepth(-999);
-  const shadeAlpha = mood === 'menu' ? 0.42 : mood === 'selection' ? 0.5 : mood === 'preparation' ? 0.56 : 0.66;
+  const shadeAlpha = mood === 'menu' ? 0.42 : mood === 'selection' ? 0.5 : mood === 'regions' ? 0.42 : mood === 'preparation' ? 0.56 : 0.66;
   shade.fillGradientStyle(PALETTE.abyss, PALETTE.abyss, 0x080d16, 0x070a11, shadeAlpha, shadeAlpha * 0.72, shadeAlpha, shadeAlpha * 0.88);
   shade.fillRect(0, 0, width, height);
   shade.lineStyle(1, PALETTE.gold, 0.22);
