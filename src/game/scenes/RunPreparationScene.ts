@@ -100,12 +100,14 @@ export class RunPreparationScene extends Phaser.Scene {
 
     drawUiBackdrop(this, 'preparation');
 
-    this.add.text(58, 32, 'KOŞU HAZIRLIĞI', {
-      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '40px' : '34px', color: '#e9dfcb', fontStyle: 'bold'
-    });
-    this.add.text(62, 78, 'Avcını, bölgeni ve başlangıç dizilimini son kez kontrol et.', {
-      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '18px' : '14px', color: '#b8aaa0'
-    });
+    this.add.text(width / 2, 28, 'SEFERE HAZIRLIK', {
+      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '40px' : '34px',
+      color: '#e9dfcb', fontStyle: 'bold'
+    }).setOrigin(0.5, 0);
+    this.add.text(width / 2, 78, 'Ekibini ve ekipmanını gözden geçir.', {
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '18px' : '14px',
+      color: '#b8aaa0'
+    }).setOrigin(0.5, 0);
 
     drawUiPanel(this, 58, 132, 340, 470, 0x9a8058, 0, 0.97);
     this.add.text(82, 154, 'KOŞU BİLGİSİ', {
