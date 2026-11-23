@@ -304,10 +304,10 @@ export class RunPreparationScene extends Phaser.Scene {
 
   private refreshSelection(): void {
     const width = this.scale.width;
-    const cardWidth = this.touchLayout ? width - 530 : (width - 530) / 2;
-    const cardHeight = this.touchLayout ? 250 : 112;
+    const cardWidth = this.touchLayout || this.options.length === 1 ? width - 530 : (width - 530) / 2;
+    const cardHeight = 112;
     const startX = 446;
-    const startY = this.touchLayout ? 238 : 194;
+    const startY = 194;
     this.frames.forEach((frame, index) => {
       const column = index % 2;
       const row = Math.floor(index / 2);
