@@ -260,8 +260,10 @@ test('player can select a hunter and an unlocked region before starting a run', 
 
   // Going back must retain the hunter selected on the previous screen.
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(120);
-  expect((await canvas.screenshot()).equals(selectedHunterFrame)).toBe(true);
+  await page.waitForFunction(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean; getScene: (key: string) => { browserTestSnapshot: () => { characterId: string } } } } }).__BEYOND_VEIL_GAME__;
+    return Boolean(game?.scene.isActive('character-select') && game.scene.getScene('character-select').browserTestSnapshot().characterId === 'black-knight');
+  });
   await page.keyboard.press('Enter');
   await page.waitForTimeout(120);
 
@@ -585,7 +587,7 @@ test('real level-up overlay supports XP, two rerolls, banish and one skip', asyn
   expect(initial.controls).toEqual({rerollsRemaining:2,banishesRemaining:1,skipsRemaining:1,bannedChoiceIds:[]});
 
   const firstIds=initial.choices.map(choice=>choice.id).sort();
-  await canvas.click({position:{x:410,y:569}});
+  await canvas.click({position:{x:410,y:601}});
   const afterFirstReroll=await readBrowserRunSnapshot(page);
   expect(afterFirstReroll.controls.rerollsRemaining).toBe(1);
   expect(afterFirstReroll.choices.map(choice=>choice.id).some(id=>firstIds.includes(id))).toBe(false);
@@ -601,7 +603,7 @@ test('real level-up overlay supports XP, two rerolls, banish and one skip', asyn
   expect((await readBrowserRunSnapshot(page)).choices.map(choice=>choice.id).sort()).toEqual(exhaustedRerollChoices);
 
   const bannedId=afterSecondReroll.choices[0]!.id;
-  await canvas.click({position:{x:640,y:569}});
+  await canvas.click({position:{x:640,y:601}});
   await canvas.click({position:{x:310,y:382}});
   const afterBanish=await readBrowserRunSnapshot(page);
   expect(afterBanish.controls.banishesRemaining).toBe(0);
@@ -609,7 +611,7 @@ test('real level-up overlay supports XP, two rerolls, banish and one skip', asyn
   expect(afterBanish.choices.map(choice=>choice.id)).not.toContain(bannedId);
 
   const queuedBeforeSkip=afterBanish.queuedLevels;
-  await canvas.click({position:{x:870,y:569}});
+  await canvas.click({position:{x:870,y:601}});
   const afterSkip=await readBrowserRunSnapshot(page);
   expect(afterSkip.controls.skipsRemaining).toBe(0);
   expect(afterSkip.queuedLevels).toBe(queuedBeforeSkip-1);
@@ -1314,7 +1316,7 @@ test('enemy defeat rewards survive death and a full page reload', async ({ page 
   expect(deathResult.runFinished).toBe(true);
   expect(deathResult.lastRunSaved).toBe(true);
   expect(deathResult.resultPresentation).toMatchObject({won:false,title:'AVCI DÜŞTÜ',characterName:'Lanetli Avcı',regionName:'Lanetli Orman',level:1,kills:1,collectedSoulEssence:1,persistedSoulEssence:1,saved:true});
-  expect(deathResult.questChoiceTexts).toContain('AVCI DÜŞTÜ');
+  expect(deathResult.questChoiceTexts).toContain('ÖLDÜN');
   expect(deathResult.questChoiceTexts).toContain('İLERLEME KAYDEDİLDİ');
 
   const savedAfterDeath=await page.evaluate(() => JSON.parse(window.localStorage.getItem('beyond-the-veil.save')!));
@@ -2603,7 +2605,7 @@ test('quest journal opens above the paused run and returns to the pause menu wit
   const opened = await readQuestJournalSnapshot(page);
   expect(opened.returnScene).toBe('run');
 
-  await page.keyboard.press('Escape');
+  await canvas.click({ position: { x: 1140, y: 100 } });
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean; isPaused: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('run') && !game.scene.isActive('quest-journal'));
