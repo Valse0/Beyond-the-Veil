@@ -220,7 +220,7 @@ def reference_image(filename: str):
     return image
 
 
-def mask_panel(image, box, alpha=244, radius=10):
+def mask_panel(image, box, alpha=255, radius=10):
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
     ImageDraw.Draw(overlay, "RGBA").rounded_rectangle(
         box, radius=radius, fill=(5, 8, 14, alpha)
@@ -228,12 +228,16 @@ def mask_panel(image, box, alpha=244, radius=10):
     image.alpha_composite(overlay.filter(ImageFilter.GaussianBlur(3)))
 
 
+def save_backdrop(image, filename):
+    image.convert('RGB').save(OUT / filename, 'JPEG', quality=90, optimize=True, progressive=True)
+
+
 # Main menu keeps the supplied title artwork and gothic city, while the old
 # baked menu labels are masked so all controls remain live Phaser objects.
 menu_reference = reference_image("01_main_menu.png")
-mask_panel(menu_reference, (0, 218, 452, 640), 246, 4)
-mask_panel(menu_reference, (0, 674, 330, 720), 242, 0)
-menu_reference.save(OUT / "menu-backdrop.png")
+mask_panel(menu_reference, (0, 218, 452, 640), 255, 4)
+mask_panel(menu_reference, (0, 674, 330, 720), 255, 0)
+save_backdrop(menu_reference, "menu-backdrop.jpg")
 
 # Hunter selection retains the original cathedral atmosphere; all static
 # labels, portraits and the old center character are hidden beneath live UI.
@@ -245,15 +249,15 @@ for box in [
     (852, 145, 1180, 548),
     (770, 580, 1200, 690),
 ]:
-    mask_panel(selection_reference, box, 246, 8)
-selection_reference.save(OUT / "selection-backdrop.png")
+    mask_panel(selection_reference, box, 255, 8)
+save_backdrop(selection_reference, "selection-backdrop.jpg")
 
 # Region screen: five portrait-format card artworks are extracted from the
 # supplied reference; all headings, locks and controls are recreated in Phaser.
 region_reference = reference_image("03_region_selection.png")
 for box in [(280, 8, 950, 128), (48, 138, 1170, 548), (40, 545, 1180, 700)]:
-    mask_panel(region_reference, box, 246, 8)
-region_reference.save(OUT / "region-selection-backdrop.png")
+    mask_panel(region_reference, box, 255, 8)
+save_backdrop(region_reference, "region-selection-backdrop.jpg")
 
 region_source_path = Path("beyond-the-veil-ui-design/03_region_selection.png")
 with Image.open(region_source_path) as source:
@@ -291,8 +295,8 @@ for box in [
     (565, 135, 1170, 620),
     (35, 620, 1190, 704),
 ]:
-    mask_panel(preparation_reference, box, 246, 8)
-preparation_reference.save(OUT / "preparation-backdrop.png")
+    mask_panel(preparation_reference, box, 255, 8)
+save_backdrop(preparation_reference, "preparation-backdrop.jpg")
 
 # Extract the three large reference upgrade glyphs for dynamic level-up cards.
 levelup_path = Path("beyond-the-veil-ui-design/06_level_up.png")
@@ -320,8 +324,8 @@ for box in [
     (350, 350, 930, 520),
     (320, 530, 950, 650),
 ]:
-    mask_panel(game_over_reference, box, 246, 8)
-game_over_reference.save(OUT / "game-over-backdrop.png")
+    mask_panel(game_over_reference, box, 255, 8)
+save_backdrop(game_over_reference, "game-over-backdrop.jpg")
 
 # The original hunter-selection portraits are cropped into a five-frame sheet.
 portrait_path = Path("beyond-the-veil-ui-design/02_hunter_selection.png")
@@ -343,13 +347,21 @@ reference_sources.append({
 })
 
 
+# Remove superseded PNG backdrops so the browser build does not ship duplicate
+# multi-megabyte background files alongside the compressed JPEG versions.
+for obsolete in [
+    "menu-backdrop.png", "selection-backdrop.png", "region-selection-backdrop.png",
+    "preparation-backdrop.png", "game-over-backdrop.png"
+]:
+    (OUT / obsolete).unlink(missing_ok=True)
+
 manifest = {
     "version": 1,
     "generatedBy": "scripts/build-ui-art.py",
-    "method": "Pillow nearest-neighbor compositions from repository ZIP asset atlases",
+    "method": "Reference-derived masked JPEG backdrops, cropped reference portraits/cards/icons, and Pillow compositions from repository ZIP asset atlases",
     "outputs": [
-        "menu-backdrop.png", "selection-backdrop.png", "region-selection-backdrop.png",
-        "preparation-backdrop.png", "game-over-backdrop.png", "hunter-portraits.png",
+        "menu-backdrop.jpg", "selection-backdrop.jpg", "region-selection-backdrop.jpg",
+        "preparation-backdrop.jpg", "game-over-backdrop.jpg", "hunter-portraits.png",
         "upgrade-icon-weapon.png", "upgrade-icon-passive.png", "upgrade-icon-base.png",
         "region-card-cursed-forest.png", "region-card-forgotten-graveyard.png",
         "region-card-deep-dungeon.png", "region-card-rotten-swamp.png",
