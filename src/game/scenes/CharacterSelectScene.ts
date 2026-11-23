@@ -69,8 +69,8 @@ export class CharacterSelectScene extends Phaser.Scene {
         });
     });
 
-    const heroX = 470;
-    const heroY = 346;
+    const heroX = Math.round(width * 0.47);
+    const heroY = Math.round(height * 0.48);
     const accent = accents[this.selectedIndex] ?? 0xc2a36d;
     this.add.circle(heroX, heroY, 154, accent, 0.09).setStrokeStyle(2, accent, 0.52).setDepth(-16);
     this.add.circle(heroX, heroY, 132, 0x080b12, 0.58).setStrokeStyle(1, 0xe0c58e, 0.34).setDepth(-15);
@@ -104,12 +104,12 @@ export class CharacterSelectScene extends Phaser.Scene {
     }).setOrigin(0.5, 0);
     this.selectedDescription = this.add.text(heroX, 586, '', {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '11px',
-      color: '#aaa2a0', align: 'center', wordWrap: { width: 440 }, lineSpacing: 3
+      color: '#aaa2a0', align: 'center', wordWrap: { width: 390 }, lineSpacing: 3
     }).setOrigin(0.5, 0);
 
-    const panelX = 830;
+    const panelX = Math.round(width * 0.68);
     const panelY = 166;
-    const panelWidth = 380;
+    const panelWidth = width - panelX - 64;
     const panelHeight = 420;
     const panelAccent = accents[this.selectedIndex] ?? 0xc2a36d;
     drawUiPanel(this, panelX, panelY, panelWidth, panelHeight, panelAccent, -12, 0.96);
