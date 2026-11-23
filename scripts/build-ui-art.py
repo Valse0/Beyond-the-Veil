@@ -1,4 +1,4 @@
-from PIL import Image, ImageDraw, ImageFilter, ImageEnhance
+from PIL import Image, ImageDraw, ImageFilter, ImageEnhance, ImageOps
 from pathlib import Path
 import json
 import random
@@ -203,6 +203,145 @@ for index, (slug, prop_folder, prop_prefix, terrain_folder, terrain_prefix,
         register_source(slug + " world prop " + prop_name, prop_png, prop_json)
 
 
+# Use the seven approved screen references as actual visual source material.
+# Dynamic Phaser controls are drawn over masked reference backgrounds; screenshots
+# are never used as flattened, non-interactive screens.
+reference_sources = []
+
+
+def reference_image(filename: str):
+    path = Path("beyond-the-veil-ui-design") / filename
+    with Image.open(path) as source:
+        image = ImageOps.fit(source.convert("RGBA"), (1280, 720), method=Image.Resampling.LANCZOS)
+    reference_sources.append({
+        "file": str(path),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest()
+    })
+    return image
+
+
+def mask_panel(image, box, alpha=244, radius=10):
+    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    ImageDraw.Draw(overlay, "RGBA").rounded_rectangle(
+        box, radius=radius, fill=(5, 8, 14, alpha)
+    )
+    image.alpha_composite(overlay.filter(ImageFilter.GaussianBlur(3)))
+
+
+# Main menu keeps the supplied title artwork and gothic city, while the old
+# baked menu labels are masked so all controls remain live Phaser objects.
+menu_reference = reference_image("01_main_menu.png")
+mask_panel(menu_reference, (0, 218, 452, 640), 246, 4)
+mask_panel(menu_reference, (0, 674, 330, 720), 242, 0)
+menu_reference.save(OUT / "menu-backdrop.png")
+
+# Hunter selection retains the original cathedral atmosphere; all static
+# labels, portraits and the old center character are hidden beneath live UI.
+selection_reference = reference_image("02_hunter_selection.png")
+for box in [
+    (380, 12, 900, 128),
+    (48, 100, 180, 652),
+    (390, 148, 820, 570),
+    (852, 145, 1180, 548),
+    (770, 580, 1200, 690),
+]:
+    mask_panel(selection_reference, box, 246, 8)
+selection_reference.save(OUT / "selection-backdrop.png")
+
+# Region screen: five portrait-format card artworks are extracted from the
+# supplied reference; all headings, locks and controls are recreated in Phaser.
+region_reference = reference_image("03_region_selection.png")
+for box in [(280, 8, 950, 128), (48, 138, 1170, 548), (40, 545, 1180, 700)]:
+    mask_panel(region_reference, box, 246, 8)
+region_reference.save(OUT / "region-selection-backdrop.png")
+
+region_source_path = Path("beyond-the-veil-ui-design/03_region_selection.png")
+with Image.open(region_source_path) as source:
+    source = source.convert("RGBA")
+    scale_x, scale_y = source.width / 1200, source.height / 670
+    card_boxes = [
+        (76, 212, 266, 408),
+        (296, 212, 486, 408),
+        (516, 212, 706, 408),
+        (736, 212, 926, 408),
+        (956, 212, 1146, 408),
+    ]
+    region_slugs = [
+        "cursed-forest", "forgotten-graveyard", "deep-dungeon",
+        "rotten-swamp", "cursed-castle"
+    ]
+    for slug, (x1, y1, x2, y2) in zip(region_slugs, card_boxes):
+        crop = source.crop((
+            round(x1 * scale_x), round(y1 * scale_y),
+            round(x2 * scale_x), round(y2 * scale_y)
+        ))
+        crop = ImageOps.fit(crop, (512, 384), method=Image.Resampling.LANCZOS)
+        crop.save(OUT / ("region-card-" + slug + ".png"))
+reference_sources.append({
+    "file": str(region_source_path),
+    "sha256": hashlib.sha256(region_source_path.read_bytes()).hexdigest()
+})
+
+# Run preparation uses its own reference hall; live loadout/profile controls
+# are drawn over the masked panel regions.
+preparation_reference = reference_image("04_run_preparation.png")
+for box in [
+    (340, 10, 970, 125),
+    (55, 135, 520, 620),
+    (565, 135, 1170, 620),
+    (35, 620, 1190, 704),
+]:
+    mask_panel(preparation_reference, box, 246, 8)
+preparation_reference.save(OUT / "preparation-backdrop.png")
+
+# Extract the three large reference upgrade glyphs for dynamic level-up cards.
+levelup_path = Path("beyond-the-veil-ui-design/06_level_up.png")
+with Image.open(levelup_path) as source:
+    source = source.convert("RGBA")
+    sx, sy = source.width / 1200, source.height / 675
+    icon_boxes = [
+        ("upgrade-icon-weapon.png", (324, 218, 454, 330)),
+        ("upgrade-icon-passive.png", (560, 218, 690, 330)),
+        ("upgrade-icon-base.png", (800, 218, 930, 330)),
+    ]
+    for output_name, (x1, y1, x2, y2) in icon_boxes:
+        icon = source.crop((round(x1*sx), round(y1*sy), round(x2*sx), round(y2*sy)))
+        ImageOps.fit(icon, (128, 128), method=Image.Resampling.LANCZOS).save(OUT / output_name)
+reference_sources.append({
+    "file": str(levelup_path),
+    "sha256": hashlib.sha256(levelup_path.read_bytes()).hexdigest()
+})
+
+# The reference game-over composition supplies the skull/veil boss artwork.
+# Mask only the old result text and controls; Phaser renders live run results.
+game_over_reference = reference_image("07_game_over.png")
+for box in [
+    (350, 245, 940, 342),
+    (350, 350, 930, 520),
+    (320, 530, 950, 650),
+]:
+    mask_panel(game_over_reference, box, 246, 8)
+game_over_reference.save(OUT / "game-over-backdrop.png")
+
+# The original hunter-selection portraits are cropped into a five-frame sheet.
+portrait_path = Path("beyond-the-veil-ui-design/02_hunter_selection.png")
+with Image.open(portrait_path) as source:
+    source = source.convert("RGBA")
+    sx, sy = source.width / 1200, source.height / 670
+    portrait_y = [(340, 405), (115, 165), (175, 238), (255, 320), (420, 485)]
+    sheet = Image.new("RGBA", (800, 160), (8, 11, 17, 255))
+    for index, (top, bottom) in enumerate(portrait_y):
+        crop = source.crop((
+            round(78*sx), round(top*sy), round(144*sx), round(bottom*sy)
+        ))
+        portrait = ImageOps.fit(crop, (160, 160), method=Image.Resampling.LANCZOS)
+        sheet.alpha_composite(portrait, (index * 160, 0))
+    sheet.save(OUT / "hunter-portraits.png")
+reference_sources.append({
+    "file": str(portrait_path),
+    "sha256": hashlib.sha256(portrait_path.read_bytes()).hexdigest()
+})
+
 # Game-over scene: a boss portrait, citadel ruins and a restrained blood eclipse.
 boss_png = next(ROOT.glob("**/the_fallen_sovereign_idle.png"))
 with Image.open(boss_png) as source:
@@ -231,8 +370,8 @@ manifest = {
     "generatedBy": "scripts/build-ui-art.py",
     "method": "Pillow nearest-neighbor compositions from repository ZIP asset atlases",
     "outputs": [
-        "menu-backdrop.png", "selection-backdrop.png", "preparation-backdrop.png",
-        "game-over-backdrop.png",
+        "menu-backdrop.png", "selection-backdrop.png", "region-selection-backdrop.png",
+        "preparation-backdrop.png", "game-over-backdrop.png", "hunter-portraits.png",
         "upgrade-icon-weapon.png", "upgrade-icon-passive.png", "upgrade-icon-base.png",
         "region-card-cursed-forest.png", "region-card-forgotten-graveyard.png",
         "region-card-deep-dungeon.png", "region-card-rotten-swamp.png",
@@ -242,7 +381,8 @@ manifest = {
         for slug, _, _, _, _, prop_names, _, _ in regions
         for prop_name in prop_names
     ],
-    "sources": sources
+    "sources": sources,
+    "referenceSources": reference_sources
 }
 (OUT / "generated-art-manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 print("Generated", len(manifest["outputs"]), "UI art assets.")
