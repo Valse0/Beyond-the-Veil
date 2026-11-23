@@ -10,12 +10,13 @@ on:
       - 'A_mysterious_adult_male_cursed.zip'
       - 'Beyond_The_Veil_Asset_Pack_0.1.0.zip'
       - 'beyond-the-veil-ui-design/**'
+      - 'scripts/build-ui-art.py'
 
   release:
     types: [published]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   inspect-assets:
@@ -98,7 +99,7 @@ jobs:
                           raise SystemExit(f"Entry exceeds 100 MB: {archive_name}:{raw}")
                       total_uncompressed += info.file_size
                       if total_uncompressed > max_total:
-                          raise SystemExit("Combined uncompressed ZIP content exceeds 500 MB")
+                          raise SystemExit("Combined uncompressed ZIP content exceeds 1500 MB")
                       target = archive_dir.joinpath(*p.parts)
                       if info.is_dir():
                           target.mkdir(parents=True, exist_ok=True)
@@ -220,6 +221,22 @@ jobs:
                   f.write("\n".join(report) + "\n")
           print(json.dumps(summary, indent=2))
           PY
+
+      - name: Generate production UI art from extracted atlases
+        run: python scripts/build-ui-art.py
+
+      - name: Commit generated UI art
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/assets/ui/*.png public/assets/ui/generated-art-manifest.json
+          if git diff --cached --quiet; then
+            echo "Generated UI art is already up to date."
+          else
+            git commit -m "art: generate seven-screen UI backgrounds and region cards"
+            git push origin HEAD:full-game-development
+          fi
 
       - name: Upload inspection report and contact sheets
         uses: actions/upload-artifact@v4
