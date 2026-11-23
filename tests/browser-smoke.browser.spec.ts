@@ -3089,7 +3089,11 @@ test('collection archive uses touch focus layout and supports touch category and
   const tapCanvas = async (x: number, y: number) => {
     const bounds = await canvas.boundingBox();
     if (!bounds) throw new Error('Game canvas is not visible.');
-    await page.touchscreen.tap(bounds.x + (x / 1280) * bounds.width, bounds.y + (y / 720) * bounds.height);
+    const logicalSize = await page.evaluate(() => {
+      const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scale: { gameSize: { width: number; height: number } } } }).__BEYOND_VEIL_GAME__;
+      return game?.scale.gameSize ?? { width: 1280, height: 720 };
+    });
+    await page.touchscreen.tap(bounds.x + (x / logicalSize.width) * bounds.width, bounds.y + (y / logicalSize.height) * bounds.height);
   };
   await page.goto('/?bv-test=1');
   await expect(canvas).toBeVisible();
