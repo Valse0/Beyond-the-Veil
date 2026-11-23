@@ -50,8 +50,8 @@ export class CharacterSelectScene extends Phaser.Scene {
 
     const accents = [0xc2a36d, 0x8793a7, 0x75b9b2, 0x8e77b8, 0xc65c70];
     const railX = 70;
-    const railY = 166;
-    const railSize = 82;
+    const railY = 160;
+    const railSize = 74;
     const railGap = 12;
     CHARACTERS.forEach((character, index) => {
       const y = railY + index * (railSize + railGap);
@@ -59,7 +59,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       const frame = this.add.graphics().setDepth(-18);
       this.frames.push(frame);
       this.add.image(railX + railSize / 2, y + railSize / 2, UI_ASSET_KEYS.hunterPortraits, index)
-        .setDisplaySize(68, 68).setDepth(-16).setName('hunter-portrait-' + character.id);
+        .setDisplaySize(64, 64).setDepth(-16).setName('hunter-portrait-' + character.id);
       this.add.zone(railX + railSize / 2, y + railSize / 2, railSize, railSize)
         .setInteractive({ useHandCursor: true })
         .on('pointerup', () => {
@@ -187,8 +187,8 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   private refreshSelection(): void {
     const railX = 70;
-    const railY = 166;
-    const railSize = 82;
+    const railY = 160;
+    const railSize = 74;
     const railGap = 12;
     const accents = [0xc2a36d, 0x8793a7, 0x75b9b2, 0x8e77b8, 0xc65c70];
     this.frames.forEach((frame, index) => {
