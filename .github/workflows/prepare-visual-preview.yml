@@ -10,6 +10,8 @@ on:
       - 'beyond-the-veil-ui-design/03_region_selection.png'
       - 'beyond-the-veil-ui-design/04_run_preparation.png'
       - 'beyond-the-veil-ui-design/05_gameplay_hud.png'
+      - 'beyond-the-veil-ui-design/06_level_up.png'
+      - 'beyond-the-veil-ui-design/07_game_over.png'
       - '.github/workflows/prepare-visual-preview.yml'
   workflow_dispatch:
 
@@ -105,5 +107,5 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "chore: prepare seven UI design previews"
-            git push origin HEAD:${GITHUB_REF_NAME}
+            git push origin HEAD:\${GITHUB_REF_NAME}
           fi
