@@ -12,6 +12,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   private previousPad = { left: false, right: false, confirm: false, back: false, details: false };
   private touchLayout = false;
   private selectedPortrait?: Phaser.GameObjects.Image;
+  private selectedHunterSprite?: Phaser.GameObjects.Sprite;
   private selectedName?: Phaser.GameObjects.Text;
   private selectedRole?: Phaser.GameObjects.Text;
   private selectedDescription?: Phaser.GameObjects.Text;
@@ -80,6 +81,19 @@ export class CharacterSelectScene extends Phaser.Scene {
     pedestal.strokeEllipse(heroX, 510, 286, 34);
     this.selectedPortrait = this.add.image(heroX, heroY, UI_ASSET_KEYS.hunterPortraits, this.selectedIndex)
       .setDisplaySize(276, 276).setDepth(-13).setName('selected-hunter-portrait');
+    const hunterIdleKey = 'ui-cursed-hunter-idle-south';
+    if (!this.anims.exists(hunterIdleKey)) {
+      this.anims.create({
+        key: hunterIdleKey,
+        frames: this.anims.generateFrameNumbers('ui-cursed-hunter-idle', { start: 0, end: 3 }),
+        frameRate: 5,
+        repeat: -1
+      });
+    }
+    this.selectedHunterSprite = this.add.sprite(heroX, 482, 'ui-cursed-hunter-idle', 0)
+      .setOrigin(0.5, 0.88).setScale(4.5).setDepth(-12)
+      .setName('selected-cursed-hunter-full-body').setVisible(false);
+    this.selectedHunterSprite.play(hunterIdleKey);
     this.selectedName = this.add.text(heroX, 526, '', {
       fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '30px' : '25px',
       color: '#f0e6d6', fontStyle: 'bold', align: 'center'
@@ -210,6 +224,8 @@ export class CharacterSelectScene extends Phaser.Scene {
     const weapon = WEAPONS.find(item => item.id === character.startingWeaponId);
     const passive = PASSIVES.find(item => item.id === character.startingPassiveId);
     this.selectedPortrait?.setFrame(this.selectedIndex);
+    this.selectedPortrait?.setVisible(this.selectedIndex !== 0);
+    this.selectedHunterSprite?.setVisible(this.selectedIndex === 0);
     this.selectedName?.setText(character.name);
     this.selectedRole?.setText(character.role.toLocaleUpperCase('tr-TR'));
     this.selectedDescription?.setText(character.description);
