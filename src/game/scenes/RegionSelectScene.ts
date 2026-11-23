@@ -62,12 +62,21 @@ export class RegionSelectScene extends Phaser.Scene {
 
     drawUiBackdrop(this, 'selection');
 
-    this.add.text(64, 38, 'BÖLGE VE ZORLUK', {
-      fontFamily: 'Georgia, serif', fontSize: '36px', color: '#e9dfcb', fontStyle: 'bold'
+    const selectedHunterIndex = Math.max(0, CHARACTERS.findIndex(item => item.id === this.characterId));
+    drawUiPanel(this, 52, 24, 250, 74, 0x9a8058, -10, 0.9);
+    this.add.image(92, 61, UI_ASSET_KEYS.hunterPortraits, selectedHunterIndex).setDisplaySize(58, 58).setDepth(-8);
+    this.add.text(132, 42, 'SEÇİLEN AVCI', {
+      fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#b99a61', fontStyle: 'bold', letterSpacing: 1
     });
-    this.add.text(67, 84, `${character.name} ile hangi mühür diyarına gireceksin?`, {
-      fontFamily: 'Arial, sans-serif', fontSize: '15px', color: '#b8aaa0'
+    this.add.text(132, 59, character.name, {
+      fontFamily: 'Georgia, serif', fontSize: '17px', color: '#f0e6d6', fontStyle: 'bold'
     });
+    this.add.text(width / 2, 30, 'BÖLGE & ZORLUK SEÇİMİ', {
+      fontFamily: 'Georgia, serif', fontSize: '34px', color: '#e9dfcb', fontStyle: 'bold'
+    }).setOrigin(0.5, 0);
+    this.add.text(width / 2, 78, 'Keşif yapacağın bölgeyi ve koşu biçimini seç.', {
+      fontFamily: 'Georgia, serif', fontSize: '15px', color: '#c7ad7b'
+    }).setOrigin(0.5, 0);
 
     const gap = 12;
     const margin = this.touchLayout ? 230 : 64;
@@ -82,26 +91,28 @@ export class RegionSelectScene extends Phaser.Scene {
       const frame = this.add.graphics().setDepth(-18)
       this.frames.push(frame);
       const paletteColor = Number.parseInt((region.palette[1] ?? '#51484a').replace('#', ''), 16);
-      this.add.image(x + cardWidth / 2, cardY + 58, UI_ASSET_KEYS.regionArt, index).setDisplaySize(cardWidth - 26, 100).setDepth(-16);
-      this.add.rectangle(x + cardWidth / 2, cardY + 58, cardWidth - 26, 100, paletteColor, 0.12).setStrokeStyle(1, 0xb99a61, 0.52).setDepth(-15);
+      const artHeight = this.touchLayout ? 126 : 148;
+      const artY = cardY + (this.touchLayout ? 68 : 82);
+      this.add.image(x + cardWidth / 2, artY, UI_ASSET_KEYS.regionArt, index).setDisplaySize(cardWidth - 22, artHeight).setDepth(-16);
+      this.add.rectangle(x + cardWidth / 2, artY, cardWidth - 22, artHeight, paletteColor, 0.08).setStrokeStyle(1, 0xb99a61, 0.52).setDepth(-15);
       this.add.text(x + 23, cardY + 18, String(index + 1).padStart(2, '0'), {
         fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '20px' : '17px', color: '#f1e4c9',
         backgroundColor: '#0a0d12', padding: { x: 7, y: 4 }
       }).setOrigin(0, 0);
 
-      this.add.text(x + 13, cardY + 116, region.name, {
+      this.add.text(x + 13, cardY + (this.touchLayout ? 136 : 164), region.name, {
         fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '28px' : '17px', color: '#f0e6d6',
         wordWrap: { width: cardWidth - 26 }, align: 'center', fontStyle: 'bold'
       }).setOrigin(0.5, 0);
-      this.add.text(x + 13, cardY + (this.touchLayout ? 158 : 154), region.subtitle, {
+      this.add.text(x + 13, cardY + (this.touchLayout ? 172 : 202), region.subtitle, {
         fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '18px' : '11px', color: '#c7ad7b',
         wordWrap: { width: cardWidth - 26 }, align: 'center'
       }).setOrigin(0.5, 0);
-      this.add.text(x + 28, cardY + (this.touchLayout ? 190 : 184), region.atmosphere, {
+      this.add.text(x + 28, cardY + (this.touchLayout ? 202 : 228), region.atmosphere, {
         fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '17px' : '11px', color: '#aaa2a0',
         wordWrap: { width: cardWidth - 32 }, align: 'center', lineSpacing: 3
       }).setOrigin(0.5, 0);
-      this.add.text(x + 14, cardY + (this.touchLayout ? 238 : 250),
+      this.add.text(x + 14, cardY + (this.touchLayout ? 244 : 266),
         `BOSS  ${region.bossId.replaceAll('-', ' ').toUpperCase()}\n${region.enemyIds.length} DÜŞMAN TÜRÜ\n${region.hazards.length} ÇEVRESEL TEHLİKE`, {
           fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '10px', color: '#d8c9ad',
           wordWrap: { width: cardWidth - 28 }, align: 'center', lineSpacing: 5
@@ -109,7 +120,7 @@ export class RegionSelectScene extends Phaser.Scene {
 
       const unlocked = this.unlockedRegionIds.has(region.id);
       if (!unlocked) {
-        this.add.text(x + cardWidth / 2, cardY + cardHeight - (this.touchLayout ? 20 : 38), 'KİLİTLİ', {
+        this.add.text(x + cardWidth / 2, cardY + cardHeight - (this.touchLayout ? 18 : 26), 'KİLİTLİ', {
           fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '17px' : '12px', color: '#d18b82',
           fontStyle: 'bold', backgroundColor: '#241b20', padding: { x: 12, y: 6 }
         }).setOrigin(0.5);
