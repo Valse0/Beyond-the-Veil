@@ -1,5 +1,5 @@
 format=jpeg
 width=1200
 height=670
-chunks=26
-chunk_size=6000
+chunks=1
+chunk_size=180000
