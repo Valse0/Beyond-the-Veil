@@ -342,28 +342,6 @@ reference_sources.append({
     "sha256": hashlib.sha256(portrait_path.read_bytes()).hexdigest()
 })
 
-# Game-over scene: a boss portrait, citadel ruins and a restrained blood eclipse.
-boss_png = next(ROOT.glob("**/the_fallen_sovereign_idle.png"))
-with Image.open(boss_png) as source:
-    boss = source.convert("RGBA").crop((0, 0, 96, 96))
-register_source("cursed-citadel final boss", boss_png)
-
-back = gradient((640, 360), (24, 8, 18), (10, 11, 19))
-draw = ImageDraw.Draw(back, "RGBA")
-draw.ellipse((220, 18, 420, 218), fill=(130, 24, 38, 72), outline=(194, 48, 60, 170), width=4)
-draw.ellipse((248, 46, 392, 190), fill=(104, 16, 34, 150), outline=(222, 71, 77, 180), width=2)
-for index in range(26):
-    angle = math.pi * 2 * index / 26
-    x1, y1 = 320 + math.cos(angle) * 94, 118 + math.sin(angle) * 94
-    x2, y2 = 320 + math.cos(angle) * 142, 118 + math.sin(angle) * 142
-    draw.line((x1, y1, x2, y2), fill=(160, 35, 47, 48), width=2)
-paste_height(back, boss, 320, 280, 230)
-paste_height(back, get("citadel_tower_ruined_01"), 80, 350, 170)
-paste_height(back, get("citadel_arch_fortress_01"), 565, 350, 200)
-shade = Image.new("RGBA", back.size)
-ImageDraw.Draw(shade, "RGBA").rectangle((0, 205, 640, 360), fill=(5, 6, 12, 150))
-back.alpha_composite(shade)
-back.resize((1280, 720), Image.Resampling.NEAREST).save(OUT / "game-over-backdrop.png")
 
 manifest = {
     "version": 1,
