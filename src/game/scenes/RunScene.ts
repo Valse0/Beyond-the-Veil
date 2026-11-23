@@ -96,6 +96,14 @@ const PROTOTYPE_ENEMY_FRAME_SIZES:Record<string,number>={
   'veil-stalker':48,'frost-hound':56,'mirror-mimic':48,'soul-anchor':64,'dusk-revenant':64
 };
 
+const REGION_WORLD_PROPS:Record<RegionId,string[]>={
+  'cursed-forest':['forest_tree_ancient_roots_01','forest_tree_dead_oak_01','forest_crystal_turquoise_01','forest_bush_dense_01','forest_mushroom_violet_01'],
+  'forgotten-graveyard':['cemetery_chapel_facade_ruined_01','cemetery_gravestone_gothic_01','cemetery_crypt_entrance_open_01','cemetery_cursed_monument_flame_01','cemetery_gothic_pillar_pair_01'],
+  'deep-dungeon':['dungeon_arch_gothic_01','dungeon_machine_gear_large_01','dungeon_gate_iron_open','dungeon_torch_fire_01','dungeon_lava_fissure_01'],
+  'rotten-swamp':['swamp_tree_ancient_01','swamp_tree_submerged_01','swamp_root_arch_large_01','swamp_plant_reeds_01','swamp_fog_teal_01'],
+  'cursed-castle':['citadel_tower_central_keep_01','citadel_spire_gothic_01','citadel_gate_royal_ceremonial_01','citadel_statue_knight_kneeling_01','citadel_veil_portal_active_01']
+};
+
 
 export class RunScene extends Phaser.Scene {
   private state:RunState=createRunState();
@@ -1116,6 +1124,10 @@ export class RunScene extends Phaser.Scene {
     for(const region of REGIONS){
       const key='region-floor-'+region.id;
       if(!this.textures.exists(key))this.load.image(key,`/assets/prototype/regions/${region.id}-ground.png`);
+      for(const propId of REGION_WORLD_PROPS[region.id]??[]){
+        const propKey='region-prop-'+region.id+'-'+propId;
+        if(!this.textures.exists(propKey))this.load.image(propKey,`/assets/world/props/${region.id}-${propId}.png`);
+      }
     }
   }
 
@@ -1202,6 +1214,7 @@ export class RunScene extends Phaser.Scene {
     floor.lineStyle(1,0x3a3337,0.12);
     for(let i=0;i<28;i++){const x=Phaser.Math.Between(80,WORLD_W-80),y=Phaser.Math.Between(80,WORLD_H-80);floor.lineStyle(2,0x8a795d,0.08);floor.strokeCircle(x,y,Phaser.Math.Between(18,64));}
     floor.setDepth(-9);
+    this.createRegionDecorations();
     this.enemies=this.physics.add.group();this.shots=this.physics.add.group({maxSize:100});this.orbs=this.physics.add.group({maxSize:80});this.eventObjects=this.physics.add.group();this.bossArenaObjects=this.physics.add.group();this.bossTraceObjects=this.add.group();
     const start=resolveRegionMapPosition(this.mapLayout,WORLD_W/2,WORLD_H/2,24);
     const playerTexture=this.textures.exists('hunter-idle')?'hunter-idle':'hunter';
@@ -1263,6 +1276,26 @@ export class RunScene extends Phaser.Scene {
       this.waveDirector={...this.waveDirector,nextSpawnAtMs:Number.POSITIVE_INFINITY,nextEliteAtMs:Number.POSITIVE_INFINITY};
       if(getGameModeRules(this.gameMode).startsBossImmediately)this.spawnBoss();
     }
+  }
+
+  private createRegionDecorations():void {
+    const props=REGION_WORLD_PROPS[this.region.id]??[];
+    if(!props.length)return;
+    const rooms=this.mapLayout.rooms;
+    rooms.forEach((room,index)=>{
+      const count=Math.min(3,props.length);
+      for(let i=0;i<count;i++){
+        const propId=props[(index+i*2)%props.length]!;
+        const key='region-prop-'+this.region.id+'-'+propId;
+        if(!this.textures.exists(key))continue;
+        const angle=index*2.399+i*(Math.PI*2/count);
+        const x=Phaser.Math.Clamp(room.x+Math.cos(angle)*room.radiusX*.68,72,WORLD_W-72);
+        const y=Phaser.Math.Clamp(room.y+Math.sin(angle)*room.radiusY*.68,72,WORLD_H-72);
+        const scale=this.region.id==='cursed-forest'||this.region.id==='rotten-swamp'?1.45:1.25;
+        this.add.image(x,y,key).setOrigin(.5,.86).setScale(scale).setAlpha(.92).setDepth(-8)
+          .setName('region-decoration-'+this.region.id+'-'+index+'-'+i);
+      }
+    });
   }
 
   private makeTextures():void {
