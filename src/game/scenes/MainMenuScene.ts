@@ -44,30 +44,17 @@ export class MainMenuScene extends Phaser.Scene {
     drawUiBackdrop(this, 'menu');
     const width = this.scale.width;
     this.add.rectangle(248, h / 2, 496, h, 0x05080e, 0.24).setDepth(-997);
-    this.add.text(width * 0.56 + 2, h * 0.205 + 3, 'BEYOND\nTHE VEIL', {
-      fontFamily: 'Georgia, serif', fontSize: '54px', fontStyle: 'bold',
-      color: '#090d15', align: 'center', lineSpacing: -8, letterSpacing: 3
-    }).setOrigin(0.5).setDepth(-995);
-    this.add.text(width * 0.56, h * 0.205, 'BEYOND\nTHE VEIL', {
-      fontFamily: 'Georgia, serif', fontSize: '54px', fontStyle: 'bold',
-      color: '#e8d5ad', stroke: '#30251d', strokeThickness: 3,
-      shadow: { offsetX: 0, offsetY: 2, color: '#080a10', blur: 8, fill: true },
-      align: 'center', lineSpacing: -8, letterSpacing: 3
-    }).setOrigin(0.5).setDepth(-994);
-    this.add.text(112, h * 0.39, 'YOLUNU SEÇ', {
-      fontFamily: 'Georgia, serif', fontSize: '16px', color: '#cbb58e',
-      fontStyle: 'bold', letterSpacing: 3
-    }).setOrigin(0, 0.5).setDepth(-993);
-
-    const firstY = Math.round(h * 0.47);
-    const rowGap = Math.round(h * 0.075);
+    // The reference backdrop already contains the original pixel-art logo.
+    // Keep that artwork untouched and draw only live menu controls over its masked panel.
+    const firstY = Math.round(h * 0.43);
+    const rowGap = Math.round(h * 0.08);
     const menuStyle = {
       fontFamily: 'Georgia, serif', fontSize: '19px', color: '#ded2bc',
       padding: { x: 18, y: 9 }
     } as const;
     const createMenuButton = (item: MainMenuItem, y: number, label: string): Phaser.GameObjects.Text => {
       this.menuFrames.set(item, this.add.graphics().setDepth(-996));
-      return this.add.text(112, y, label, menuStyle)
+      return this.add.text(152, y, label, menuStyle)
         .setFixedSize(350, 44).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
     };
 
@@ -91,7 +78,7 @@ export class MainMenuScene extends Phaser.Scene {
       this.newGamePlusButton = createMenuButton('new-game-plus', firstY + rowGap * 4, '   NG+ DÖNGÜSÜ');
       this.newGamePlusButton.on('pointerover', () => this.setSelectedItem('new-game-plus'));
       this.newGamePlusButton.on('pointerup', () => this.openNewGamePlusConfirmation());
-      this.add.text(132, firstY + rowGap * 4 + 25, 'NG+' + Math.min(5, this.newGamePlusLevel + 1) + '  •  ZORLUK ARTIŞI', {
+      this.add.text(172, firstY + rowGap * 4 + 25, 'NG+' + Math.min(5, this.newGamePlusLevel + 1) + '  •  ZORLUK ARTIŞI', {
         fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#b59a70'
       });
     }
@@ -103,7 +90,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     this.setSelectedItem(this.selectedItem);
 
-    this.add.text(112, h - 38, 'OKLAR: SEÇ    ENTER / SPACE / A: ONAYLA', {
+    this.add.text(152, h - 38, 'OKLAR: SEÇ    ENTER / SPACE / A: ONAYLA', {
       fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#a99b84'
     });
     
@@ -222,8 +209,8 @@ export class MainMenuScene extends Phaser.Scene {
   private setSelectedItem(item: MainMenuItem): void {
     if (item === 'new-game-plus' && !this.newGamePlusAvailable) item = 'new-run';
     this.selectedItem = item;
-    const firstY = Math.round(this.scale.height * 0.47);
-    const rowGap = Math.round(this.scale.height * 0.075);
+    const firstY = Math.round(this.scale.height * 0.43);
+    const rowGap = Math.round(this.scale.height * 0.08);
     const slots: MainMenuItem[] = this.newGamePlusAvailable
       ? ['new-run', 'hunter-hub', 'story-journal', 'collection-archive', 'new-game-plus', 'settings']
       : ['new-run', 'hunter-hub', 'story-journal', 'collection-archive', 'settings'];
@@ -234,15 +221,15 @@ export class MainMenuScene extends Phaser.Scene {
       const selected = key === item;
       frame.clear();
       frame.fillStyle(selected ? 0x171923 : 0x0a0e15, selected ? 0.78 : 0.28);
-      frame.fillRect(98, y - 22, 372, 44);
+      frame.fillRect(138, y - 22, 372, 44);
       frame.lineStyle(selected ? 2 : 1, selected ? 0xe1c17f : 0x7b705f, selected ? 0.92 : 0.28);
-      frame.strokeRect(98, y - 22, 372, 44);
+      frame.strokeRect(138, y - 22, 372, 44);
       if (selected) {
         frame.lineStyle(2, 0xe1c17f, 0.9);
-        frame.lineBetween(98, y - 22, 124, y - 22);
-        frame.lineBetween(98, y - 22, 98, y - 7);
-        frame.lineBetween(470, y + 22, 444, y + 22);
-        frame.lineBetween(470, y + 22, 470, y + 7);
+        frame.lineBetween(138, y - 22, 164, y - 22);
+        frame.lineBetween(138, y - 22, 138, y - 7);
+        frame.lineBetween(510, y + 22, 484, y + 22);
+        frame.lineBetween(510, y + 22, 510, y + 7);
       }
     });
     this.playButton?.setText(item === 'new-run' ? '›  YENİ KOŞU' : '   YENİ KOŞU');

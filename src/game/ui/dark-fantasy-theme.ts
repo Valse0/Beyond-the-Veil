@@ -63,11 +63,7 @@ export function drawUiBackdrop(scene: Phaser.Scene, mood: UiBackdropMood): void 
     shade.lineBetween(x, y, x + c * sx, y);
     shade.lineBetween(x, y, x, y + c * sy);
   }
-  const glow = scene.add.graphics().setDepth(-998);
-  glow.fillStyle(PALETTE.teal, mood === 'menu' ? 0.12 : 0.055);
-  glow.fillCircle(width * 0.74, height * 0.54, Math.min(width, height) * 0.23);
-  glow.fillStyle(PALETTE.gold, 0.035);
-  glow.fillCircle(width * 0.2, height * 0.18, Math.min(width, height) * 0.16);
+
 }
 
 export function drawUiPanel(scene: Phaser.Scene, x: number, y: number, width: number, height: number, accent: number = PALETTE.gold, depth = 0, alpha = 0.94): Phaser.GameObjects.Graphics {

@@ -201,27 +201,58 @@ for index, (slug, prop_folder, prop_prefix, terrain_folder, terrain_prefix,
     available_ground = [(name, weight) for name, weight in ground_tile_weights[slug] if name in terrain_keys]
     ground_rng = random.Random(900 + index)
     ground_texture = Image.new("RGBA", (1024, 1024), (8, 10, 12, 255))
-    for patch_y in range(8):
-        for patch_x in range(8):
-            dominant = ground_rng.choices(
-                [name for name, _ in available_ground],
-                weights=[weight for _, weight in available_ground], k=1
-            )[0]
-            for tile_y in range(4):
-                for tile_x in range(4):
-                    if ground_rng.random() < 0.76:
-                        tile_name = dominant
-                    else:
-                        tile_name = ground_rng.choices(
-                            [name for name, _ in available_ground],
-                            weights=[weight for _, weight in available_ground], k=1
-                        )[0]
-                    tile = get_terrain(tile_name)
-                    if tile.size != (32, 32):
-                        tile = tile.resize((32, 32), Image.Resampling.NEAREST)
-                    ground_texture.paste(tile, ((patch_x * 4 + tile_x) * 32, (patch_y * 4 + tile_y) * 32))
-    brightness = {"cursed-forest": 1.22, "forgotten-graveyard": 1.16, "deep-dungeon": 1.12,
-                  "rotten-swamp": 1.18, "cursed-castle": 1.14}[slug]
+    previous_row = []
+    for tile_y in range(32):
+        current_row = []
+        for tile_x in range(32):
+            # Use seamless 32px terrain tiles with only short-range clustering.
+            # Large dominant 128px patches created visible square camouflage blocks.
+            if tile_x and ground_rng.random() < 0.22:
+                tile_name = current_row[-1]
+            elif tile_y and ground_rng.random() < 0.10:
+                tile_name = previous_row[tile_x]
+            else:
+                tile_name = ground_rng.choices(
+                    [name for name, _ in available_ground],
+                    weights=[weight for _, weight in available_ground], k=1
+                )[0]
+            current_row.append(tile_name)
+            tile = get_terrain(tile_name)
+            if tile.size != (32, 32):
+                tile = tile.resize((32, 32), Image.Resampling.NEAREST)
+            ground_texture.paste(tile, (tile_x * 32, tile_y * 32))
+
+        previous_row = current_row
+
+    # Scatter small, region-native vegetation and stone details into the terrain
+    # texture itself. Large landmarks remain separate Phaser objects with real
+    # collision/navigation behavior; these small details only enrich the ground.
+    detail_tokens = ("bush", "grass", "flower", "mushroom", "fern", "root",
+                     "rock", "stone", "crystal", "plant", "weed", "reed")
+    detail_candidates = []
+    for name in prop_keys:
+        if not any(token in name.lower() for token in detail_tokens):
+            continue
+        sprite = get_props(name)
+        if 10 <= sprite.width <= 112 and 10 <= sprite.height <= 112:
+            detail_candidates.append((name, sprite))
+    if detail_candidates:
+        detail_count = 130 if slug == "cursed-forest" else 95
+        for _ in range(detail_count):
+            _, sprite = ground_rng.choice(detail_candidates)
+            sprite = sprite.convert("RGBA")
+            scale = ground_rng.choice((0.75, 0.9, 1.0, 1.15))
+            if scale != 1.0:
+                sprite = sprite.resize(
+                    (max(1, round(sprite.width * scale)), max(1, round(sprite.height * scale))),
+                    Image.Resampling.NEAREST
+                )
+            x = ground_rng.randrange(1024 - sprite.width + 1)
+            y = ground_rng.randrange(1024 - sprite.height + 1)
+            ground_texture.alpha_composite(sprite, (x, y))
+
+    brightness = {"cursed-forest": 1.04, "forgotten-graveyard": 1.03, "deep-dungeon": 1.02,
+                  "rotten-swamp": 1.03, "cursed-castle": 1.03}[slug]
     ground_texture = ImageEnhance.Brightness(ground_texture).enhance(brightness)
     ground_dir = Path("public/assets/world/ground")
     ground_dir.mkdir(parents=True, exist_ok=True)
@@ -385,6 +416,9 @@ with Image.open(levelup_path) as source:
     ]
     for output_name, (x1, y1, x2, y2) in icon_boxes:
         icon = source.crop((round(x1*sx), round(y1*sy), round(x2*sx), round(y2*sy)))
+        icon = ImageEnhance.Brightness(icon).enhance(1.28)
+        icon = ImageEnhance.Color(icon).enhance(1.24)
+        icon = ImageEnhance.Contrast(icon).enhance(1.12)
         ImageOps.fit(icon, (128, 128), method=Image.Resampling.LANCZOS).save(OUT / output_name)
 reference_sources.append({
     "file": str(levelup_path),
