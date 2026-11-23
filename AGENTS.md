@@ -89,6 +89,11 @@ If a genuine blocker falls into a prohibited category, stop only the affected ta
 - Preserve a runnable, testable project and leave a clear session checkpoint.
 - This bounded authorization does not override the GDD, the no-paid-services rule, or any prohibition above.
 
+## Rule integrity
+- Never relax, weaken, bypass, reinterpret, or silently override any repository rule to make a task easier or to force progress.
+- If a rule blocks an implementation path, find a compliant repository/GitHub-based alternative. If no compliant path exists, stop the affected work and explain the blocker; never ask the user to violate a rule or provide files that the rules prohibit requesting.
+- Do not treat a tool limitation as permission to weaken the workflow. Use an approved GitHub Actions workflow, repository script, or another compliant method instead.
+
 ## GitHub-only asset inspection and processing
 - Agents must not ask the user to upload repository ZIP archives, PNGs, screenshots, photographs, or other project files to the chat. Use the GitHub repository as the source of project files.
 - When a repository ZIP archive must be inspected, use a GitHub Actions workflow on the authorized project branch to download/access and extract the archive, then produce inspectable file listings and/or derived preview artifacts. Do not ask the user to perform the extraction or upload the archive.
