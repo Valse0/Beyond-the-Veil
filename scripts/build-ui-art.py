@@ -194,6 +194,14 @@ for index, (slug, prop_folder, prop_prefix, terrain_folder, terrain_prefix,
     canvas.alpha_composite(vignette)
     canvas.resize((512, 288), Image.Resampling.NEAREST).save(OUT / ("region-card-" + slug + ".png"))
 
+    world_props = Path("public/assets/world/props")
+    world_props.mkdir(parents=True, exist_ok=True)
+    for prop_name in prop_names:
+        prop = get_props(prop_name)
+        prop_path = world_props / (slug + "-" + prop_name + ".png")
+        prop.save(prop_path)
+        register_source(slug + " world prop " + prop_name, prop_png, prop_json)
+
 
 # Game-over scene: a boss portrait, citadel ruins and a restrained blood eclipse.
 boss_png = next(ROOT.glob("**/the_fallen_sovereign_idle.png"))
@@ -229,6 +237,10 @@ manifest = {
         "region-card-cursed-forest.png", "region-card-forgotten-graveyard.png",
         "region-card-deep-dungeon.png", "region-card-rotten-swamp.png",
         "region-card-cursed-castle.png"
+    ] + [
+        "world/props/" + slug + "-" + prop_name + ".png"
+        for slug, _, _, _, _, prop_names, _, _ in regions
+        for prop_name in prop_names
     ],
     "sources": sources
 }
