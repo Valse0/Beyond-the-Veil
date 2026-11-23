@@ -91,7 +91,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       });
     }
     this.selectedHunterSprite = this.add.sprite(heroX, 482, 'ui-cursed-hunter-idle', 0)
-      .setOrigin(0.5, 0.88).setScale(4.5).setDepth(-12)
+      .setOrigin(0.5, 0.88).setScale(6.0).setDepth(-12)
       .setName('selected-cursed-hunter-full-body').setVisible(false);
     this.selectedHunterSprite.play(hunterIdleKey);
     this.selectedName = this.add.text(heroX, 526, '', {
