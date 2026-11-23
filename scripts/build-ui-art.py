@@ -299,6 +299,13 @@ def mask_panel(image, box, alpha=255, radius=10):
 def save_backdrop(image, filename):
     image.convert('RGB').save(OUT / filename, 'JPEG', quality=90, optimize=True, progressive=True)
 
+def mask_ellipse(image, box, alpha=255, blur=36):
+    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    ImageDraw.Draw(overlay, "RGBA").ellipse(box, fill=(5, 8, 14, alpha))
+    image.alpha_composite(overlay.filter(ImageFilter.GaussianBlur(blur)))
+
+
+
 
 # Main menu keeps the supplied title artwork and gothic city, while the old
 # baked menu labels are masked so all controls remain live Phaser objects.
@@ -313,11 +320,11 @@ selection_reference = reference_image("02_hunter_selection.png")
 for box in [
     (380, 12, 900, 145),
     (48, 100, 180, 652),
-    (390, 148, 820, 570),
     (852, 145, 1180, 548),
     (770, 580, 1200, 690),
 ]:
     mask_panel(selection_reference, box, 255, 8)
+mask_ellipse(selection_reference, (390, 140, 820, 580), 255, 36)
 save_backdrop(selection_reference, "selection-backdrop.jpg")
 
 # Region screen: five portrait-format card artworks are extracted from the
