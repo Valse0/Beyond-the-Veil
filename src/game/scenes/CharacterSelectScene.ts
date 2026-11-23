@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import { CHARACTERS } from '../../data/characters.js';
+import { UI_ASSET_KEYS } from '../../data/asset-registry.js';
 import { resolveRemoteAction } from '../input/platform-input.js';
 
 export class CharacterSelectScene extends Phaser.Scene {
@@ -52,7 +53,7 @@ export class CharacterSelectScene extends Phaser.Scene {
 
       this.add.circle(x + cardWidth / 2, cardY + 76, 62, accents[index] ?? 0xb99a61, 0.13)
         .setStrokeStyle(2, accents[index] ?? 0xb99a61, 0.72).setDepth(-16);
-      this.add.image(x + cardWidth / 2, cardY + 76, 'hunter-portraits', index)
+      this.add.image(x + cardWidth / 2, cardY + 76, UI_ASSET_KEYS.hunterPortraits, index)
         .setDisplaySize(116, 116).setDepth(-15).setName('hunter-portrait-' + character.id);
 
       this.add.text(x + 14, cardY + (this.touchLayout ? 154 : 150), character.name, {
