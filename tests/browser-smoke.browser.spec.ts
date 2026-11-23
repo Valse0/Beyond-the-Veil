@@ -348,7 +348,7 @@ test('main menu supports keyboard focus, Hunter Hub access, return and New Run',
   });
 
   const initialMenu = await canvas.screenshot();
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowDown');
   const hubFocusedMenu = await canvas.screenshot();
   expect(hubFocusedMenu.equals(initialMenu)).toBe(false);
 
@@ -364,7 +364,7 @@ test('main menu supports keyboard focus, Hunter Hub access, return and New Run',
     return Boolean(game?.scene.isActive('main-menu'));
   });
 
-  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
