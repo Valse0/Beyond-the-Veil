@@ -14,7 +14,7 @@ async function clickGamePoint(page: import('@playwright/test').Page, x: number, 
   );
 }
 
-test('dark fantasy menu backdrop loads from the original SVG asset', async ({ page }) => {
+test('reference-derived UI backgrounds and production art assets load', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
   await page.goto('/?bv-test=1');
@@ -22,7 +22,24 @@ test('dark fantasy menu backdrop loads from the original SVG asset', async ({ pa
   await expect(canvas).toBeVisible();
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { textures: { exists: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
-    return Boolean(game?.textures.exists('veil-ui-backdrop'));
+    const required = [
+      'veil-ui-backdrop',
+      'veil-ui-selection-backdrop',
+      'veil-ui-region-selection-backdrop',
+      'veil-ui-preparation-backdrop',
+      'hunter-portraits',
+      'game-over-backdrop',
+      'ui-cursed-hunter-idle',
+      'region-card-cursed-forest',
+      'region-card-forgotten-graveyard',
+      'region-card-deep-dungeon',
+      'region-card-rotten-swamp',
+      'region-card-cursed-castle',
+      'upgrade-icon-weapon',
+      'upgrade-icon-passive',
+      'upgrade-icon-base'
+    ];
+    return Boolean(game && required.every(key => game.textures.exists(key)));
   });
   expect(pageErrors).toEqual([]);
 });
