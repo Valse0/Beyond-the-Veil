@@ -154,12 +154,80 @@ regions = [
      (22, 21, 32), (86, 62, 94)),
 ]
 
+ground_tile_weights = {
+    "cursed-forest": [
+        ("forest_ground_moss_01", 48), ("forest_ground_grass_dark_01", 25),
+        ("forest_ground_soil_01", 12), ("forest_ground_cyan_flora_01", 7),
+        ("forest_ground_purple_01", 5), ("forest_ground_crimson_01", 3)
+    ],
+    "forgotten-graveyard": [
+        ("cemetery_ground_soil_01", 22), ("cemetery_ground_grave_dirt_01", 18),
+        ("cemetery_ground_ash_01", 15), ("cemetery_ground_moss_01", 13),
+        ("cemetery_ground_gravel_01", 12), ("cemetery_ground_withered_grass_01", 10),
+        ("cemetery_ground_cracked_01", 6), ("cemetery_ground_bones_01", 4)
+    ],
+    "deep-dungeon": [
+        ("dungeon_floor_stone_01", 25), ("dungeon_floor_worn_01", 18),
+        ("dungeon_floor_cracked_01", 14), ("dungeon_floor_engraved_01", 12),
+        ("dungeon_floor_rust_01", 10), ("dungeon_floor_broken_01", 8),
+        ("dungeon_floor_collapsed_01", 5), ("dungeon_floor_vault_01", 4),
+        ("dungeon_floor_arcane_01", 4)
+    ],
+    "rotten-swamp": [
+        ("swamp_ground_mud_01", 24), ("swamp_ground_moss_01", 18),
+        ("swamp_ground_dead_grass_01", 15), ("swamp_ground_leaves_mud_01", 12),
+        ("swamp_ground_roots_01", 10), ("swamp_ground_rotten_veg_01", 8),
+        ("swamp_ground_soil_01", 6), ("swamp_ground_deep_mud_01", 4),
+        ("swamp_ground_moss_stone_01", 3)
+    ],
+    "cursed-castle": [
+        ("citadel_floor_royal_stone_01", 24), ("citadel_floor_polished_01", 18),
+        ("citadel_floor_courtyard_01", 15), ("citadel_floor_burgundy_01", 12),
+        ("citadel_floor_geometric_01", 10), ("citadel_floor_marble_01", 8),
+        ("citadel_floor_obsidian_01", 6), ("citadel_floor_corrupted_01", 4),
+        ("citadel_floor_throne_01", 3)
+    ]
+}
+
 for index, (slug, prop_folder, prop_prefix, terrain_folder, terrain_prefix,
             prop_names, top_color, bottom_color) in enumerate(regions):
     get_props, prop_keys, prop_png, prop_json = atlas(prop_folder, prop_prefix)
     get_terrain, terrain_keys, terrain_png, terrain_json = atlas(terrain_folder, terrain_prefix)
     register_source(slug + " props", prop_png, prop_json)
     register_source(slug + " terrain", terrain_png, terrain_json)
+
+    # Build a large varied world texture from the source pack's seamless 32x32
+    # ground tiles. This avoids repeating one tiny prototype tile across the map.
+    available_ground = [(name, weight) for name, weight in ground_tile_weights[slug] if name in terrain_keys]
+    ground_rng = random.Random(900 + index)
+    ground_texture = Image.new("RGBA", (1024, 1024), (8, 10, 12, 255))
+    for patch_y in range(8):
+        for patch_x in range(8):
+            dominant = ground_rng.choices(
+                [name for name, _ in available_ground],
+                weights=[weight for _, weight in available_ground], k=1
+            )[0]
+            for tile_y in range(4):
+                for tile_x in range(4):
+                    if ground_rng.random() < 0.76:
+                        tile_name = dominant
+                    else:
+                        tile_name = ground_rng.choices(
+                            [name for name, _ in available_ground],
+                            weights=[weight for _, weight in available_ground], k=1
+                        )[0]
+                    tile = get_terrain(tile_name)
+                    if tile.size != (32, 32):
+                        tile = tile.resize((32, 32), Image.Resampling.NEAREST)
+                    ground_texture.paste(tile, ((patch_x * 4 + tile_x) * 32, (patch_y * 4 + tile_y) * 32))
+    brightness = {"cursed-forest": 1.22, "forgotten-graveyard": 1.16, "deep-dungeon": 1.12,
+                  "rotten-swamp": 1.18, "cursed-castle": 1.14}[slug]
+    ground_texture = ImageEnhance.Brightness(ground_texture).enhance(brightness)
+    ground_dir = Path("public/assets/world/ground")
+    ground_dir.mkdir(parents=True, exist_ok=True)
+    ground_path = ground_dir / (slug + "-ground.png")
+    ground_texture.save(ground_path, optimize=True)
+    register_source(slug + " world ground", terrain_png, terrain_json)
 
     canvas = gradient((256, 144), top_color, bottom_color)
     tile_names = [
@@ -377,6 +445,9 @@ manifest = {
         "world/props/" + slug + "-" + prop_name + ".png"
         for slug, _, _, _, _, prop_names, _, _ in regions
         for prop_name in prop_names
+    ] + [
+        "world/ground/" + slug + "-ground.png"
+        for slug, *_ in regions
     ],
     "sources": sources,
     "referenceSources": reference_sources
