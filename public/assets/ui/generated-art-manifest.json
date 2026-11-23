@@ -5,8 +5,10 @@
   "outputs": [
     "menu-backdrop.png",
     "selection-backdrop.png",
+    "region-selection-backdrop.png",
     "preparation-backdrop.png",
     "game-over-backdrop.png",
+    "hunter-portraits.png",
     "upgrade-icon-weapon.png",
     "upgrade-icon-passive.png",
     "upgrade-icon-base.png",
@@ -257,12 +259,40 @@
       "image": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.png",
       "metadata": "cursed-citadel/cursed-citadel/atlases/cursed_citadel_props_atlas.json",
       "sha256": "be93db65253237fee76775a79d44aeb4e87597d2ad766ef1af4fce76c1843d74"
+    }
+  ],
+  "referenceSources": [
+    {
+      "file": "beyond-the-veil-ui-design/01_main_menu.png",
+      "sha256": "ebe3d64f5d5dd7171f371c4c689a30b6252b416c460597d32df36d9766b61fd0"
     },
     {
-      "label": "cursed-citadel final boss",
-      "image": "beyond_the_veil_bosses_pack/assets/characters/bosses/region/cursed_citadel/the_fallen_sovereign/spritesheets/the_fallen_sovereign_idle.png",
-      "metadata": null,
-      "sha256": "52c0b4560ebc06326103ea184d8cd2b8f07328b2c7868d20a7edeedf8a7bce56"
+      "file": "beyond-the-veil-ui-design/02_hunter_selection.png",
+      "sha256": "a5575206e1e043a46ba2f80898820dac7ec8f534e1ea3d4ff5bb9ea5612d4b11"
+    },
+    {
+      "file": "beyond-the-veil-ui-design/03_region_selection.png",
+      "sha256": "af24f8738e3b7f11969a00ea849bd2acb74b3051b86db6e0ea18e37e9ba63302"
+    },
+    {
+      "file": "beyond-the-veil-ui-design/03_region_selection.png",
+      "sha256": "af24f8738e3b7f11969a00ea849bd2acb74b3051b86db6e0ea18e37e9ba63302"
+    },
+    {
+      "file": "beyond-the-veil-ui-design/04_run_preparation.png",
+      "sha256": "82eaed15a6e7879903d63cb5e035c56038ee43cec9367ab3e5b81b63a51e9f53"
+    },
+    {
+      "file": "beyond-the-veil-ui-design/06_level_up.png",
+      "sha256": "1dfe76cb987da3cfcd91e5535f967cbf5c792f7876d53c793f5ddc6df25f1e9e"
+    },
+    {
+      "file": "beyond-the-veil-ui-design/07_game_over.png",
+      "sha256": "c0111661c797d176e8de3ecf0154b35041f32fd5a7116b4aadb68e01472533c1"
+    },
+    {
+      "file": "beyond-the-veil-ui-design/02_hunter_selection.png",
+      "sha256": "a5575206e1e043a46ba2f80898820dac7ec8f534e1ea3d4ff5bb9ea5612d4b11"
     }
   ]
 }
