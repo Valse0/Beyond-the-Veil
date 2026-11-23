@@ -79,7 +79,7 @@ Within `full-game-development`, Gemini CLI may:
 - Claiming final art/audio completion while placeholders remain.
 - Any external side effect not explicitly covered above.
 
-If a genuine blocker falls into a prohibited category, stop only the affected task, record it as `BLOCKED`, explain the exact decision needed, and continue other safe, independent work. Do not repeatedly ask for approval for ordinary work already covered by this authorization.
+If a genuine blocker falls into a prohibited category, stop only the affected task, record it as `BLOCKED`, explain the exact decision needed, and continue other safe, independent work. Do not repeatedly ask for approval for ordinary work already covered by this bounded authorization.
 
 ### Required conduct
 - Read `EXECUTION_MASTER.md` and `docs/IMPLEMENTATION_LEDGER.md` before work.
@@ -88,3 +88,12 @@ If a genuine blocker falls into a prohibited category, stop only the affected ta
 - Never mark an item `VERIFIED` without actual evidence.
 - Preserve a runnable, testable project and leave a clear session checkpoint.
 - This bounded authorization does not override the GDD, the no-paid-services rule, or any prohibition above.
+
+## GitHub-only asset inspection and processing
+- Agents must not ask the user to upload repository ZIP archives, PNGs, screenshots, photographs, or other project files to the chat. Use the GitHub repository as the source of project files.
+- When a repository ZIP archive must be inspected, use a GitHub Actions workflow on the authorized project branch to download/access and extract the archive, then produce inspectable file listings and/or derived preview artifacts. Do not ask the user to perform the extraction or upload the archive.
+- When PNG or other binary image assets must be visually inspected, retrieve and process them from the repository. If direct image retrieval is unavailable or exceeds tool limits, use a reproducible workflow or script to create viewable previews (for example, resized or tiled PNGs, contact sheets, or Base64/text-encoded image data converted back into a viewable preview). Split large outputs into manageable chunks when necessary.
+- Do not claim an image, archive, asset, or its contents have been inspected unless the actual image or extracted contents were successfully viewed or read. A filename, manifest entry, checksum, or generated placeholder is not visual inspection.
+- Asset inspection and processing must preserve the original source assets. Do not overwrite or delete user-authored originals.
+- These methods do not bypass the mandatory approval gate. Creating or editing workflow files, scripts, preview assets, project files, committing, and pushing still require a plan and standalone user approval unless an explicitly applicable, narrower authorization already covers the exact work.
+- Prefer free, repository-native GitHub Actions capabilities; do not introduce paid services, paid runners, or external infrastructure.
