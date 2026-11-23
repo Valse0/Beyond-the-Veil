@@ -9,6 +9,7 @@ export function preloadUiArt(scene: Phaser.Scene): void {
   if (!scene.textures.exists(BACKDROP_KEY)) scene.load.image(BACKDROP_KEY, '/assets/ui/veil-menu-backdrop.svg');
   if (!scene.textures.exists(UI_ASSET_KEYS.hunterPortraits)) scene.load.spritesheet(UI_ASSET_KEYS.hunterPortraits, '/assets/ui/hunter-portraits.svg', { frameWidth: 160, frameHeight: 160 });
   if (!scene.textures.exists(UI_ASSET_KEYS.regionArt)) scene.load.spritesheet(UI_ASSET_KEYS.regionArt, '/assets/ui/region-art.svg', { frameWidth: 256, frameHeight: 160 });
+  if (!scene.textures.exists(UI_ASSET_KEYS.gameOverBackdrop)) scene.load.image(UI_ASSET_KEYS.gameOverBackdrop, '/assets/ui/game-over-backdrop.svg');
 }
 
 export function drawUiBackdrop(scene: Phaser.Scene, mood: UiBackdropMood): void {
