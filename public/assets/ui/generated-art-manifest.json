@@ -287,6 +287,11 @@
       "sha256": "1dfe76cb987da3cfcd91e5535f967cbf5c792f7876d53c793f5ddc6df25f1e9e"
     },
     {
+      "file": "beyond-the-veil-ui-design/05_gameplay_hud.png",
+      "sha256": "bf8c77e4ddc87fbf296aefcb54633763a2bd18a9a639e3573d996d71b9aaadfd",
+      "usage": "layout reference for the live Phaser gameplay HUD and world dressing"
+    },
+    {
       "file": "beyond-the-veil-ui-design/07_game_over.png",
       "sha256": "c0111661c797d176e8de3ecf0154b35041f32fd5a7116b4aadb68e01472533c1"
     },
