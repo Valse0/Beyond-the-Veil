@@ -4,6 +4,7 @@ import { UI_ASSET_KEYS } from '../../data/asset-registry.js';
 export type UiBackdropMood = 'menu' | 'selection' | 'regions' | 'preparation' | 'hub' | 'dossier' | 'panel' | 'archive';
 const BACKDROP_KEY = 'veil-ui-backdrop';
 const SELECTION_BACKDROP_KEY = 'veil-ui-selection-backdrop';
+const SELECTION_DEFAULT_BACKDROP_KEY = 'veil-ui-selection-default-backdrop';
 const PREPARATION_BACKDROP_KEY = 'veil-ui-preparation-backdrop';
 const REGION_SELECTION_BACKDROP_KEY = 'veil-ui-region-selection-backdrop';
 const HUNTER_IDLE_KEY = 'ui-cursed-hunter-idle';
@@ -19,6 +20,7 @@ const PALETTE = { abyss: 0x070a11, panel: 0x111824, gold: 0xc6a56b, teal: 0x6fa9
 export function preloadUiArt(scene: Phaser.Scene): void {
   if (!scene.textures.exists(BACKDROP_KEY)) scene.load.image(BACKDROP_KEY, '/assets/ui/menu-backdrop.jpg');
   if (!scene.textures.exists(SELECTION_BACKDROP_KEY)) scene.load.image(SELECTION_BACKDROP_KEY, '/assets/ui/selection-backdrop.jpg');
+  if (!scene.textures.exists(SELECTION_DEFAULT_BACKDROP_KEY)) scene.load.image(SELECTION_DEFAULT_BACKDROP_KEY, '/assets/ui/selection-default-backdrop.jpg');
   if (!scene.textures.exists(PREPARATION_BACKDROP_KEY)) scene.load.image(PREPARATION_BACKDROP_KEY, '/assets/ui/preparation-backdrop.jpg');
   if (!scene.textures.exists(REGION_SELECTION_BACKDROP_KEY)) scene.load.image(REGION_SELECTION_BACKDROP_KEY, '/assets/ui/region-selection-backdrop.jpg');
   if (!scene.textures.exists(HUNTER_IDLE_KEY)) scene.load.spritesheet(HUNTER_IDLE_KEY, '/assets/prototype/characters/player/cursed-hunter-idle.png', { frameWidth: 48, frameHeight: 48 });
@@ -32,6 +34,8 @@ export function preloadUiArt(scene: Phaser.Scene): void {
     if (!scene.textures.exists(key)) scene.load.image(key, '/assets/ui/' + key + '.png');
   }
 }
+
+export function selectionDefaultBackdropKey(): string { return SELECTION_DEFAULT_BACKDROP_KEY; }
 
 export function regionCardTextureKey(regionId: string): string {
   return REGION_CARD_KEYS[regionId] ?? UI_ASSET_KEYS.regionArt;

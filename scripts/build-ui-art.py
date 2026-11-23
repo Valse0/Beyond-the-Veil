@@ -355,6 +355,10 @@ for box in [
     (770, 580, 1200, 690),
 ]:
     mask_panel(selection_reference, box, 255, 8)
+# The first hunter is the exact full-body figure in the approved reference.
+# Keep this art as a separate character/backdrop layer; all menus and controls
+# remain independently rendered and interactive in Phaser.
+save_backdrop(selection_reference.copy(), "selection-default-backdrop.jpg")
 mask_ellipse(selection_reference, (390, 140, 820, 580), 255, 36)
 save_backdrop(selection_reference, "selection-backdrop.jpg")
 

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
+import { drawUiBackdrop, drawUiPanel, preloadUiArt, selectionDefaultBackdropKey } from '../ui/dark-fantasy-theme.js';
 import { CHARACTERS } from '../../data/characters.js';
 import { WEAPONS } from '../../data/weapons.js';
 import { PASSIVES } from '../../data/passives.js';
@@ -20,6 +20,8 @@ export class CharacterSelectScene extends Phaser.Scene {
   private passiveText?: Phaser.GameObjects.Text;
   private abilityText?: Phaser.GameObjects.Text;
   private statsText?: Phaser.GameObjects.Text;
+  private selectionDefaultBackdrop?: Phaser.GameObjects.Image;
+  private heroBackdropObjects: Phaser.GameObjects.GameObject[] = [];
 
   constructor() { super('character-select'); }
 
@@ -39,6 +41,9 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.touchLayout = this.sys.game.device.input.touch;
     this.cameras.main.setBackgroundColor('#0b0b10');
     drawUiBackdrop(this, 'selection');
+    this.selectionDefaultBackdrop = this.add.image(width / 2, height / 2, selectionDefaultBackdropKey())
+      .setDisplaySize(width, height).setAlpha(0.96).setDepth(-1000)
+      .setName('ui-selection-default-hunter-art').setVisible(this.selectedIndex === 0);
 
     this.add.text(width / 2, 34, 'AVCI SEÇİMİ', {
       fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '42px' : '38px',
@@ -72,13 +77,15 @@ export class CharacterSelectScene extends Phaser.Scene {
     const heroX = Math.round(width * 0.47);
     const heroY = Math.round(height * 0.48);
     const accent = accents[this.selectedIndex] ?? 0xc2a36d;
-    this.add.circle(heroX, heroY, 154, accent, 0.09).setStrokeStyle(2, accent, 0.52).setDepth(-16);
-    this.add.circle(heroX, heroY, 132, 0x080b12, 0.58).setStrokeStyle(1, 0xe0c58e, 0.34).setDepth(-15);
+    const heroHalo = this.add.circle(heroX, heroY, 154, accent, 0.09).setStrokeStyle(2, accent, 0.52).setDepth(-16);
+    const heroDisc = this.add.circle(heroX, heroY, 132, 0x080b12, 0.58).setStrokeStyle(1, 0xe0c58e, 0.34).setDepth(-15);
     const pedestal = this.add.graphics().setDepth(-14);
     pedestal.fillStyle(0x0b1018, 0.92);
     pedestal.fillEllipse(heroX, 510, 286, 34);
     pedestal.lineStyle(2, 0xc6a56b, 0.58);
     pedestal.strokeEllipse(heroX, 510, 286, 34);
+    this.heroBackdropObjects = [heroHalo, heroDisc, pedestal];
+    this.heroBackdropObjects.forEach(object => object.setVisible(this.selectedIndex !== 0));
     this.selectedPortrait = this.add.image(heroX, heroY, UI_ASSET_KEYS.hunterPortraits, this.selectedIndex)
       .setDisplaySize(276, 276).setDepth(-13).setName('selected-hunter-portrait');
     const hunterIdleKey = 'ui-cursed-hunter-idle-south';
@@ -225,7 +232,12 @@ export class CharacterSelectScene extends Phaser.Scene {
     const passive = PASSIVES.find(item => item.id === character.startingPassiveId);
     this.selectedPortrait?.setFrame(this.selectedIndex);
     this.selectedPortrait?.setVisible(this.selectedIndex !== 0);
-    this.selectedHunterSprite?.setVisible(this.selectedIndex === 0);
+    this.selectedHunterSprite?.setVisible(false);
+    this.selectionDefaultBackdrop?.setVisible(this.selectedIndex === 0);
+    this.heroBackdropObjects.forEach(object => object.setVisible(this.selectedIndex !== 0));
+    this.selectedName?.setVisible(this.selectedIndex !== 0);
+    this.selectedRole?.setVisible(this.selectedIndex !== 0);
+    this.selectedDescription?.setVisible(this.selectedIndex !== 0);
     this.selectedName?.setText(character.name);
     this.selectedRole?.setText(character.role.toLocaleUpperCase('tr-TR'));
     this.selectedDescription?.setText(character.description);
