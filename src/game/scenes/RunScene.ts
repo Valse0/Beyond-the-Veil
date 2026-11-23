@@ -1211,6 +1211,14 @@ export class RunScene extends Phaser.Scene {
     this.cursors=this.input.keyboard!.createCursorKeys();
     this.keys=this.input.keyboard!.addKeys('W,A,S,D,SPACE,E,ESC,ENTER') as Record<string,Phaser.Input.Keyboard.Key>;
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      // Handle Escape directly from the DOM keyboard event. Some browsers/remote
+      // keyboards do not reliably expose the ESC key state to JustDown(this.keys.ESC).
+      if (event.key === 'Escape' || event.code === 'Escape' || event.keyCode === 27) {
+        event.preventDefault();
+        if (this.paused && this.overlayBackIndex !== null) this.activateOverlayOption(this.overlayBackIndex);
+        else if (!this.paused) this.openPause();
+        return;
+      }
       const action = resolveRemoteAction(event);
       if (!action) return;
       event.preventDefault();
