@@ -243,7 +243,7 @@ save_backdrop(menu_reference, "menu-backdrop.jpg")
 # labels, portraits and the old center character are hidden beneath live UI.
 selection_reference = reference_image("02_hunter_selection.png")
 for box in [
-    (380, 12, 900, 128),
+    (380, 12, 900, 145),
     (48, 100, 180, 652),
     (390, 148, 820, 570),
     (852, 145, 1180, 548),
@@ -255,7 +255,7 @@ save_backdrop(selection_reference, "selection-backdrop.jpg")
 # Region screen: five portrait-format card artworks are extracted from the
 # supplied reference; all headings, locks and controls are recreated in Phaser.
 region_reference = reference_image("03_region_selection.png")
-for box in [(280, 8, 950, 128), (48, 138, 1170, 548), (40, 545, 1180, 700)]:
+for box in [(280, 8, 950, 145), (45, 30, 270, 122), (48, 138, 1220, 548), (40, 505, 1220, 700)]:
     mask_panel(region_reference, box, 255, 8)
 save_backdrop(region_reference, "region-selection-backdrop.jpg")
 
@@ -290,7 +290,7 @@ reference_sources.append({
 # are drawn over the masked panel regions.
 preparation_reference = reference_image("04_run_preparation.png")
 for box in [
-    (340, 10, 970, 125),
+    (340, 10, 970, 145),
     (55, 135, 520, 620),
     (565, 135, 1170, 620),
     (35, 620, 1190, 704),
@@ -320,9 +320,9 @@ reference_sources.append({
 # Mask only the old result text and controls; Phaser renders live run results.
 game_over_reference = reference_image("07_game_over.png")
 for box in [
-    (350, 245, 940, 342),
+    (350, 190, 940, 342),
     (350, 350, 930, 520),
-    (320, 530, 950, 650),
+    (320, 530, 950, 680),
 ]:
     mask_panel(game_over_reference, box, 255, 8)
 save_backdrop(game_over_reference, "game-over-backdrop.jpg")
