@@ -3012,21 +3012,21 @@ export class RunScene extends Phaser.Scene {
     this.clearOverlay();const w=this.scale.width,h=this.scale.height;
     // Keep the arena visible beneath the upgrade ceremony, as in the approved screen.
     this.overlay.push(this.add.rectangle(w/2,h/2,w,h,0x08070b,.62).setScrollFactor(0).setDepth(200));
-    this.overlay.push(this.add.text(w/2,h*.15,'YENİ SEVİYE',{fontFamily:'Georgia',fontSize:'34px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    this.overlay.push(this.add.text(w/2,h*.145,'YENİ SEVİYE',{fontFamily:'Georgia',fontSize:'38px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
     const instruction=this.banishMode?'MÜHÜRLEME: ÇIKARMAK İSTEDİĞİN KARTI SEÇ':'Gücünü seç. Hayatta kalmaya devam et.';
     this.overlay.push(this.add.text(w/2,h*.225,instruction,{fontFamily:'Georgia',fontSize:'15px',color:this.banishMode?'#e59a8c':'#d4c4a9'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
     const optionCount=Math.max(1,this.currentLevelChoices.length);
     const cardGap=12;
-    const cardWidth=Math.min(220,Math.floor((w-72-(optionCount-1)*cardGap)/optionCount));
-    const cardHeight=Math.min(260,Math.max(220,h*.36));
+    const cardWidth=Math.min(250,Math.floor((w-72-(optionCount-1)*cardGap)/optionCount));
+    const cardHeight=Math.min(340,Math.max(250,h*.42));
     const rowWidth=optionCount*cardWidth+(optionCount-1)*cardGap;
-    const cardCenterY=h*.50;
+    const cardCenterY=h*.52;
     this.currentLevelChoices.forEach((choice,i)=>{
       const x=w/2-rowWidth/2+cardWidth/2+i*(cardWidth+cardGap);
       const accent=this.banishMode?0xc65d62:(i===0?0xd9b86f:0x8f8067);
       const panel=drawUiPanel(this,x-cardWidth/2,cardCenterY-cardHeight/2,cardWidth,cardHeight,accent,201,.98).setScrollFactor(0);
       const iconKey=choice.kind.startsWith('weapon')?'upgrade-icon-weapon':choice.kind.startsWith('passive')?'upgrade-icon-passive':'upgrade-icon-base';
-      const icon=this.add.image(x,cardCenterY-cardHeight*.29,iconKey).setDisplaySize(92,92).setScrollFactor(0).setDepth(203);
+      const icon=this.add.image(x,cardCenterY-cardHeight*.29,iconKey).setDisplaySize(108,108).setScrollFactor(0).setDepth(203);
       if(this.banishMode)icon.setTint(0xe59a8c);
       const kindLabel=choice.kind.startsWith('weapon')?'SİLAH':choice.kind.startsWith('passive')?'PASİF':'TEMEL GELİŞİM';
       const eyebrow=this.add.text(x,cardCenterY-cardHeight*.10,kindLabel,{fontFamily:'Arial',fontSize:'10px',fontStyle:'bold',color:'#c7ad7b',letterSpacing:1}).setOrigin(.5).setScrollFactor(0).setDepth(203);
@@ -3292,6 +3292,54 @@ export class RunScene extends Phaser.Scene {
     if(!result)return;
     const defeated=!result.won;
     const w=this.scale.width,h=this.scale.height,displayWidth=this.scale.displaySize.width;
+    if(defeated){
+      if(this.textures.exists(UI_ASSET_KEYS.gameOverBackdrop)){
+        this.add.image(w/2,h/2,UI_ASSET_KEYS.gameOverBackdrop).setDisplaySize(w,h).setScrollFactor(0).setDepth(199);
+      }
+      const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.22).setScrollFactor(0).setDepth(200);
+      const title=this.add.text(w/2,h*.315,'ÖLDÜN',{
+        fontFamily:'Georgia, serif',fontSize:Math.min(64,h*.09)+'px',fontStyle:'bold',
+        color:'#f4d8cf',stroke:'#2a1118',strokeThickness:5,shadow:{offsetX:0,offsetY:3,color:'#10080d',blur:12,fill:true}
+      }).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      const subtitle=this.add.text(w/2,h*.405,'Bu dünya henüz seni affetmedi...',{
+        fontFamily:'Georgia, serif',fontSize:Math.min(22,h*.032)+'px',color:'#e0cfc4'
+      }).setOrigin(.5).setScrollFactor(0).setDepth(202);
+      const panelWidth=Math.min(560,w*.48),panelHeight=Math.min(208,h*.30),panelY=h*.61;
+      const panel=drawUiPanel(this,w/2-panelWidth/2,panelY-panelHeight/2,panelWidth,panelHeight,0xb65b62,201,.97).setScrollFactor(0);
+      const rows=[
+        ['SÜRE',formatRunDuration(result.elapsedMs)],
+        ['ÖLDÜRÜLEN DÜŞMAN',String(result.kills)],
+        ['ULAŞILAN SEVİYE',String(result.level)]
+      ];
+      const rowObjects:Phaser.GameObjects.GameObject[]=[];
+      rows.forEach((row,index)=>{
+        const y=panelY-panelHeight*.29+index*panelHeight*.29;
+        const icon=this.add.text(w/2-panelWidth*.36,y,index===0?'⌛':index===1?'☠':'✦',{
+          fontFamily:'Georgia, serif',fontSize:'22px',color:'#c7a878'
+        }).setOrigin(.5).setScrollFactor(0).setDepth(203);
+        const label=this.add.text(w/2-panelWidth*.25,y,row[0],{
+          fontFamily:'Georgia, serif',fontSize:Math.min(18,h*.026)+'px',color:'#d8c9bc'
+        }).setOrigin(0,.5).setScrollFactor(0).setDepth(203);
+        const value=this.add.text(w/2+panelWidth*.36,y,row[1],{
+          fontFamily:'Georgia, serif',fontSize:Math.min(21,h*.03)+'px',fontStyle:'bold',color:'#e7c987'
+        }).setOrigin(1,.5).setScrollFactor(0).setDepth(203);
+        rowObjects.push(icon,label,value);
+      });
+      const saveStatus=this.add.text(w/2,panelY+panelHeight*.39,
+        result.saved?'İLERLEMEN KAYDEDİLDİ':'KAYIT BAŞARISIZ — BU KOŞUNUN ÖDÜLLERİ KAYDEDİLEMEDİ',{
+          fontFamily:'Arial, sans-serif',fontSize:'11px',fontStyle:'bold',
+          color:result.saved?'#a8c7a8':'#e6a49a',align:'center'
+        }).setOrigin(.5).setScrollFactor(0).setDepth(203);
+      this.overlay.push(shade,title,subtitle,panel,saveStatus,...rowObjects);
+      const buttonY=h*.88,buttonWidth=Math.min(270,w*.24),buttonHeight=Math.min(58,h*.085);
+      this.createOverlayButton(w*.39,buttonY,buttonWidth,buttonHeight,'ANA MENÜ',()=>this.scene.start('main-menu'),Math.min(19,h*.027));
+      this.createOverlayButton(w*.61,buttonY,buttonWidth,buttonHeight,'TEKRAR DENE',()=>this.scene.restart({
+        characterId:this.character.id,regionId:this.region.id,gameMode:this.gameMode,
+        challengeId:this.challengeId??undefined,equipmentProfileId:this.selectedEquipmentProfileId
+      }),Math.min(19,h*.027));
+      this.overlayBackIndex=0;
+      return;
+    }
     const compact=displayWidth<960||h<500,uiScale=Math.min(1.5,1280/Math.max(1,displayWidth));
     const panelWidth=Math.min(defeated?920:1080,w*(defeated?.78:.9));
     const panelHeight=h*(defeated?.34:.53),panelY=h*(defeated?.61:.56);

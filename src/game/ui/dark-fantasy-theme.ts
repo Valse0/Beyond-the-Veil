@@ -74,13 +74,13 @@ export function drawUiPanel(scene: Phaser.Scene, x: number, y: number, width: nu
   const panel = scene.add.graphics().setDepth(depth);
   const inset = 5;
   panel.fillStyle(PALETTE.abyss, alpha * 0.94);
-  panel.fillRoundedRect(x, y, width, height, 10);
+  panel.fillRect(x, y, width, height);
   panel.fillStyle(PALETTE.panel, alpha * 0.9);
-  panel.fillRoundedRect(x + 2, y + 2, width - 4, height - 4, 8);
+  panel.fillRect(x + 2, y + 2, width - 4, height - 4);
   panel.lineStyle(2, accent, 0.64);
-  panel.strokeRoundedRect(x + 1, y + 1, width - 2, height - 2, 9);
+  panel.strokeRect(x + 1, y + 1, width - 2, height - 2);
   panel.lineStyle(1, 0xe8e0d2, 0.12);
-  panel.strokeRoundedRect(x + inset, y + inset, width - inset * 2, height - inset * 2, 6);
+  panel.strokeRect(x + inset, y + inset, width - inset * 2, height - inset * 2);
   const cut = Math.min(18, Math.max(10, Math.min(width, height) * 0.055));
   panel.lineStyle(2, accent, 0.88);
   panel.lineBetween(x + 10, y + 1, x + 10 + cut, y + 1);

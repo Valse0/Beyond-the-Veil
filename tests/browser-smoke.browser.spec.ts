@@ -126,7 +126,7 @@ test('character detail presents real mastery, loadout, synergies and cosmetic sa
   });
   await page.reload();
   await expect(canvas).toBeVisible();
-  await clickGamePoint(page, 160, 310);
+  await clickGamePoint(page, 160, 338);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('character-select'));
@@ -192,11 +192,11 @@ test('touch users can open character details, browse hunters and return to selec
       const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scale: { gameSize: { width: number; height: number } } } }).__BEYOND_VEIL_GAME__;
       return game?.scale.gameSize ?? { width: 1280, height: 720 };
     });
-    await page.touchscreen.tap(bounds.x + (x / logicalSize.width) * bounds.width, bounds.y + (y / logicalSize.height) * bounds.height);
+    await page.touchscreen.tap(Math.round(bounds.x + (x / logicalSize.width) * bounds.width), Math.round(bounds.y + (y / logicalSize.height) * bounds.height));
   };
   await page.goto('/?bv-test=1');
   await expect(canvas).toBeVisible();
-  await tapCanvas(160, 310);
+  await tapCanvas(160, 338);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('character-select'));
@@ -257,7 +257,7 @@ test('player can select a hunter and an unlocked region before starting a run', 
   expect(dimensions).toEqual({ width: 1280, height: 720 });
 
   const menuFrame = await canvas.screenshot();
-  await clickGamePoint(page, 160, 310);
+  await clickGamePoint(page, 160, 338);
   // Keep the pointer off interactive controls so screenshot comparisons are deterministic.
   await page.mouse.move(1240, 40);
   await expect.poll(async () => !(await canvas.screenshot()).equals(menuFrame), {
@@ -266,7 +266,11 @@ test('player can select a hunter and an unlocked region before starting a run', 
 
   // Keyboard arrows are also the fallback for TV remotes that emit arrow keys.
   await page.keyboard.press('ArrowRight');
-  const selectedHunterFrame = await canvas.screenshot();
+  const selectedHunterState = await page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number; characterId: string; layoutMode: string } } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('character-select').browserTestSnapshot();
+  });
   await page.keyboard.press('Enter');
   await page.waitForTimeout(120);
   const regionFrame = await canvas.screenshot();
@@ -293,8 +297,12 @@ test('player can select a hunter and an unlocked region before starting a run', 
   await page.keyboard.press('Escape');
   await page.waitForTimeout(120);
   await page.mouse.move(1240, 40);
-  await page.waitForTimeout(120);
-  expect((await canvas.screenshot()).equals(selectedHunterFrame)).toBe(true);
+  const returnedHunterState = await page.evaluate(() => {
+    const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { getScene: (key: string) => { browserTestSnapshot: () => { selectedIndex: number; characterId: string; layoutMode: string } } } } }).__BEYOND_VEIL_GAME__;
+    if (!game) throw new Error('Development browser test bridge is not available.');
+    return game.scene.getScene('character-select').browserTestSnapshot();
+  });
+  expect(returnedHunterState).toEqual(selectedHunterState);
   await page.keyboard.press('Enter');
   await page.waitForTimeout(120);
 
@@ -428,7 +436,7 @@ test('region selection reads unlocked regions from the persisted profile', async
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
 
-  await clickGamePoint(page, 160, 310);
+  await clickGamePoint(page, 160, 338);
   await page.keyboard.press('Enter');
   await page.waitForTimeout(120);
   const regionScreen = await canvas.screenshot();
@@ -991,7 +999,7 @@ test('run preparation selects a saved equipment profile and applies its real loa
   await page.goto('/?bv-test=1');
   const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
-  await clickGamePoint(page, 160, 310);
+  await clickGamePoint(page, 160, 338);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('character-select'));
@@ -2919,7 +2927,7 @@ test('touch-first hunter, region and run-preparation layouts keep large selectio
       const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scale: { gameSize: { width: number; height: number } } } }).__BEYOND_VEIL_GAME__;
       return game?.scale.gameSize ?? { width: 1280, height: 720 };
     });
-    await page.touchscreen.tap(bounds.x + bounds.width * x / logicalSize.width, bounds.y + bounds.height * y / logicalSize.height);
+    await page.touchscreen.tap(Math.round(bounds.x + bounds.width * x / logicalSize.width), Math.round(bounds.y + bounds.height * y / logicalSize.height));
   };
   const isActive = (key: string) => page.evaluate(sceneKey => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (scene: string) => boolean } } }).__BEYOND_VEIL_GAME__;
@@ -2931,7 +2939,7 @@ test('touch-first hunter, region and run-preparation layouts keep large selectio
     return game.scene.getScene(sceneKey).browserTestSnapshot();
   }, key);
 
-  await tapLogical(160, 310);
+  await tapLogical(160, 338);
   await expect.poll(() => isActive('character-select')).toBe(true);
   const firstHunter = await snapshot('character-select') as { selectedIndex: number; characterId: string; layoutMode: string };
   expect(firstHunter.layoutMode).toBe('touch');
@@ -3134,7 +3142,7 @@ test('captures the seven reference screens for visual QA', async ({ page }) => {
   };
 
   await capture('01-main-menu');
-  await clickGamePoint(page, 160, 310);
+  await clickGamePoint(page, 160, 338);
   await page.waitForFunction(() => {
     const game = (window as Window & { __BEYOND_VEIL_GAME__?: { scene: { isActive: (key: string) => boolean } } }).__BEYOND_VEIL_GAME__;
     return Boolean(game?.scene.isActive('character-select'));

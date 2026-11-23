@@ -23,6 +23,7 @@ export class MainMenuScene extends Phaser.Scene {
   private confirmationSelected = true;
   private confirmationObjects: Phaser.GameObjects.GameObject[] = [];
   private confirmationStatus?: Phaser.GameObjects.Text;
+  private menuFrames = new Map<MainMenuItem, Phaser.GameObjects.Graphics>();
 
   constructor() { super('main-menu'); }
 
@@ -40,66 +41,68 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     drawUiBackdrop(this, 'menu');
-    // The artwork remains a clean background; every menu control is real Phaser UI.
-    this.add.rectangle(220, h / 2, 440, h, 0x05080e, 0.28).setDepth(-997);
-    const frame = this.add.graphics().setDepth(-996);
-    frame.lineStyle(1, 0xc6a56b, 0.34);
-    frame.lineBetween(66, 232, 390, 232);
-    frame.lineBetween(66, h - 72, 390, h - 72);
-    frame.lineStyle(2, 0xc6a56b, 0.42);
-    frame.lineBetween(66, 232, 92, 232);
-    frame.lineBetween(66, 232, 66, 258);
-
-    this.add.text(88, 202, 'YOLUNU SEÇ', {
-      fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#a99b84',
+    const width = this.scale.width;
+    this.add.rectangle(248, h / 2, 496, h, 0x05080e, 0.24).setDepth(-997);
+    this.add.text(width * 0.56 + 2, h * 0.205 + 3, 'BEYOND\nTHE VEIL', {
+      fontFamily: 'Georgia, serif', fontSize: '54px', fontStyle: 'bold',
+      color: '#090d15', align: 'center', lineSpacing: -8, letterSpacing: 3
+    }).setOrigin(0.5).setDepth(-995);
+    this.add.text(width * 0.56, h * 0.205, 'BEYOND\nTHE VEIL', {
+      fontFamily: 'Georgia, serif', fontSize: '54px', fontStyle: 'bold',
+      color: '#e8d5ad', stroke: '#30251d', strokeThickness: 3,
+      shadow: { offsetX: 0, offsetY: 2, color: '#080a10', blur: 8, fill: true },
+      align: 'center', lineSpacing: -8, letterSpacing: 3
+    }).setOrigin(0.5).setDepth(-994);
+    this.add.text(112, h * 0.39, 'YOLUNU SEÇ', {
+      fontFamily: 'Georgia, serif', fontSize: '16px', color: '#cbb58e',
       fontStyle: 'bold', letterSpacing: 3
-    }).setOrigin(0, 0);
+    }).setOrigin(0, 0.5).setDepth(-993);
 
-    const firstY = Math.round(h * 0.43);
-    const rowGap = Math.round(h * 0.081);
+    const firstY = Math.round(h * 0.47);
+    const rowGap = Math.round(h * 0.075);
     const menuStyle = {
-      fontFamily: 'Arial, sans-serif', fontSize: '19px', color: '#d8d0c3',
-      backgroundColor: '#151b22', padding: { x: 18, y: 10 }
+      fontFamily: 'Georgia, serif', fontSize: '19px', color: '#ded2bc',
+      padding: { x: 18, y: 9 }
     } as const;
-    const createMenuButton = (y: number, label: string): Phaser.GameObjects.Text =>
-      this.add.text(88, y, label, menuStyle)
-        .setFixedSize(300, 44)
-        .setOrigin(0, 0.5)
-        .setInteractive({ useHandCursor: true });
+    const createMenuButton = (item: MainMenuItem, y: number, label: string): Phaser.GameObjects.Text => {
+      this.menuFrames.set(item, this.add.graphics().setDepth(-996));
+      return this.add.text(112, y, label, menuStyle)
+        .setFixedSize(350, 44).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+    };
 
-    this.playButton = createMenuButton(firstY, '›  YENİ KOŞU');
+    this.playButton = createMenuButton('new-run', firstY, '›  YENİ KOŞU');
     this.playButton.on('pointerover', () => this.setSelectedItem('new-run'));
     this.playButton.on('pointerup', () => this.startNewRun());
 
-    this.hubButton = createMenuButton(firstY + rowGap, '   AVCI KARARGÂHI');
+    this.hubButton = createMenuButton('hunter-hub', firstY + rowGap, '   AVCI KARARGÂHI');
     this.hubButton.on('pointerover', () => this.setSelectedItem('hunter-hub'));
     this.hubButton.on('pointerup', () => this.openHunterHub());
 
-    this.journalButton = createMenuButton(firstY + rowGap * 2, '   HİKÂYE DEFTERİ');
+    this.journalButton = createMenuButton('story-journal', firstY + rowGap * 2, '   HİKÂYE DEFTERİ');
     this.journalButton.on('pointerover', () => this.setSelectedItem('story-journal'));
     this.journalButton.on('pointerup', () => this.openQuestJournal());
 
-    this.collectionButton = createMenuButton(firstY + rowGap * 3, '   KOLEKSİYON');
+    this.collectionButton = createMenuButton('collection-archive', firstY + rowGap * 3, '   KOLEKSİYON');
     this.collectionButton.on('pointerover', () => this.setSelectedItem('collection-archive'));
     this.collectionButton.on('pointerup', () => this.openCollectionArchive());
 
     if (this.newGamePlusAvailable) {
-      this.newGamePlusButton = createMenuButton(firstY + rowGap * 4, '   NG+ DÖNGÜSÜ');
+      this.newGamePlusButton = createMenuButton('new-game-plus', firstY + rowGap * 4, '   NG+ DÖNGÜSÜ');
       this.newGamePlusButton.on('pointerover', () => this.setSelectedItem('new-game-plus'));
       this.newGamePlusButton.on('pointerup', () => this.openNewGamePlusConfirmation());
-      this.add.text(108, firstY + rowGap * 4 + 25, 'NG+' + Math.min(5, this.newGamePlusLevel + 1) + '  •  ZORLUK ARTIŞI', {
+      this.add.text(132, firstY + rowGap * 4 + 25, 'NG+' + Math.min(5, this.newGamePlusLevel + 1) + '  •  ZORLUK ARTIŞI', {
         fontFamily: 'Arial, sans-serif', fontSize: '10px', color: '#b59a70'
       });
     }
 
     const settingsSlot = this.newGamePlusAvailable ? 5 : 4;
-    this.settingsButton = createMenuButton(firstY + rowGap * settingsSlot, '   AYARLAR');
+    this.settingsButton = createMenuButton('settings', firstY + rowGap * settingsSlot, '   AYARLAR');
     this.settingsButton.on('pointerover', () => this.setSelectedItem('settings'));
     this.settingsButton.on('pointerup', () => this.openSettings());
 
     this.setSelectedItem(this.selectedItem);
 
-    this.add.text(88, h - 45, 'OKLAR: SEÇ    ENTER / SPACE / A: ONAYLA', {
+    this.add.text(112, h - 38, 'OKLAR: SEÇ    ENTER / SPACE / A: ONAYLA', {
       fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#a99b84'
     });
     
@@ -218,42 +221,41 @@ export class MainMenuScene extends Phaser.Scene {
   private setSelectedItem(item: MainMenuItem): void {
     if (item === 'new-game-plus' && !this.newGamePlusAvailable) item = 'new-run';
     this.selectedItem = item;
+    const firstY = Math.round(this.scale.height * 0.47);
+    const rowGap = Math.round(this.scale.height * 0.075);
+    const slots: MainMenuItem[] = this.newGamePlusAvailable
+      ? ['new-run', 'hunter-hub', 'story-journal', 'collection-archive', 'new-game-plus', 'settings']
+      : ['new-run', 'hunter-hub', 'story-journal', 'collection-archive', 'settings'];
+    this.menuFrames.forEach((frame, key) => {
+      const index = slots.indexOf(key);
+      if (index < 0) return;
+      const y = firstY + rowGap * index;
+      const selected = key === item;
+      frame.clear();
+      frame.fillStyle(selected ? 0x171923 : 0x0a0e15, selected ? 0.78 : 0.28);
+      frame.fillRect(98, y - 22, 372, 44);
+      frame.lineStyle(selected ? 2 : 1, selected ? 0xe1c17f : 0x7b705f, selected ? 0.92 : 0.28);
+      frame.strokeRect(98, y - 22, 372, 44);
+      if (selected) {
+        frame.lineStyle(2, 0xe1c17f, 0.9);
+        frame.lineBetween(98, y - 22, 124, y - 22);
+        frame.lineBetween(98, y - 22, 98, y - 7);
+        frame.lineBetween(470, y + 22, 444, y + 22);
+        frame.lineBetween(470, y + 22, 470, y + 7);
+      }
+    });
     this.playButton?.setText(item === 'new-run' ? '›  YENİ KOŞU' : '   YENİ KOŞU');
     this.hubButton?.setText(item === 'hunter-hub' ? '›  AVCI KARARGÂHI' : '   AVCI KARARGÂHI');
     this.journalButton?.setText(item === 'story-journal' ? '›  HİKÂYE DEFTERİ' : '   HİKÂYE DEFTERİ');
     this.collectionButton?.setText(item === 'collection-archive' ? '›  KOLEKSİYON' : '   KOLEKSİYON');
     this.newGamePlusButton?.setText(item === 'new-game-plus' ? '›  NG+ DÖNGÜSÜ' : '   NG+ DÖNGÜSÜ');
     this.settingsButton?.setText(item === 'settings' ? '›  AYARLAR' : '   AYARLAR');
-    this.playButton?.setStyle({
-      backgroundColor: item === 'new-run' ? '#79513c' : '#2b2528',
-      color: item === 'new-run' ? '#ffffff' : '#bcb2a7',
-      fontStyle: item === 'new-run' ? 'bold' : 'normal'
-    });
-    this.hubButton?.setStyle({
-      backgroundColor: item === 'hunter-hub' ? '#79513c' : '#2b2528',
-      color: item === 'hunter-hub' ? '#ffffff' : '#bcb2a7',
-      fontStyle: item === 'hunter-hub' ? 'bold' : 'normal'
-    });
-    this.newGamePlusButton?.setStyle({
-      backgroundColor: item === 'new-game-plus' ? '#654d36' : '#29212b',
-      color: item === 'new-game-plus' ? '#fff0ce' : '#e7c98e',
-      fontStyle: item === 'new-game-plus' ? 'bold' : 'normal'
-    });
-    this.journalButton?.setStyle({
-      backgroundColor: item === 'story-journal' ? '#5b4938' : '#211b24',
-      color: item === 'story-journal' ? '#fff0ce' : '#d9c9aa',
-      fontStyle: item === 'story-journal' ? 'bold' : 'normal'
-    });
-    this.collectionButton?.setStyle({
-      backgroundColor: item === 'collection-archive' ? '#5b4938' : '#211b24',
-      color: item === 'collection-archive' ? '#fff0ce' : '#d9c9aa',
-      fontStyle: item === 'collection-archive' ? 'bold' : 'normal'
-    });
-    this.settingsButton?.setStyle({
-      backgroundColor: item === 'settings' ? '#5b4938' : '#211b24',
-      color: item === 'settings' ? '#fff0ce' : '#d9c9aa',
-      fontStyle: item === 'settings' ? 'bold' : 'normal'
-    });
+    this.playButton?.setStyle({ color: item === 'new-run' ? '#fff0ce' : '#bcb2a7', fontStyle: item === 'new-run' ? 'bold' : 'normal' });
+    this.hubButton?.setStyle({ color: item === 'hunter-hub' ? '#fff0ce' : '#d9c9aa', fontStyle: item === 'hunter-hub' ? 'bold' : 'normal' });
+    this.journalButton?.setStyle({ color: item === 'story-journal' ? '#fff0ce' : '#d9c9aa', fontStyle: item === 'story-journal' ? 'bold' : 'normal' });
+    this.collectionButton?.setStyle({ color: item === 'collection-archive' ? '#fff0ce' : '#d9c9aa', fontStyle: item === 'collection-archive' ? 'bold' : 'normal' });
+    this.newGamePlusButton?.setStyle({ color: item === 'new-game-plus' ? '#fff0ce' : '#e7c98e', fontStyle: item === 'new-game-plus' ? 'bold' : 'normal' });
+    this.settingsButton?.setStyle({ color: item === 'settings' ? '#fff0ce' : '#d9c9aa', fontStyle: item === 'settings' ? 'bold' : 'normal' });
   }
 
   private activateSelectedItem(): void {
