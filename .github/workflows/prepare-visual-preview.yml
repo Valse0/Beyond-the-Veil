@@ -41,6 +41,8 @@ jobs:
               Path("beyond-the-veil-ui-design/03_region_selection.png"),
               Path("beyond-the-veil-ui-design/04_run_preparation.png"),
               Path("beyond-the-veil-ui-design/05_gameplay_hud.png"),
+              Path("beyond-the-veil-ui-design/06_level_up.png"),
+              Path("beyond-the-veil-ui-design/07_game_over.png"),
           ]
 
           root = Path("Visual/assistant-preview")
@@ -102,6 +104,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "chore: prepare five UI design previews"
+            git commit -m "chore: prepare seven UI design previews"
             git push origin HEAD:${GITHUB_REF_NAME}
           fi
