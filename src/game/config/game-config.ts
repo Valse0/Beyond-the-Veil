@@ -20,7 +20,7 @@ export function createGameConfig(): Phaser.Types.Core.GameConfig {
     pixelArt: true,
     input: { gamepad: true },
     physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false } },
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, autoRound: true },
+    scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH, autoRound: true },
     scene: [MainMenuScene, CharacterSelectScene, CharacterDetailScene, RegionSelectScene, RunPreparationScene, HunterHubScene, RunScene, QuestJournalScene, SettingsScene, CollectionArchiveScene]
   };
 }
