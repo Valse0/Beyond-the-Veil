@@ -2955,33 +2955,38 @@ export class RunScene extends Phaser.Scene {
 
   private renderLevelUpChoices():void {
     this.clearOverlay();const w=this.scale.width,h=this.scale.height;
-    this.overlay.push(this.add.rectangle(w/2,h/2,w,h,0x08070b,.88).setScrollFactor(0).setDepth(200));
-    this.overlay.push(this.add.text(w/2,h*.19,'GÜÇLENME SEÇİMİ',{fontFamily:'Georgia',fontSize:'30px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
-    const instruction=this.banishMode?'MÜHÜRLEME: ÇIKARMAK İSTEDİĞİN KARTI SEÇ':'Bir gelişim seç. Her seçim koşunu değiştirir.';
-    this.overlay.push(this.add.text(w/2,h*.27,instruction,{fontSize:'15px',color:this.banishMode?'#e59a8c':'#aaa0a0'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    // Keep the arena visible beneath the upgrade ceremony, as in the approved screen.
+    this.overlay.push(this.add.rectangle(w/2,h/2,w,h,0x08070b,.62).setScrollFactor(0).setDepth(200));
+    this.overlay.push(this.add.text(w/2,h*.15,'YENİ SEVİYE',{fontFamily:'Georgia',fontSize:'34px',color:'#e8d6ad'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
+    const instruction=this.banishMode?'MÜHÜRLEME: ÇIKARMAK İSTEDİĞİN KARTI SEÇ':'Gücünü seç. Hayatta kalmaya devam et.';
+    this.overlay.push(this.add.text(w/2,h*.225,instruction,{fontFamily:'Georgia',fontSize:'15px',color:this.banishMode?'#e59a8c':'#d4c4a9'}).setOrigin(.5).setScrollFactor(0).setDepth(201));
     const optionCount=Math.max(1,this.currentLevelChoices.length);
-    const cardWidth=Math.min(196,Math.floor((w-72-(optionCount-1)*12)/optionCount));
-    const cardHeight=Math.min(178,Math.max(142,h*.25));
     const cardGap=12;
+    const cardWidth=Math.min(220,Math.floor((w-72-(optionCount-1)*cardGap)/optionCount));
+    const cardHeight=Math.min(260,Math.max(220,h*.36));
     const rowWidth=optionCount*cardWidth+(optionCount-1)*cardGap;
-    const cardCenterY=h*.53;
+    const cardCenterY=h*.50;
     this.currentLevelChoices.forEach((choice,i)=>{
       const x=w/2-rowWidth/2+cardWidth/2+i*(cardWidth+cardGap);
-      const card=this.add.rectangle(x,cardCenterY,cardWidth,cardHeight,0x211d27,.99).setStrokeStyle(2,this.banishMode?0xc65d62:0x9b8059).setScrollFactor(0).setDepth(201).setInteractive({useHandCursor:true});
+      const accent=this.banishMode?0xc65d62:(i===0?0xd9b86f:0x8f8067);
+      const panel=drawUiPanel(this,x-cardWidth/2,cardCenterY-cardHeight/2,cardWidth,cardHeight,accent,201,.98).setScrollFactor(0);
+      const iconSymbol=choice.kind.startsWith('weapon')?'⚔':choice.kind.startsWith('passive')?'◈':'✦';
+      const icon=this.add.text(x,cardCenterY-cardHeight*.29,iconSymbol,{fontFamily:'Georgia',fontSize:'34px',color:this.banishMode?'#e59a8c':'#d9bd7d'}).setOrigin(.5).setScrollFactor(0).setDepth(203);
       const kindLabel=choice.kind.startsWith('weapon')?'SİLAH':choice.kind.startsWith('passive')?'PASİF':'TEMEL GELİŞİM';
-      const eyebrow=this.add.text(x,cardCenterY-cardHeight*.36,kindLabel,{fontFamily:'Arial',fontSize:'9px',fontStyle:'bold',color:'#c7ad7b',letterSpacing:1}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-      const name=this.add.text(x,cardCenterY-cardHeight*.12,choice.title,{fontFamily:'Georgia',fontSize:cardWidth<160?'14px':'16px',fontStyle:'bold',color:'#f0dfbd',align:'center',wordWrap:{width:cardWidth-22}}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-      const divider=this.add.rectangle(x,cardCenterY+cardHeight*.08,cardWidth-30,1,0x9b8059,.48).setScrollFactor(0).setDepth(202);
-      const detail=this.add.text(x,cardCenterY+cardHeight*.25,choice.detail,{fontFamily:'Arial',fontSize:cardWidth<160?'11px':'12px',color:'#d0c6ba',align:'center',wordWrap:{width:cardWidth-24},lineSpacing:4}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-      this.overlay.push(card,eyebrow,name,divider,detail);
-      this.registerOverlayOption(card,()=>this.banishMode?this.banishLevelChoice(choice):this.chooseUpgrade(choice));
+      const eyebrow=this.add.text(x,cardCenterY-cardHeight*.10,kindLabel,{fontFamily:'Arial',fontSize:'10px',fontStyle:'bold',color:'#c7ad7b',letterSpacing:1}).setOrigin(.5).setScrollFactor(0).setDepth(203);
+      const name=this.add.text(x,cardCenterY+cardHeight*.07,choice.title,{fontFamily:'Georgia',fontSize:cardWidth<160?'14px':'17px',fontStyle:'bold',color:'#f0dfbd',align:'center',wordWrap:{width:cardWidth-24}}).setOrigin(.5).setScrollFactor(0).setDepth(203);
+      const divider=this.add.rectangle(x,cardCenterY+cardHeight*.23,cardWidth-34,1,0x9b8059,.55).setScrollFactor(0).setDepth(203);
+      const detail=this.add.text(x,cardCenterY+cardHeight*.34,choice.detail,{fontFamily:'Arial',fontSize:cardWidth<160?'11px':'13px',color:'#d0c6ba',align:'center',wordWrap:{width:cardWidth-26},lineSpacing:5}).setOrigin(.5).setScrollFactor(0).setDepth(203);
+      const hit=this.add.zone(x,cardCenterY,cardWidth,cardHeight).setScrollFactor(0).setDepth(204).setInteractive({useHandCursor:true});
+      this.overlay.push(panel,icon,eyebrow,name,divider,detail,hit);
+      this.registerOverlayOption(hit,()=>this.banishMode?this.banishLevelChoice(choice):this.chooseUpgrade(choice));
     });
     const freeReroll=isPassiveSpecialActive(this.build,'scribes-lens')&&!this.passiveSpecialState.freeRerollUsed;
     const status='Yenile: '+this.levelUpControls.rerollsRemaining+(freeReroll?' + ÜCRETSİZ':'')+'   •   Mühürle: '+this.levelUpControls.banishesRemaining+'   •   Geç: '+this.levelUpControls.skipsRemaining;
-    this.overlay.push(this.add.text(w/2,h*.68,status,{fontSize:'14px',color:'#c9bda9'}).setOrigin(.5).setScrollFactor(0).setDepth(202));
-    this.createOverlayButton(w*.32,h*.79,190,48,freeReroll?'YENİLE (ÜCRETSİZ)':'YENİLE ('+this.levelUpControls.rerollsRemaining+')',()=>this.rerollLevelChoices());
-    this.createOverlayButton(w*.5,h*.79,190,48,this.banishMode?'VAZGEÇ ('+this.levelUpControls.banishesRemaining+')':'MÜHÜRLE ('+this.levelUpControls.banishesRemaining+')',()=>this.toggleBanishMode());
-    this.createOverlayButton(w*.68,h*.79,190,48,'GEÇ ('+this.levelUpControls.skipsRemaining+')',()=>this.skipLevelChoice());
+    this.overlay.push(this.add.text(w/2,h*.715,status,{fontSize:'14px',color:'#c9bda9'}).setOrigin(.5).setScrollFactor(0).setDepth(202));
+    this.createOverlayButton(w*.32,h*.835,190,48,freeReroll?'YENİLE (ÜCRETSİZ)':'YENİLE ('+this.levelUpControls.rerollsRemaining+')',()=>this.rerollLevelChoices());
+    this.createOverlayButton(w*.5,h*.835,190,48,this.banishMode?'VAZGEÇ ('+this.levelUpControls.banishesRemaining+')':'MÜHÜRLE ('+this.levelUpControls.banishesRemaining+')',()=>this.toggleBanishMode());
+    this.createOverlayButton(w*.68,h*.835,190,48,'GEÇ ('+this.levelUpControls.skipsRemaining+')',()=>this.skipLevelChoice());
   }
 
   private rerollLevelChoices():void {
