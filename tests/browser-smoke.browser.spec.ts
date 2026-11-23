@@ -449,7 +449,7 @@ async function startBrowserTestRun(page: import('@playwright/test').Page,unlocke
     const save=JSON.parse(raw) as {story:{unlockedPathIds:string[]}};
     save.story.unlockedPathIds=ids;window.localStorage.setItem(key,JSON.stringify(save));
   },unlockedPathIds);
-  await page.mouse.click(160,555);
+  await clickGamePoint(page,160,310);
   await page.mouse.move(1240,40);
   await page.waitForTimeout(150);
   await page.keyboard.press('Enter');
@@ -2885,7 +2885,7 @@ test('touch-first hunter, region and run-preparation layouts keep large selectio
     return game.scene.getScene(sceneKey).browserTestSnapshot();
   }, key);
 
-  await tapLogical(160, 555);
+  await tapLogical(160, 310);
   await expect.poll(() => isActive('character-select')).toBe(true);
   const firstHunter = await snapshot('character-select') as { selectedIndex: number; characterId: string; layoutMode: string };
   expect(firstHunter.layoutMode).toBe('touch');
