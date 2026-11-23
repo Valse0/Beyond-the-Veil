@@ -2,9 +2,19 @@
 
 Source of truth: `Game Design Document.md` (Sections 1–30), `PLAN.md`, and the repository implementation. This file is the **current authoritative progress tracker**. The verification register and session log below are historical evidence; their old status descriptions must not override the current inventory/dashboard.
 
-Last reconciled: 2026-11-20  
+Last reconciled: 2026-11-23  
 Tracked branch: `full-game-development`  
-Latest verification: Settings & Accessibility v1 CI #44850099234 passed TypeScript, unit tests, production build, Chromium browser tests and npm audit (0 vulnerabilities). Physical controller/TV/device validation and final art sign-off remain outstanding.
+Latest verification: UI reference integration CI is pending on the latest generated-asset commit. Physical controller/TV/device validation and final art sign-off remain outstanding.
+
+## Seven Reference Screens & Art Integration v2 — implemented, verification in progress (2026-11-23)
+
+- Added a GitHub Actions visual-inspection workflow that creates readable previews and metadata for all seven approved PNG references without asking the user to upload images or ZIPs.
+- The seven screens remain separate Phaser scenes/layers with real input and navigation: Main Menu, Hunter Selection, Region & Difficulty Selection, Run Preparation, Gameplay HUD, Level-up and Run Results. Reference artwork is used as masked atmospheric/background art; dynamic text, cards, selection states, controls and actions are rendered as Phaser objects rather than presenting a flattened screenshot as a screen.
+- Main Menu retains the original pixel-art logo from its reference backdrop and uses live framed menu actions. Hunter Selection uses the reference's full-body first-hunter artwork as a separate visual layer; other hunter selections retain their live portrait/selection state.
+- Updated shared UI panels to use square, corner-cut frames, enlarged level-up cards/icons, and rebuilt the defeat report around the reference's death heading, run summary and live Main Menu/Retry actions. The GDD's four level-up choices remain intact.
+- Reworked world-ground generation to avoid the previous large repeated 128px patch pattern. It now uses varied seamless 32px terrain tiles, short-range tile clustering and small region-native environmental details. Existing large landmarks remain separate Phaser objects.
+- Stabilized touch-test coordinates by rounding CSS viewport positions before dispatch and replaced an animation-sensitive screenshot equality check with an assertion on the selected hunter's actual scene state. No assertions were skipped or relaxed.
+- The asset ZIP extraction/generation workflow completed successfully and generated the updated world textures, upgrade glyphs and default hunter backdrop. Full CI and browser visual review on the latest generated-asset commit are still pending; physical iPhone/Android, gamepad and TV validation remain outstanding.
 
 ## How to use this ledger
 
