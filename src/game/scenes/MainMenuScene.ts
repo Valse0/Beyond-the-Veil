@@ -69,11 +69,11 @@ export class MainMenuScene extends Phaser.Scene {
     const rowGap = Math.round(h * 0.081);
     const menuStyle = {
       fontFamily: 'Arial, sans-serif', fontSize: '19px', color: '#d8d0c3',
-      backgroundColor: '#151b22', padding: { x: 18, y: 10 },
-      fixedWidth: 300
+      backgroundColor: '#151b22', padding: { x: 18, y: 10 }
     } as const;
     const createMenuButton = (y: number, label: string): Phaser.GameObjects.Text =>
       this.add.text(88, y, label, menuStyle)
+        .setFixedSize(300, 44)
         .setOrigin(0, 0.5)
         .setInteractive({ useHandCursor: true });
 
