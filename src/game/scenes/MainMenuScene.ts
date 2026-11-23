@@ -42,7 +42,6 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     drawUiBackdrop(this, 'menu');
-    const width = this.scale.width;
     this.add.rectangle(248, h / 2, 496, h, 0x05080e, 0.24).setDepth(-997);
     // The reference backdrop already contains the original pixel-art logo.
     // Keep that artwork untouched and draw only live menu controls over its masked panel.
