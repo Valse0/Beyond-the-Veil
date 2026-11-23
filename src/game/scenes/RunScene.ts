@@ -1202,9 +1202,9 @@ export class RunScene extends Phaser.Scene {
     this.physics.world.setBounds(0,0,WORLD_W,WORLD_H);
     this.mapWalls=this.physics.add.staticGroup();
     for(const point of resolvedMap.boundary){const wall=this.mapWalls.create(point.x,point.y,'map-wall') as Phaser.Physics.Arcade.Image;wall.setDepth(-3).setVisible(false);(wall.body as Phaser.Physics.Arcade.StaticBody).setCircle(20);}
-    const mapDrawing=this.add.graphics().setDepth(-4);mapDrawing.lineStyle(7,0x756653,.38);
+    const mapDrawing=this.add.graphics().setDepth(-4);mapDrawing.lineStyle(4,0x756653,.14);
     for(const room of this.mapLayout.rooms){mapDrawing.strokeEllipse(room.x,room.y,room.radiusX*2,room.radiusY*2);}
-    mapDrawing.lineStyle(9,0x756653,.24);
+    mapDrawing.lineStyle(6,0x756653,.12);
     for(const corridor of this.mapLayout.corridors){const from=this.mapLayout.rooms.find(room=>room.id===corridor.from)!;const to=this.mapLayout.rooms.find(room=>room.id===corridor.to)!;mapDrawing.beginPath();mapDrawing.moveTo(from.x,from.y);for(let step=1;step<=24;step++){const t=step/24,u=1-t;mapDrawing.lineTo(u*u*from.x+2*u*t*corridor.controlX+t*t*to.x,u*u*from.y+2*u*t*corridor.controlY+t*t*to.y);}mapDrawing.strokePath();}
     this.cameras.main.setBounds(0,0,WORLD_W,WORLD_H).setBackgroundColor(this.region.palette[0]??'#15131a');
     const floorKey='region-floor-'+this.region.id;
@@ -1212,7 +1212,7 @@ export class RunScene extends Phaser.Scene {
     const floor=this.add.graphics();
     if(!this.textures.exists(floorKey)){floor.fillStyle(0x19171d,1);floor.fillRect(0,0,WORLD_W,WORLD_H);}
     floor.lineStyle(1,0x3a3337,0.12);
-    for(let i=0;i<28;i++){const x=Phaser.Math.Between(80,WORLD_W-80),y=Phaser.Math.Between(80,WORLD_H-80);floor.lineStyle(2,0x8a795d,0.08);floor.strokeCircle(x,y,Phaser.Math.Between(18,64));}
+    for(let i=0;i<18;i++){const x=Phaser.Math.Between(80,WORLD_W-80),y=Phaser.Math.Between(80,WORLD_H-80);floor.lineStyle(1,0x8a795d,0.035);floor.strokeCircle(x,y,Phaser.Math.Between(18,42));}
     floor.setDepth(-9);
     this.enemies=this.physics.add.group();this.shots=this.physics.add.group({maxSize:100});this.orbs=this.physics.add.group({maxSize:80});this.eventObjects=this.physics.add.group();this.bossArenaObjects=this.physics.add.group();this.bossTraceObjects=this.add.group();
     const start=resolveRegionMapPosition(this.mapLayout,WORLD_W/2,WORLD_H/2,24);
