@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import { drawUiBackdrop, drawUiPanel } from '../ui/dark-fantasy-theme.js';
+import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import type { ChallengeId, GameMode } from '../../core/types/game.js';
 import type { RegionId } from '../../core/types/content.js';
 import { CHARACTERS } from '../../data/characters.js';
+import { UI_ASSET_KEYS } from '../../data/asset-registry.js';
 import { REGIONS } from '../../data/regions.js';
 import { CHALLENGES } from '../../data/challenges.js';
 import { WEAPONS } from '../../data/weapons.js';
@@ -65,6 +66,8 @@ export class RunPreparationScene extends Phaser.Scene {
     this.requestedProfileId = data?.selectedProfileId;
   }
 
+  preload(): void { preloadUiArt(this); }
+
   create(): void {
     const saveManager = this.registry.get('saveManager') as SaveManager | undefined;
     const loaded = saveManager?.load();
@@ -108,24 +111,29 @@ export class RunPreparationScene extends Phaser.Scene {
     this.add.text(82, 154, 'KOŞU BİLGİSİ', {
       fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '21px' : '18px', color: '#d9c9aa', fontStyle: 'bold'
     });
+    const hunterIndex = Math.max(0, CHARACTERS.findIndex(item => item.id === character.id));
+    const regionIndex = Math.max(0, REGIONS.findIndex(item => item.id === region.id));
+    this.add.circle(340, 238, 48, 0xc6a56b, 0.12).setStrokeStyle(1, 0xc6a56b, 0.58);
+    this.add.image(340, 238, UI_ASSET_KEYS.hunterPortraits, hunterIndex).setDisplaySize(78, 78);
     this.add.text(82, 202, character.name, {
-      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '30px' : '25px', color: '#f0e6d6', fontStyle: 'bold',
-      wordWrap: { width: 290 }
+      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '27px' : '22px', color: '#f0e6d6', fontStyle: 'bold',
+      wordWrap: { width: 220 }
     });
     this.add.text(82, 240, character.role + '\n' + character.description, {
-      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '16px' : '13px', color: '#aaa2a0',
-      wordWrap: { width: 286 }, lineSpacing: 5
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '12px', color: '#aaa2a0',
+      wordWrap: { width: 220 }, lineSpacing: 5
     });
-    this.add.text(82, 326, 'BÖLGE', {
+    this.add.text(82, 326, 'HEDEF BÖLGE', {
       fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '11px', color: '#b99a61', fontStyle: 'bold'
     });
+    this.add.image(326, 418, UI_ASSET_KEYS.regionArt, regionIndex).setDisplaySize(118, 82);
     this.add.text(82, 348, region.name, {
-      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '24px' : '20px', color: '#f0e6d6',
-      wordWrap: { width: 286 }
+      fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '23px' : '18px', color: '#f0e6d6',
+      wordWrap: { width: 220 }
     });
     this.add.text(82, 392, region.subtitle + '\n' + region.atmosphere, {
-      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '15px' : '12px', color: '#aaa2a0',
-      wordWrap: { width: 286 }, lineSpacing: 4
+      fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '14px' : '11px', color: '#aaa2a0',
+      wordWrap: { width: 220 }, lineSpacing: 4
     });
     this.add.text(82, 492, 'MOD', {
       fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#b99a61', fontStyle: 'bold'
