@@ -1,11 +1,15 @@
-name: Prepare visual preview
+name: Prepare visual previews
 
 on:
   push:
     branches:
       - full-game-development
     paths:
-      - 'Visual/IMG_9754.png'
+      - 'beyond-the-veil-ui-design/01_main_menu.png'
+      - 'beyond-the-veil-ui-design/02_hunter_selection.png'
+      - 'beyond-the-veil-ui-design/03_region_selection.png'
+      - 'beyond-the-veil-ui-design/04_run_preparation.png'
+      - 'beyond-the-veil-ui-design/05_gameplay_hud.png'
       - '.github/workflows/prepare-visual-preview.yml'
   workflow_dispatch:
 
@@ -22,7 +26,7 @@ jobs:
         with:
           ref: full-game-development
 
-      - name: Create compressed image preview
+      - name: Create compressed previews and text chunks
         run: |
           python -m pip install Pillow
 
@@ -31,42 +35,61 @@ jobs:
           from pathlib import Path
           import base64
 
-          source = Path("Visual/IMG_9754.png")
-          output = Path("Visual/assistant-preview")
-          output.mkdir(parents=True, exist_ok=True)
-
-          image = Image.open(source).convert("RGB")
-          image.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
-
-          preview = output / "preview.jpg"
-          image.save(preview, "JPEG", quality=82, optimize=True)
-
-          encoded = base64.b64encode(preview.read_bytes()).decode("ascii")
-          chunk_size = 180000
-
-          for old in output.glob("part-*.txt"):
-              old.unlink()
-          single = output / "preview-base64.txt"
-          if single.exists():
-              single.unlink()
-
-          chunks = [
-              encoded[i:i + chunk_size]
-              for i in range(0, len(encoded), chunk_size)
+          sources = [
+              Path("beyond-the-veil-ui-design/01_main_menu.png"),
+              Path("beyond-the-veil-ui-design/02_hunter_selection.png"),
+              Path("beyond-the-veil-ui-design/03_region_selection.png"),
+              Path("beyond-the-veil-ui-design/04_run_preparation.png"),
+              Path("beyond-the-veil-ui-design/05_gameplay_hud.png"),
           ]
 
-          for index, chunk in enumerate(chunks):
-              (output / f"part-{index:03d}.txt").write_text(chunk)
+          root = Path("Visual/assistant-preview")
+          chunk_size = 180000
 
-          (output / "manifest.txt").write_text(
-              f"format=jpeg\n"
-              f"width={image.width}\n"
-              f"height={image.height}\n"
-              f"chunks={len(chunks)}\n"
-              f"chunk_size={chunk_size}\n"
-          )
+          for source in sources:
+              if not source.is_file():
+                  raise FileNotFoundError(f"Missing source image: {source}")
 
-          print(f"Created {len(chunks)} image chunks.")
+              output = root / source.stem
+              output.mkdir(parents=True, exist_ok=True)
+
+              with Image.open(source) as original:
+                  original_size = original.size
+                  image = original.convert("RGB")
+                  image.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+
+              preview = output / "preview.jpg"
+              image.save(preview, "JPEG", quality=82, optimize=True)
+
+              encoded = base64.b64encode(preview.read_bytes()).decode("ascii")
+
+              for old in output.glob("part-*.txt"):
+                  old.unlink()
+
+              chunks = [
+                  encoded[i:i + chunk_size]
+                  for i in range(0, len(encoded), chunk_size)
+              ]
+
+              for index, chunk in enumerate(chunks):
+                  (output / f"part-{index:03d}.txt").write_text(chunk)
+
+              (output / "manifest.txt").write_text(
+                  f"source={source.as_posix()}\n"
+                  f"original_width={original_size[0]}\n"
+                  f"original_height={original_size[1]}\n"
+                  f"format=jpeg\n"
+                  f"width={image.width}\n"
+                  f"height={image.height}\n"
+                  f"chunks={len(chunks)}\n"
+                  f"chunk_size={chunk_size}\n"
+                  f"preview_bytes={preview.stat().st_size}\n"
+              )
+
+              print(
+                  f"{source.name}: {image.width}x{image.height}, "
+                  f"{preview.stat().st_size} bytes, {len(chunks)} chunk(s)"
+              )
           PY
 
       - name: Commit preview files
@@ -79,6 +102,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "chore: prepare visual preview for inspection"
+            git commit -m "chore: prepare five UI design previews"
             git push origin HEAD:${GITHUB_REF_NAME}
           fi
