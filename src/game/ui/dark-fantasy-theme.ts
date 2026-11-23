@@ -23,6 +23,9 @@ export function preloadUiArt(scene: Phaser.Scene): void {
   if (!scene.textures.exists(UI_ASSET_KEYS.hunterPortraits)) scene.load.spritesheet(UI_ASSET_KEYS.hunterPortraits, '/assets/ui/hunter-portraits.svg', { frameWidth: 160, frameHeight: 160 });
   if (!scene.textures.exists(UI_ASSET_KEYS.regionArt)) scene.load.spritesheet(UI_ASSET_KEYS.regionArt, '/assets/ui/region-art.svg', { frameWidth: 256, frameHeight: 160 });
   if (!scene.textures.exists(UI_ASSET_KEYS.gameOverBackdrop)) scene.load.image(UI_ASSET_KEYS.gameOverBackdrop, '/assets/ui/game-over-backdrop.png');
+  for (const key of ['upgrade-icon-weapon', 'upgrade-icon-passive', 'upgrade-icon-base']) {
+    if (!scene.textures.exists(key)) scene.load.image(key, '/assets/ui/' + key + '.png');
+  }
   for (const key of Object.values(REGION_CARD_KEYS)) {
     if (!scene.textures.exists(key)) scene.load.image(key, '/assets/ui/' + key + '.png');
   }
