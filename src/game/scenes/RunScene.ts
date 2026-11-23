@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { drawUiPanel } from '../ui/dark-fantasy-theme.js';
+import { drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import { UI_ASSET_KEYS } from '../../data/asset-registry.js';
 import type { ElementId, RegionId, RegionPathDefinition, EnemyDefinition, EnemyMutationId, BossDefinition, CharacterDefinition, WeaponDefinition, PassiveSpecialMechanic } from '../../core/types/content.js';
 import type { ChallengeId, GameMode, RunState, UpgradeId } from '../../core/types/game.js';
@@ -1143,6 +1143,8 @@ export class RunScene extends Phaser.Scene {
       }
     }
   }
+
+  preload():void { preloadUiArt(this); }
 
   create():void {
     this.time.paused=false;this.physics.world.resume();
@@ -3234,16 +3236,22 @@ export class RunScene extends Phaser.Scene {
   private showRunResults():void {
     const result=this.runResultPresentation;
     if(!result)return;
+    const defeated=!result.won;
     const w=this.scale.width,h=this.scale.height,displayWidth=this.scale.displaySize.width;
     const compact=displayWidth<960||h<500,uiScale=Math.min(1.5,1280/Math.max(1,displayWidth));
-    const panelWidth=Math.min(1080,w*.9),panelHeight=h*.53,panelY=h*.56;
-    const titleSize=(compact?38:38)*uiScale,bodySize=(compact?20:18)*uiScale,sectionSize=(compact?17:16)*uiScale;
-    const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.92).setScrollFactor(0).setDepth(200);
-    const panel=drawUiPanel(this,w/2-panelWidth/2,panelY-panelHeight/2,panelWidth,panelHeight,0x987b52,201,.98).setScrollFactor(0);
-    const eyebrow=this.add.text(w/2,h*.075,'KOŞU RAPORU',{fontSize:(compact?16:14)*uiScale+'px',fontStyle:'bold',color:'#b99b70',letterSpacing:3}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-    const title=this.add.text(w/2,h*.135,result.title,{fontFamily:'Georgia',fontSize:titleSize+'px',fontStyle:'bold',color:result.won?'#f0dfbd':'#e6b2a6'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-    const context=this.add.text(w/2,h*.225,result.characterName+'  •  '+result.regionName+'  •  '+result.modeLabel,{fontSize:16*uiScale+'px',color:'#c8bba9',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
-    const leftX=w/2-panelWidth*.245,rightX=w/2+panelWidth*.245,headingY=h*.34,contentY=h*.425;
+    const panelWidth=Math.min(defeated?920:1080,w*(defeated?.78:.9));
+    const panelHeight=h*(defeated?.34:.53),panelY=h*(defeated?.61:.56);
+    const titleSize=38*uiScale,bodySize=(compact?18:17)*uiScale,sectionSize=(compact?16:15)*uiScale;
+    if(defeated&&this.textures.exists(UI_ASSET_KEYS.gameOverBackdrop)){
+      this.add.image(w/2,h/2,UI_ASSET_KEYS.gameOverBackdrop).setDisplaySize(w,h).setScrollFactor(0).setDepth(199);
+    }
+    const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,defeated?.38:.92).setScrollFactor(0).setDepth(200);
+    const panel=drawUiPanel(this,w/2-panelWidth/2,panelY-panelHeight/2,panelWidth,panelHeight,defeated?0x9f4148:0x987b52,201,.98).setScrollFactor(0);
+    const eyebrow=this.add.text(w/2,h*(defeated?.105:.075),'KOŞU RAPORU',{fontSize:(compact?15:14)*uiScale+'px',fontStyle:'bold',color:defeated?'#d98b83':'#b99b70',letterSpacing:3}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+    const title=this.add.text(w/2,h*(defeated?.19:.135),defeated?'ÖLDÜN':result.title,{fontFamily:'Georgia',fontSize:titleSize+'px',fontStyle:'bold',color:result.won?'#f0dfbd':'#f3d2c8'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+    const context=this.add.text(w/2,h*(defeated?.285:.225),defeated?'Bu dünya henüz seni affetmedi...':result.characterName+'  •  '+result.regionName+'  •  '+result.modeLabel,{fontFamily:'Georgia',fontSize:15*uiScale+'px',color:'#d8c7b7',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
+    const leftX=w/2-panelWidth*.245,rightX=w/2+panelWidth*.245;
+    const headingY=panelY-panelHeight/2+(defeated?34:38),contentY=headingY+(defeated?42:48);
     const divider=this.add.rectangle(w/2,panelY,panelWidth*.002,panelHeight*.72,0x78634d,.8).setScrollFactor(0).setDepth(202);
     const leftHeading=this.add.text(leftX,headingY,'KOŞU ÖZETİ',{fontSize:sectionSize+'px',fontStyle:'bold',color:'#d5b782',letterSpacing:1}).setOrigin(.5).setScrollFactor(0).setDepth(202);
     const rightHeading=this.add.text(rightX,headingY,'KALICI KAZANIMLAR',{fontSize:sectionSize+'px',fontStyle:'bold',color:'#d5b782',letterSpacing:1}).setOrigin(.5).setScrollFactor(0).setDepth(202);
@@ -3252,8 +3260,8 @@ export class RunScene extends Phaser.Scene {
       'BÖLGE  •  '+result.regionName,
       'SÜRE  •  '+formatRunDuration(result.elapsedMs),
       'SEVİYE  '+result.level+'  •  '+result.kills+' DÜŞMAN'
-    ].join('\\n');
-    const statsText=this.add.text(leftX,contentY,stats,{fontSize:bodySize+'px',color:'#e1d6c7',align:'center',lineSpacing:compact?7:10,wordWrap:{width:panelWidth*.43,useAdvancedWrap:true}}).setOrigin(.5,0).setScrollFactor(0).setDepth(202);
+    ].join('\n');
+    const statsText=this.add.text(leftX,contentY,stats,{fontSize:bodySize+'px',color:'#e1d6c7',align:'center',lineSpacing:compact?6:8,wordWrap:{width:panelWidth*.43,useAdvancedWrap:true}}).setOrigin(.5,0).setScrollFactor(0).setDepth(202);
     const rewards:string[]=[];
     if(result.saved){
       rewards.push('+'+result.persistedSoulEssence+' RUH ÖZÜ');
@@ -3267,11 +3275,11 @@ export class RunScene extends Phaser.Scene {
       rewards.push('KALICI ÖDÜLLER KAYDEDİLEMEDİ');
       rewards.push('Bu koşunun ilerlemesi korunmadı.');
     }
-    const rewardsText=this.add.text(rightX,contentY,rewards.join('\\n'),{fontSize:bodySize+'px',color:result.saved?'#e1d6c7':'#e6a49a',align:'center',lineSpacing:compact?7:9,wordWrap:{width:panelWidth*.43,useAdvancedWrap:true}}).setOrigin(.5,0).setScrollFactor(0).setDepth(202);
-    const status=this.add.text(w/2,h*.775,result.saved?'İLERLEME KAYDEDİLDİ':'KAYIT BAŞARISIZ  —  ÖDÜLLER KALICI OLARAK KAYDEDİLEMEDİ',{fontSize:(compact?15:14)*uiScale+'px',fontStyle:'bold',color:result.saved?'#a8c7a8':'#e29a8d',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(203);
+    const rewardsText=this.add.text(rightX,contentY,rewards.join('\n'),{fontSize:bodySize+'px',color:result.saved?'#e1d6c7':'#e6a49a',align:'center',lineSpacing:compact?6:8,wordWrap:{width:panelWidth*.43,useAdvancedWrap:true}}).setOrigin(.5,0).setScrollFactor(0).setDepth(202);
+    const status=this.add.text(w/2,defeated?h*.805:h*.775,result.saved?'İLERLEME KAYDEDİLDİ':'KAYIT BAŞARISIZ  —  ÖDÜLLER KALICI OLARAK KAYDEDİLEMEDİ',{fontSize:(compact?14:13)*uiScale+'px',fontStyle:'bold',color:result.saved?'#a8c7a8':'#e29a8d',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(203);
     this.overlay.push(shade,panel,eyebrow,title,context,divider,leftHeading,rightHeading,statsText,rewardsText,status);
-    const buttonY=h*.89,buttonHeight=compact?54:54,buttonWidth=Math.min(compact?250:270,w*.28),buttonFont=18*uiScale;
-    this.createOverlayButton(w*.38,buttonY,buttonWidth,buttonHeight,'YENİ KOŞU',()=>this.scene.restart({characterId:this.character.id,regionId:this.region.id,gameMode:this.gameMode,challengeId:this.challengeId??undefined,equipmentProfileId:this.selectedEquipmentProfileId}),buttonFont);
+    const buttonY=h*(defeated?.90:.89),buttonHeight=54,buttonWidth=Math.min(defeated?245:270,w*.28),buttonFont=18*uiScale;
+    this.createOverlayButton(w*.38,buttonY,buttonWidth,buttonHeight,defeated?'TEKRAR DENE':'YENİ KOŞU',()=>this.scene.restart({characterId:this.character.id,regionId:this.region.id,gameMode:this.gameMode,challengeId:this.challengeId??undefined,equipmentProfileId:this.selectedEquipmentProfileId}),buttonFont);
     this.createOverlayButton(w*.62,buttonY,buttonWidth,buttonHeight,'ANA MENÜ',()=>this.scene.start('main-menu'),buttonFont);
     this.overlayBackIndex=1;
   }
