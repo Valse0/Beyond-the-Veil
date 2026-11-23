@@ -20,3 +20,13 @@ Current entries are project-owned runtime vector placeholders, not production ar
 ## Art production gate
 
 Approve a representative character/enemy target, produce coherent families, normalize to pixel grid and shared pivots, validate alpha/palette/frame consistency, inspect at native gameplay scale and in-engine, and keep all placeholders marked until technical and visual checks pass.
+
+
+## Main menu presentation backdrop — temporary iteration 01
+
+- File: `public/assets/ui/veil-menu-backdrop.svg`.
+- Composition: moonlit gothic skyline on the right, layered mountain silhouettes, a broken stone approach/bridge, foreground arch fragments, distant torchlight, and a lone hunter silhouette.
+- Layout intent: keep the left third visually quiet and dark so the real Phaser menu controls remain legible; reserve the upper-right sky for the game title.
+- Provenance: original hand-authored SVG composition for this project; no third-party image, logo, watermark, studio credit, or baked-in menu text.
+- Status: presentation placeholder / iteration asset, **not final pixel art**. It is a visual direction test and may be refined or replaced during the later approved final-art phase.
+- QA still required: inspect the rendered 1280×720 canvas and representative mobile landscape scaling; verify menu text contrast and all pointer/touch/gamepad targets in-engine.
