@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
+import { drawUiBackdrop, drawUiPanel, preloadUiArt, regionCardTextureKey } from '../ui/dark-fantasy-theme.js';
 import type { RegionId } from '../../core/types/content.js';
 import type { ChallengeId, GameMode } from '../../core/types/game.js';
 import { CHALLENGES } from '../../data/challenges.js';
@@ -91,10 +91,13 @@ export class RegionSelectScene extends Phaser.Scene {
       const frame = this.add.graphics().setDepth(-18)
       this.frames.push(frame);
       const paletteColor = Number.parseInt((region.palette[1] ?? '#51484a').replace('#', ''), 16);
-      const artHeight = this.touchLayout ? 126 : 148;
+      const artWidth = this.touchLayout ? 224 : cardWidth - 22;
+      const artHeight = this.touchLayout ? 126 : Math.round(artWidth * 9 / 16);
       const artY = cardY + (this.touchLayout ? 68 : 82);
-      this.add.image(x + cardWidth / 2, artY, UI_ASSET_KEYS.regionArt, index).setDisplaySize(cardWidth - 22, artHeight).setDepth(-16);
-      this.add.rectangle(x + cardWidth / 2, artY, cardWidth - 22, artHeight, paletteColor, 0.08).setStrokeStyle(1, 0xb99a61, 0.52).setDepth(-15);
+      this.add.image(x + cardWidth / 2, artY, regionCardTextureKey(region.id))
+        .setDisplaySize(artWidth, artHeight).setDepth(-16);
+      this.add.rectangle(x + cardWidth / 2, artY, artWidth, artHeight, paletteColor, 0.08)
+        .setStrokeStyle(1, 0xb99a61, 0.52).setDepth(-15);
       this.add.text(x + 23, cardY + 18, String(index + 1).padStart(2, '0'), {
         fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '20px' : '17px', color: '#f1e4c9',
         backgroundColor: '#0a0d12', padding: { x: 7, y: 4 }
