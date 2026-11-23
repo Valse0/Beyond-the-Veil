@@ -52,14 +52,14 @@ export class MainMenuScene extends Phaser.Scene {
     frame.lineBetween(66, 232, 92, 232);
     frame.lineBetween(66, 232, 66, 258);
 
-    this.add.text(88, 70, 'BEYOND THE VEIL', {
+    this.add.text(w * 0.64, 70, 'BEYOND THE VEIL', {
       fontFamily: 'Georgia, serif', fontSize: '46px', color: '#eee4d0',
       fontStyle: 'bold', letterSpacing: 5, stroke: '#090d13', strokeThickness: 3
-    }).setOrigin(0, 0);
-    this.add.text(92, 132, 'ÖLÜMÜN ÖTESİNDE, AV BAŞLAR.', {
+    }).setOrigin(0.5, 0);
+    this.add.text(w * 0.64, 132, 'ÖLÜMÜN ÖTESİNDE, AV BAŞLAR.', {
       fontFamily: 'Georgia, serif', fontSize: '16px', color: '#c3a675',
       letterSpacing: 3
-    }).setOrigin(0, 0);
+    }).setOrigin(0.5, 0);
     this.add.text(88, 202, 'YOLUNU SEÇ', {
       fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#a99b84',
       fontStyle: 'bold', letterSpacing: 3
@@ -231,6 +231,12 @@ export class MainMenuScene extends Phaser.Scene {
   private setSelectedItem(item: MainMenuItem): void {
     if (item === 'new-game-plus' && !this.newGamePlusAvailable) item = 'new-run';
     this.selectedItem = item;
+    this.playButton?.setText(item === 'new-run' ? '›  YENİ KOŞU' : '   YENİ KOŞU');
+    this.hubButton?.setText(item === 'hunter-hub' ? '›  AVCI KARARGÂHI' : '   AVCI KARARGÂHI');
+    this.journalButton?.setText(item === 'story-journal' ? '›  HİKÂYE DEFTERİ' : '   HİKÂYE DEFTERİ');
+    this.collectionButton?.setText(item === 'collection-archive' ? '›  KOLEKSİYON' : '   KOLEKSİYON');
+    this.newGamePlusButton?.setText(item === 'new-game-plus' ? '›  NG+ DÖNGÜSÜ' : '   NG+ DÖNGÜSÜ');
+    this.settingsButton?.setText(item === 'settings' ? '›  AYARLAR' : '   AYARLAR');
     this.playButton?.setStyle({
       backgroundColor: item === 'new-run' ? '#79513c' : '#2b2528',
       color: item === 'new-run' ? '#ffffff' : '#bcb2a7',
