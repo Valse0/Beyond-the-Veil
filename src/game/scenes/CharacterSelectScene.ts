@@ -50,7 +50,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       const frame = this.add.graphics().setDepth(-18)
       this.frames.push(frame);
 
-      const portraitHalo = this.add.circle(x + cardWidth / 2, cardY + 76, 62, accents[index] ?? 0xb99a61, 0.13)
+      this.add.circle(x + cardWidth / 2, cardY + 76, 62, accents[index] ?? 0xb99a61, 0.13)
         .setStrokeStyle(2, accents[index] ?? 0xb99a61, 0.72).setDepth(-16);
       this.add.image(x + cardWidth / 2, cardY + 76, 'hunter-portraits', index)
         .setDisplaySize(116, 116).setDepth(-15).setName('hunter-portrait-' + character.id);
