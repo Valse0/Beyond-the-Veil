@@ -1275,7 +1275,7 @@ export class RunScene extends Phaser.Scene {
     const w=this.scale.width,center=w/2;
     const bossWidth=Math.min(400,w-32),bossBarWidth=bossWidth-56,bossLeft=center-bossBarWidth/2;
     const eventWidth=Math.min(460,w-32),eventBarWidth=eventWidth-44,eventLeft=center-eventBarWidth/2;
-    drawUiPanel(this, 12, 8, w - 24, 62, 0x8c7657, 96, 0.78);
+    drawUiPanel(this, 12, 8, w - 24, 62, 0x8c7657, 96, 0.78).setScrollFactor(0);
     this.hud=this.add.text(24,14,'',{fontFamily:'Arial',fontSize:'13px',color:'#f0e7d8',lineSpacing:5}).setScrollFactor(0).setDepth(100);
     this.clock=this.add.text(center,10,'00:00',{fontFamily:'Georgia',fontSize:'25px',fontStyle:'bold',color:'#e4c783',stroke:'#100e13',strokeThickness:2}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
     this.clockCaption=this.add.text(center,40,'15 DAKİKALIK KOŞU',{fontFamily:'Arial',fontSize:'9px',fontStyle:'bold',color:'#b9a17d',letterSpacing:1}).setOrigin(.5,0).setScrollFactor(0).setDepth(100);
@@ -3211,7 +3211,7 @@ export class RunScene extends Phaser.Scene {
     const panelWidth=Math.min(1080,w*.9),panelHeight=h*.53,panelY=h*.56;
     const titleSize=(compact?38:38)*uiScale,bodySize=(compact?20:18)*uiScale,sectionSize=(compact?17:16)*uiScale;
     const shade=this.add.rectangle(w/2,h/2,w,h,0x08070b,.92).setScrollFactor(0).setDepth(200);
-    const panel=drawUiPanel(this,w/2-panelWidth/2,panelY-panelHeight/2,panelWidth,panelHeight,0x987b52,201,.98);
+    const panel=drawUiPanel(this,w/2-panelWidth/2,panelY-panelHeight/2,panelWidth,panelHeight,0x987b52,201,.98).setScrollFactor(0);
     const eyebrow=this.add.text(w/2,h*.075,'KOŞU RAPORU',{fontSize:(compact?16:14)*uiScale+'px',fontStyle:'bold',color:'#b99b70',letterSpacing:3}).setOrigin(.5).setScrollFactor(0).setDepth(202);
     const title=this.add.text(w/2,h*.135,result.title,{fontFamily:'Georgia',fontSize:titleSize+'px',fontStyle:'bold',color:result.won?'#f0dfbd':'#e6b2a6'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
     const context=this.add.text(w/2,h*.225,result.characterName+'  •  '+result.regionName+'  •  '+result.modeLabel,{fontSize:16*uiScale+'px',color:'#c8bba9',align:'center'}).setOrigin(.5).setScrollFactor(0).setDepth(202);
