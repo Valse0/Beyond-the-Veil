@@ -1,0 +1,9 @@
+source=beyond-the-veil-ui-design/06_level_up.png
+original_width=1672
+original_height=941
+format=jpeg
+width=1200
+height=675
+chunks=2
+chunk_size=180000
+preview_bytes=189635
