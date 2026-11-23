@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { drawUiBackdrop, drawUiPanel } from '../ui/dark-fantasy-theme.js';
+import { drawUiBackdrop, drawUiPanel, preloadUiArt } from '../ui/dark-fantasy-theme.js';
 import { CHARACTERS } from '../../data/characters.js';
 import { resolveRemoteAction } from '../input/platform-input.js';
 
@@ -10,6 +10,8 @@ export class CharacterSelectScene extends Phaser.Scene {
   private touchLayout = false;
 
   constructor() { super('character-select'); }
+
+  preload(): void { preloadUiArt(this); }
 
   init(data: { characterId?: string }): void {
     const index = CHARACTERS.findIndex(character => character.id === data?.characterId);
@@ -45,33 +47,27 @@ export class CharacterSelectScene extends Phaser.Scene {
       if (this.touchLayout && index !== this.selectedIndex) return;
       const x = this.touchLayout ? (width - cardWidth) / 2 : margin + index * (cardWidth + gap);
       drawUiPanel(this, x, cardY, cardWidth, cardHeight, accents[index] ?? 0xc6a56b, -20, 0.88);
-      const frame = this.add.graphics();
+      const frame = this.add.graphics().setDepth(-18)
       this.frames.push(frame);
 
-      const emblem = this.add.graphics();
-      emblem.fillStyle(accents[index] ?? 0xb99a61, 0.16);
-      emblem.fillCircle(x + cardWidth / 2, cardY + 72, 42);
-      emblem.lineStyle(2, accents[index] ?? 0xb99a61, 0.75);
-      emblem.strokeCircle(x + cardWidth / 2, cardY + 72, 34);
-      emblem.lineBetween(x + cardWidth / 2 - 13, cardY + 72, x + cardWidth / 2 + 13, cardY + 72);
-      emblem.lineBetween(x + cardWidth / 2, cardY + 59, x + cardWidth / 2, cardY + 85);
-      this.add.text(x + cardWidth / 2, cardY + 72, character.name.slice(0, 1), {
-        fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '34px' : '27px', color: '#eee1c8', fontStyle: 'bold'
-      }).setOrigin(0.5);
+      const portraitHalo = this.add.circle(x + cardWidth / 2, cardY + 76, 62, accents[index] ?? 0xb99a61, 0.13)
+        .setStrokeStyle(2, accents[index] ?? 0xb99a61, 0.72).setDepth(-16);
+      this.add.image(x + cardWidth / 2, cardY + 76, 'hunter-portraits', index)
+        .setDisplaySize(116, 116).setDepth(-15).setName('hunter-portrait-' + character.id);
 
-      this.add.text(x + 14, cardY + (this.touchLayout ? 148 : 132), character.name, {
+      this.add.text(x + 14, cardY + (this.touchLayout ? 154 : 150), character.name, {
         fontFamily: 'Georgia, serif', fontSize: this.touchLayout ? '30px' : '18px', color: '#f0e6d6', fontStyle: 'bold',
         wordWrap: { width: cardWidth - 28 }, align: 'center'
       }).setOrigin(0.5, 0);
-      this.add.text(x + 14, cardY + (this.touchLayout ? 202 : 178), character.role, {
+      this.add.text(x + 14, cardY + (this.touchLayout ? 202 : 194), character.role, {
         fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '19px' : '12px', color: '#c7ad7b',
         wordWrap: { width: cardWidth - 28 }, align: 'center'
       }).setOrigin(0.5, 0);
-      this.add.text(x + 36, cardY + (this.touchLayout ? 250 : 220), character.description, {
+      this.add.text(x + 36, cardY + (this.touchLayout ? 248 : 232), character.description, {
         fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '19px' : '12px', color: '#aaa2a0',
         wordWrap: { width: cardWidth - 72 }, lineSpacing: this.touchLayout ? 8 : 4, align: 'center'
       }).setOrigin(0.5, 0);
-      this.add.text(x + 18, cardY + (this.touchLayout ? 360 : 292),
+      this.add.text(x + 18, cardY + (this.touchLayout ? 360 : 302),
         `CAN  ${character.health}   •   HIZ  ${character.moveSpeed}\nYETENEK  ${character.activeAbility}`, {
           fontFamily: 'Arial, sans-serif', fontSize: this.touchLayout ? '17px' : '11px', color: '#d9c9aa',
           wordWrap: { width: cardWidth - 36 }, align: 'center', lineSpacing: 5
