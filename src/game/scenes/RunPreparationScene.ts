@@ -139,11 +139,7 @@ export class RunPreparationScene extends Phaser.Scene {
       wordWrap: { width: 286 }
     });
 
-    const panel = this.add.graphics();
-    panel.fillStyle(0x17161b, 0.96);
-    panel.fillRoundedRect(420, 132, width - 478, 470, 14);
-    panel.lineStyle(1, 0x76634b, 0.8);
-    panel.strokeRoundedRect(420, 132, width - 478, 470, 14);
+    drawUiPanel(this, 420, 132, width - 478, 470, 0x9a8058, -2, 0.94);
     this.add.text(446, 154, 'BAŞLANGIÇ DİZİLİMİ', {
       fontFamily: 'Georgia, serif', fontSize: '18px', color: '#d9c9aa', fontStyle: 'bold'
     });
