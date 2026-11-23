@@ -39,43 +39,71 @@
     },
     {
       "id": "ui.hunter-portraits",
-      "path": "/assets/ui/hunter-portraits.svg",
-      "role": "ui-character-portrait-strip",
-      "format": "svg-spritesheet",
-      "width": 800,
-      "height": 160,
-      "frameWidth": 160,
-      "frameHeight": 160,
-      "frames": [
-        "cursed-hunter",
-        "black-knight",
-        "spirit-mage",
-        "shadow-assassin",
-        "blood-priestess"
+      "path": "public/assets/ui/hunter-portraits.svg",
+      "role": "hunter portrait spritesheet",
+      "status": "implemented-unverified",
+      "technical": {
+        "dimensions": "800x160",
+        "alpha": false,
+        "anchor": "center",
+        "frames": 5,
+        "filtering": "nearest"
+      },
+      "visual_locks": [
+        "Five canonical hunter portraits in CHARACTERS order",
+        "Dark-fantasy pixel-art silhouettes",
+        "Distinct character-specific accent colors",
+        "Crisp edges at native UI scale"
       ],
-      "source": "Original hand-authored SVG, project-owned",
-      "license": "Project-owned original asset",
-      "status": "integrated-unverified"
+      "source": {
+        "kind": "original-authored-svg",
+        "url_or_tool": "Hand-authored SVG spritesheet created for Beyond the Veil",
+        "creator": "Beyond the Veil project",
+        "created_at": "2026-11-22",
+        "license": "Original project-owned artwork",
+        "attribution": "No third-party asset",
+        "prompt_or_source_record": "Original SVG pixel-art portraits, no external source assets."
+      },
+      "verification": {
+        "native_scale_reviewed": false,
+        "in_engine_reviewed": false,
+        "technical_checks_passed": false,
+        "approved_by": ""
+      }
     },
     {
       "id": "ui.region-art",
-      "path": "/assets/ui/region-art.svg",
-      "role": "ui-region-illustration-strip",
-      "format": "svg-spritesheet",
-      "width": 1280,
-      "height": 160,
-      "frameWidth": 256,
-      "frameHeight": 160,
-      "frames": [
-        "cursed-forest",
-        "forgotten-graveyard",
-        "deep-dungeon",
-        "rotten-swamp",
-        "cursed-castle"
+      "path": "public/assets/ui/region-art.svg",
+      "role": "region selection illustration spritesheet",
+      "status": "implemented-unverified",
+      "technical": {
+        "dimensions": "1280x160",
+        "alpha": false,
+        "anchor": "center",
+        "frames": 5,
+        "filtering": "nearest"
+      },
+      "visual_locks": [
+        "Five canonical regions in REGIONS order",
+        "Region-specific landscape silhouettes and palettes",
+        "Dark-fantasy pixel-art treatment",
+        "Crisp edges at native UI scale"
       ],
-      "source": "Original hand-authored SVG, project-owned",
-      "license": "Project-owned original asset",
-      "status": "integrated-unverified"
+      "source": {
+        "kind": "original-authored-svg",
+        "url_or_tool": "Hand-authored SVG spritesheet created for Beyond the Veil",
+        "creator": "Beyond the Veil project",
+        "created_at": "2026-11-22",
+        "license": "Original project-owned artwork",
+        "attribution": "No third-party asset",
+        "prompt_or_source_record": "Original SVG pixel-art region illustrations, no external source assets."
+      },
+      "verification": {
+        "native_scale_reviewed": false,
+        "in_engine_reviewed": false,
+        "technical_checks_passed": false,
+        "approved_by": ""
+      }
     }
   ]
 }
