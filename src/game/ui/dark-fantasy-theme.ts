@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import { UI_ASSET_KEYS } from '../../data/asset-registry.js';
 
-export type UiBackdropMood = 'menu' | 'selection' | 'preparation' | 'hub' | 'dossier' | 'panel' | 'archive';
+export type UiBackdropMood = 'menu' | 'selection' | 'regions' | 'preparation' | 'hub' | 'dossier' | 'panel' | 'archive';
 const BACKDROP_KEY = 'veil-ui-backdrop';
 const SELECTION_BACKDROP_KEY = 'veil-ui-selection-backdrop';
 const PREPARATION_BACKDROP_KEY = 'veil-ui-preparation-backdrop';
+const REGION_SELECTION_BACKDROP_KEY = 'veil-ui-region-selection-backdrop';
 const HUNTER_IDLE_KEY = 'ui-cursed-hunter-idle';
 const REGION_CARD_KEYS: Record<string, string> = {
   'cursed-forest': 'region-card-cursed-forest',
@@ -19,8 +20,9 @@ export function preloadUiArt(scene: Phaser.Scene): void {
   if (!scene.textures.exists(BACKDROP_KEY)) scene.load.image(BACKDROP_KEY, '/assets/ui/menu-backdrop.png');
   if (!scene.textures.exists(SELECTION_BACKDROP_KEY)) scene.load.image(SELECTION_BACKDROP_KEY, '/assets/ui/selection-backdrop.png');
   if (!scene.textures.exists(PREPARATION_BACKDROP_KEY)) scene.load.image(PREPARATION_BACKDROP_KEY, '/assets/ui/preparation-backdrop.png');
+  if (!scene.textures.exists(REGION_SELECTION_BACKDROP_KEY)) scene.load.image(REGION_SELECTION_BACKDROP_KEY, '/assets/ui/region-selection-backdrop.png');
   if (!scene.textures.exists(HUNTER_IDLE_KEY)) scene.load.spritesheet(HUNTER_IDLE_KEY, '/assets/prototype/characters/player/cursed-hunter-idle.png', { frameWidth: 48, frameHeight: 48 });
-  if (!scene.textures.exists(UI_ASSET_KEYS.hunterPortraits)) scene.load.spritesheet(UI_ASSET_KEYS.hunterPortraits, '/assets/ui/hunter-portraits.svg', { frameWidth: 160, frameHeight: 160 });
+  if (!scene.textures.exists(UI_ASSET_KEYS.hunterPortraits)) scene.load.spritesheet(UI_ASSET_KEYS.hunterPortraits, '/assets/ui/hunter-portraits.png', { frameWidth: 160, frameHeight: 160 });
   if (!scene.textures.exists(UI_ASSET_KEYS.regionArt)) scene.load.spritesheet(UI_ASSET_KEYS.regionArt, '/assets/ui/region-art.svg', { frameWidth: 256, frameHeight: 160 });
   if (!scene.textures.exists(UI_ASSET_KEYS.gameOverBackdrop)) scene.load.image(UI_ASSET_KEYS.gameOverBackdrop, '/assets/ui/game-over-backdrop.png');
   for (const key of ['upgrade-icon-weapon', 'upgrade-icon-passive', 'upgrade-icon-base']) {
@@ -40,6 +42,7 @@ export function drawUiBackdrop(scene: Phaser.Scene, mood: UiBackdropMood): void 
   scene.cameras.main.setBackgroundColor('#070a11');
   const backdropKey = mood === 'menu' ? BACKDROP_KEY
     : mood === 'selection' ? SELECTION_BACKDROP_KEY
+    : mood === 'regions' ? REGION_SELECTION_BACKDROP_KEY
     : mood === 'preparation' ? PREPARATION_BACKDROP_KEY
     : SELECTION_BACKDROP_KEY;
   if (scene.textures.exists(backdropKey)) {
