@@ -225,6 +225,7 @@ manifest = {
     "outputs": [
         "menu-backdrop.png", "selection-backdrop.png", "preparation-backdrop.png",
         "game-over-backdrop.png",
+        "upgrade-icon-weapon.png", "upgrade-icon-passive.png", "upgrade-icon-base.png",
         "region-card-cursed-forest.png", "region-card-forgotten-graveyard.png",
         "region-card-deep-dungeon.png", "region-card-rotten-swamp.png",
         "region-card-cursed-castle.png"
