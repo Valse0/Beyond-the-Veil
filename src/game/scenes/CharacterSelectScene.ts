@@ -21,7 +21,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   private abilityText?: Phaser.GameObjects.Text;
   private statsText?: Phaser.GameObjects.Text;
   private selectionDefaultBackdrop?: Phaser.GameObjects.Image;
-  private heroBackdropObjects: Phaser.GameObjects.GameObject[] = [];
+  private heroBackdropObjects: (Phaser.GameObjects.Arc | Phaser.GameObjects.Graphics)[] = [];
 
   constructor() { super('character-select'); }
 
