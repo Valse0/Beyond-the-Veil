@@ -2754,23 +2754,39 @@ test('six seeded enemy mutations execute their live Phaser combat effects and re
 
 
 
-test('responsive shell fits landscape viewports and guides portrait mobile orientation', async ({ page }) => {
+test('responsive shell fills landscape phone and tablet viewports and guides every portrait orientation', async ({ page }) => {
+  const canvas = page.locator('#game-container canvas');
+  const hint = page.locator('#orientation-hint');
+
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  const canvas = page.locator('#game-container canvas');
   await expect(canvas).toBeVisible();
-  await expect(page.locator('#orientation-hint')).toBeVisible();
-  const portraitBox = await canvas.boundingBox();
-  expect(portraitBox).not.toBeNull();
-  expect(portraitBox!.width).toBeLessThanOrEqual(390);
-  expect(portraitBox!.height).toBeLessThanOrEqual(844);
+  await expect(hint).toBeVisible();
+  const phonePortrait = await canvas.boundingBox();
+  expect(phonePortrait).not.toBeNull();
+  expect(phonePortrait!.width).toBeLessThanOrEqual(390);
+  expect(phonePortrait!.height).toBeLessThanOrEqual(844);
 
   await page.setViewportSize({ width: 844, height: 390 });
-  await expect(page.locator('#orientation-hint')).toBeHidden();
-  const landscapeBox = await canvas.boundingBox();
-  expect(landscapeBox).not.toBeNull();
-  expect(landscapeBox!.width).toBeLessThanOrEqual(844);
-  expect(landscapeBox!.height).toBeLessThanOrEqual(390);
+  await expect(hint).toBeHidden();
+  await expect.poll(async () => {
+    const bounds = await canvas.boundingBox();
+    return bounds ? Math.min(bounds.width / 844, bounds.height / 390) : 0;
+  }).toBeGreaterThan(0.98);
+  const phoneLandscape = await canvas.boundingBox();
+  expect(phoneLandscape).not.toBeNull();
+  expect(phoneLandscape!.width).toBeGreaterThanOrEqual(843);
+  expect(phoneLandscape!.height).toBeGreaterThanOrEqual(389);
+
+  await page.setViewportSize({ width: 1024, height: 1366 });
+  await expect(hint).toBeVisible();
+
+  await page.setViewportSize({ width: 1366, height: 1024 });
+  await expect(hint).toBeHidden();
+  await expect.poll(async () => {
+    const bounds = await canvas.boundingBox();
+    return bounds ? Math.min(bounds.width / 1366, bounds.height / 1024) : 0;
+  }).toBeGreaterThan(0.98);
 });
 
 
