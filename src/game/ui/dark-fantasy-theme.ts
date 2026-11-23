@@ -6,6 +6,8 @@ const PALETTE = { abyss: 0x070a11, panel: 0x111824, gold: 0xc6a56b, teal: 0x6fa9
 
 export function preloadUiArt(scene: Phaser.Scene): void {
   if (!scene.textures.exists(BACKDROP_KEY)) scene.load.image(BACKDROP_KEY, '/assets/ui/veil-menu-backdrop.svg');
+  if (!scene.textures.exists('hunter-portraits')) scene.load.spritesheet('hunter-portraits', '/assets/ui/hunter-portraits.svg', { frameWidth: 160, frameHeight: 160 });
+  if (!scene.textures.exists('region-art')) scene.load.spritesheet('region-art', '/assets/ui/region-art.svg', { frameWidth: 256, frameHeight: 160 });
 }
 
 export function drawUiBackdrop(scene: Phaser.Scene, mood: UiBackdropMood): void {
