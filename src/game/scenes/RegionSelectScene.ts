@@ -80,7 +80,6 @@ export class RegionSelectScene extends Phaser.Scene {
       drawUiPanel(this, x, cardY, cardWidth, cardHeight, Number.parseInt((region.palette[1] ?? '#b99a61').replace('#', ''), 16), -20, 0.88);
       const frame = this.add.graphics().setDepth(-18)
       this.frames.push(frame);
-      const paletteColor = Number.parseInt((region.palette[1] ?? '#51484a').replace('#', ''), 16);
       this.add.image(x + cardWidth / 2, cardY + 58, 'region-art', index).setDisplaySize(cardWidth - 26, 100).setDepth(-16);
       this.add.rectangle(x + cardWidth / 2, cardY + 58, cardWidth - 26, 100, paletteColor, 0.12).setStrokeStyle(1, 0xb99a61, 0.52).setDepth(-15);
       this.add.text(x + 23, cardY + 18, String(index + 1).padStart(2, '0'), {
